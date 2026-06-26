@@ -10,7 +10,7 @@ const alerts: Alert[] = [{
 }];
 
 test("renderiza tarjetas y filtra por búsqueda", () => {
-  render(<AlertsView alerts={alerts} kqlCount={3} canEdit={false} onOpen={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} />);
+  render(<AlertsView alerts={alerts} kqlCount={3} canEdit={false} onOpen={vi.fn()} onNew={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} />);
   expect(screen.getByText("Rol RBAC")).toBeInTheDocument();
   fireEvent.change(screen.getByPlaceholderText(/buscar/i), { target: { value: "zzz" } });
   expect(screen.queryByText("Rol RBAC")).not.toBeInTheDocument();

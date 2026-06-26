@@ -1,17 +1,27 @@
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Download, Plus, Search } from "lucide-react";
 import type { Alert } from "@/types";
 import { type AlertFilters, filterAlerts, uniqueValues } from "@/lib/filter";
+import { alertsToCsv } from "@/lib/csv";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Kpis from "@/components/alerts/Kpis";
 import AlertCard from "@/components/alerts/AlertCard";
 
 const EMPTY: AlertFilters = { q: "", resource: "", type: "", severity: "", origin: "" };
 
-export default function AlertsView({ alerts, kqlCount, canEdit, onOpen, onEdit, onDelete }: {
+function downloadCsv(csv: string) {
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "catalogo-alertas.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+export default function AlertsView({ alerts, kqlCount, canEdit, onOpen, onNew, onEdit, onDelete }: {
   alerts: Alert[]; kqlCount: number; canEdit: boolean;
-  onOpen: (a: Alert) => void; onEdit: (a: Alert) => void; onDelete: (a: Alert) => void;
+  onOpen: (a: Alert) => void; onNew: () => void; onEdit: (a: Alert) => void; onDelete: (a: Alert) => void;
 }) {
   const [f, setF] = useState<AlertFilters>(EMPTY);
   const rows = useMemo(() => filterAlerts(alerts, f), [alerts, f]);
@@ -40,6 +50,10 @@ export default function AlertsView({ alerts, kqlCount, canEdit, onOpen, onEdit, 
         {pick("severity", "Severidad", "severity")}
         {pick("origin", "Origen", "origin")}
         <span className="text-sm text-muted-foreground ml-auto">{rows.length} de {alerts.length}</span>
+        <Button variant="outline" size="sm" onClick={() => downloadCsv(alertsToCsv(rows))}>
+          <Download className="w-4 h-4 mr-1" />Exportar CSV
+        </Button>
+        {canEdit && <Button size="sm" onClick={onNew}><Plus className="w-4 h-4 mr-1" />Nueva</Button>}
       </div>
       <div className="flex flex-col gap-2.5">
         {rows.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">Sin alertas que coincidan.</p>}
