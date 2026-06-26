@@ -17,4 +17,6 @@ test("canEdit solo admin/consultor", () => {
   expect(canEdit()).toBe(false);
   setSession("t", "admin", "x");
   expect(canEdit()).toBe(true);
+  setSession("t", "consultor", "x");
+  expect(canEdit()).toBe(true);
 });

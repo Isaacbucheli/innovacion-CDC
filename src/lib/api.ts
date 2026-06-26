@@ -1,5 +1,5 @@
 import type { Alert, KqlQuery, Role } from "@/types";
-import { clearSession, getToken } from "@/lib/auth";
+import { clearSession, getToken, setSession } from "@/lib/auth";
 
 export function apiBase(): string {
   if (import.meta.env.DEV) return "/api";
@@ -7,9 +7,9 @@ export function apiBase(): string {
 }
 
 export async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const headers: Record<string, string> = { ...(opts.headers as Record<string, string>) };
+  const headers = new Headers(opts.headers);
   const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token) headers.set("Authorization", `Bearer ${token}`);
   const res = await fetch(`${apiBase()}${path}`, { ...opts, headers });
   if (res.status === 401) {
     clearSession();
@@ -30,8 +30,11 @@ function jsonOpts(method: string, body: unknown): RequestInit {
 }
 
 export interface LoginResult { access_token: string; role: Role; full_name?: string; email?: string }
-export const login = (email: string, password: string) =>
-  request<LoginResult>("/auth/login", jsonOpts("POST", { email, password }));
+export async function login(email: string, password: string): Promise<LoginResult> {
+  const r = await request<LoginResult>("/auth/login", jsonOpts("POST", { email, password }));
+  setSession(r.access_token, r.role, r.full_name ?? "");
+  return r;
+}
 export const me = () => request<{ role: Role; full_name?: string; email?: string }>("/auth/me");
 
 export const listAlerts = () => request<Alert[]>("/alert-catalog");
