@@ -13,6 +13,13 @@ export default defineConfig({
         secure: true,
         rewrite: (p) => p.replace(/^\/api/, ""),
       },
+      // Catálogo de alertas: backend .NET (migración estranguladora).
+      "/dotnet-api": {
+        target: "https://app-optimizacion-costos-api-dotnet.azurewebsites.net",
+        changeOrigin: true,
+        secure: true,
+        rewrite: (p) => p.replace(/^\/dotnet-api/, ""),
+      },
     },
   },
   test: {

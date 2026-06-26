@@ -6,11 +6,18 @@ export function apiBase(): string {
   return (import.meta.env.VITE_API_BASE_URL as string) || "https://app-optimizacion-costos-api.azurewebsites.net";
 }
 
-export async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
+// Backend .NET (migración estranguladora): SOLO el catálogo de alertas se sirve
+// desde aquí; auth y todo lo demás siguen en el FastAPI (apiBase).
+export function catalogBase(): string {
+  if (import.meta.env.DEV) return "/dotnet-api";
+  return (import.meta.env.VITE_CATALOG_API_BASE_URL as string) || "https://app-optimizacion-costos-api-dotnet.azurewebsites.net";
+}
+
+export async function request<T>(path: string, opts: RequestInit = {}, base: string = apiBase()): Promise<T> {
   const headers = new Headers(opts.headers);
   const token = getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  const res = await fetch(`${apiBase()}${path}`, { ...opts, headers });
+  const res = await fetch(`${base}${path}`, { ...opts, headers });
   if (res.status === 401) {
     clearSession();
     if (typeof location !== "undefined") location.reload();
@@ -37,12 +44,13 @@ export async function login(email: string, password: string): Promise<LoginResul
 }
 export const me = () => request<{ role: Role; full_name?: string; email?: string }>("/auth/me");
 
-export const listAlerts = () => request<Alert[]>("/alert-catalog");
-export const createAlert = (p: Partial<Alert>) => request<{ alert_id: number }>("/alert-catalog", jsonOpts("POST", p));
-export const updateAlert = (id: number, p: Partial<Alert>) => request("/alert-catalog/" + id, jsonOpts("PUT", p));
-export const deleteAlert = (id: number) => request("/alert-catalog/" + id, { method: "DELETE" });
+// Catálogo de alertas: servido por el backend .NET (catalogBase).
+export const listAlerts = () => request<Alert[]>("/alert-catalog", {}, catalogBase());
+export const createAlert = (p: Partial<Alert>) => request<{ alert_id: number }>("/alert-catalog", jsonOpts("POST", p), catalogBase());
+export const updateAlert = (id: number, p: Partial<Alert>) => request("/alert-catalog/" + id, jsonOpts("PUT", p), catalogBase());
+export const deleteAlert = (id: number) => request("/alert-catalog/" + id, { method: "DELETE" }, catalogBase());
 
-export const listKql = () => request<KqlQuery[]>("/alert-catalog/kql");
-export const createKql = (p: Partial<KqlQuery>) => request<{ kql_id: number }>("/alert-catalog/kql", jsonOpts("POST", p));
-export const updateKql = (id: number, p: Partial<KqlQuery>) => request("/alert-catalog/kql/" + id, jsonOpts("PUT", p));
-export const deleteKql = (id: number) => request("/alert-catalog/kql/" + id, { method: "DELETE" });
+export const listKql = () => request<KqlQuery[]>("/alert-catalog/kql", {}, catalogBase());
+export const createKql = (p: Partial<KqlQuery>) => request<{ kql_id: number }>("/alert-catalog/kql", jsonOpts("POST", p), catalogBase());
+export const updateKql = (id: number, p: Partial<KqlQuery>) => request("/alert-catalog/kql/" + id, jsonOpts("PUT", p), catalogBase());
+export const deleteKql = (id: number) => request("/alert-catalog/kql/" + id, { method: "DELETE" }, catalogBase());
