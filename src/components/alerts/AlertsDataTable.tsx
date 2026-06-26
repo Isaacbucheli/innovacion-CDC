@@ -5,6 +5,7 @@ import {
   type VisibilityState,
   flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -27,6 +28,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import DataTablePagination from "@/components/DataTablePagination";
 
 const COL_LABELS: Record<string, string> = {
   alert_number: "N°",
@@ -120,6 +122,8 @@ export default function AlertsDataTable({
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 10 } },
   });
 
   const pad = dense ? "py-1.5" : "py-3";
@@ -212,6 +216,7 @@ export default function AlertsDataTable({
           </TableBody>
         </Table>
       </div>
+      <DataTablePagination table={table} />
     </div>
   );
 }
