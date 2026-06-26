@@ -7,8 +7,8 @@ export default function LeyendaView() {
         <table className="w-full text-sm">
           <thead className="bg-secondary text-left"><tr><th className="p-3 font-medium">Columna</th><th className="p-3 font-medium">Significado</th></tr></thead>
           <tbody>
-            {LEYENDA.map((r) => (
-              <tr key={r.columna} className="border-t"><td className="p-3 font-medium align-top">{r.columna}</td><td className="p-3 text-muted-foreground">{r.significado}</td></tr>
+            {LEYENDA.map((r, i) => (
+              <tr key={i} className="border-t"><td className="p-3 font-medium align-top">{r.columna}</td><td className="p-3 text-muted-foreground">{r.significado}</td></tr>
             ))}
           </tbody>
         </table>
