@@ -18,6 +18,11 @@ import { deleteAlert, deleteKql } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Alert, KqlQuery } from "@/types";
 
+// El equipo usa Windows: mostrar "Ctrl K" (en Mac, ⌘K). El atajo funciona con
+// Ctrl o ⌘ en ambos (ver listener: metaKey || ctrlKey).
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || "");
+const SHORTCUT_LABEL = IS_MAC ? "⌘K" : "Ctrl K";
+
 // undefined = diálogo cerrado, null = crear nuevo, objeto = editar
 export default function CatalogPage() {
   const { alerts, kql, loading, error, reload } = useCatalog();
@@ -72,7 +77,7 @@ export default function CatalogPage() {
         <Button variant="outline" size="sm" className="text-muted-foreground" onClick={() => setCmdOpen(true)}>
           <Search className="w-4 h-4 mr-2" />
           Buscar
-          <kbd className="ml-2 text-[11px] font-medium border rounded px-1.5 py-0.5 bg-secondary">⌘K</kbd>
+          <kbd className="ml-2 text-[11px] font-medium border rounded px-1.5 py-0.5 bg-secondary">{SHORTCUT_LABEL}</kbd>
         </Button>
       }
     >
