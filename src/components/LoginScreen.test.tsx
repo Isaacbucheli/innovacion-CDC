@@ -14,3 +14,15 @@ test("hace login y llama onAuthed", async () => {
   fireEvent.click(screen.getByRole("button", { name: /ingresar/i }));
   await waitFor(() => expect(onAuthed).toHaveBeenCalled());
 });
+
+test("muestra el error y reactiva el botón cuando login falla", async () => {
+  vi.spyOn(api, "login").mockRejectedValue(new Error("Credenciales inválidas"));
+  const onAuthed = vi.fn();
+  render(<LoginScreen onAuthed={onAuthed} />);
+  fireEvent.change(screen.getByLabelText(/correo/i), { target: { value: "a@b.com" } });
+  fireEvent.change(screen.getByLabelText(/contraseña/i), { target: { value: "secret" } });
+  fireEvent.click(screen.getByRole("button", { name: /ingresar/i }));
+  await waitFor(() => expect(screen.getByText(/credenciales inválidas/i)).toBeInTheDocument());
+  expect(onAuthed).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: /ingresar/i })).not.toBeDisabled();
+});

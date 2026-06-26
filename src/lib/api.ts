@@ -32,7 +32,7 @@ function jsonOpts(method: string, body: unknown): RequestInit {
 export interface LoginResult { access_token: string; role: Role; full_name?: string; email?: string }
 export async function login(email: string, password: string): Promise<LoginResult> {
   const r = await request<LoginResult>("/auth/login", jsonOpts("POST", { email, password }));
-  setSession(r.access_token, r.role, r.full_name ?? "");
+  setSession(r.access_token, r.role, r.full_name ?? r.email ?? "");
   return r;
 }
 export const me = () => request<{ role: Role; full_name?: string; email?: string }>("/auth/me");

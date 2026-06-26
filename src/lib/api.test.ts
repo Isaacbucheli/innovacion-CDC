@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { login, request } from "@/lib/api";
-import { getRole, getToken, setSession } from "@/lib/auth";
+import { getName, getRole, getToken, setSession } from "@/lib/auth";
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); localStorage.clear(); });
 
@@ -59,4 +59,16 @@ test("login persiste la sesión vía setSession", async () => {
   expect(r.access_token).toBe("abc");
   expect(getToken()).toBe("abc");
   expect(getRole()).toBe("consultor");
+  expect(getName()).toBe("Isaac");
+});
+
+test("login usa email como nombre cuando falta full_name", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+    new Response(
+      JSON.stringify({ access_token: "abc", role: "consultor", email: "isaac@bit.com" }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    )
+  ));
+  await login("isaac@bit.com", "secret");
+  expect(getName()).toBe("isaac@bit.com");
 });

@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { login } from "@/lib/api";
-import { setSession } from "@/lib/auth";
 
 export default function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
   const [email, setEmail] = useState("");
@@ -16,8 +15,7 @@ export default function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
     e.preventDefault();
     setBusy(true); setError("");
     try {
-      const r = await login(email, password);
-      setSession(r.access_token, r.role, r.full_name || r.email || email);
+      await login(email, password);
       onAuthed();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error de autenticación");
