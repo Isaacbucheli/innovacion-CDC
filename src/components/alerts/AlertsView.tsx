@@ -17,7 +17,7 @@ export default function AlertsView({ alerts, kqlCount, canEdit, onOpen, onEdit, 
   const rows = useMemo(() => filterAlerts(alerts, f), [alerts, f]);
   const set = (k: keyof AlertFilters) => (v: string) => setF((p) => ({ ...p, [k]: v === "__all" ? "" : v }));
 
-  const pick = (key: keyof Alert, label: string, fk: keyof AlertFilters) => (
+  const pick = (key: "resource" | "alert_type" | "severity" | "origin", label: string, fk: keyof AlertFilters) => (
     <Select value={f[fk] || "__all"} onValueChange={set(fk)}>
       <SelectTrigger className="w-[150px]"><SelectValue placeholder={label} /></SelectTrigger>
       <SelectContent>
