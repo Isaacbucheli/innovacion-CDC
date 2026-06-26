@@ -72,3 +72,19 @@ test("login usa email como nombre cuando falta full_name", async () => {
   await login("isaac@bit.com", "secret");
   expect(getName()).toBe("isaac@bit.com");
 });
+
+test("login envía 'username' (no 'email') en el body, según el contrato de la API", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(
+    new Response(
+      JSON.stringify({ access_token: "abc", role: "lector" }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    )
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  await login("isaac@bit.com", "secret");
+  const [, init] = fetchMock.mock.calls[0];
+  const body = JSON.parse(init.body as string);
+  expect(body.username).toBe("isaac@bit.com");
+  expect(body.email).toBeUndefined();
+  expect(body.password).toBe("secret");
+});

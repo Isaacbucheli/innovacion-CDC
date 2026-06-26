@@ -3,7 +3,7 @@ import { clearSession, getToken, setSession } from "@/lib/auth";
 
 export function apiBase(): string {
   if (import.meta.env.DEV) return "/api";
-  return (import.meta.env.VITE_API_BASE_URL as string) ?? "https://app-optimizacion-costos-api.azurewebsites.net";
+  return (import.meta.env.VITE_API_BASE_URL as string) || "https://app-optimizacion-costos-api.azurewebsites.net";
 }
 
 export async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
@@ -31,7 +31,7 @@ function jsonOpts(method: string, body: unknown): RequestInit {
 
 export interface LoginResult { access_token: string; role: Role; full_name?: string; email?: string }
 export async function login(email: string, password: string): Promise<LoginResult> {
-  const r = await request<LoginResult>("/auth/login", jsonOpts("POST", { email, password }));
+  const r = await request<LoginResult>("/auth/login", jsonOpts("POST", { username: email, password }));
   setSession(r.access_token, r.role, r.full_name ?? r.email ?? "");
   return r;
 }
