@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Download, Plus, Search } from "lucide-react";
+import { Download, LayoutGrid, Plus, Search, Table2 } from "lucide-react";
 import type { Alert } from "@/types";
 import { type AlertFilters, filterAlerts, uniqueValues } from "@/lib/filter";
 import { alertsToCsv } from "@/lib/csv";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Kpis from "@/components/alerts/Kpis";
 import AlertCard from "@/components/alerts/AlertCard";
+import AlertsDataTable from "@/components/alerts/AlertsDataTable";
 
 const EMPTY: AlertFilters = { q: "", resource: "", type: "", severity: "", origin: "" };
 
@@ -24,6 +25,7 @@ export default function AlertsView({ alerts, kqlCount, canEdit, onOpen, onNew, o
   onOpen: (a: Alert) => void; onNew: () => void; onEdit: (a: Alert) => void; onDelete: (a: Alert) => void;
 }) {
   const [f, setF] = useState<AlertFilters>(EMPTY);
+  const [view, setView] = useState<"table" | "cards">("table");
   const rows = useMemo(() => filterAlerts(alerts, f), [alerts, f]);
   const set = (k: keyof AlertFilters) => (v: string) => setF((p) => ({ ...p, [k]: v === "__all" ? "" : v }));
 
@@ -50,15 +52,37 @@ export default function AlertsView({ alerts, kqlCount, canEdit, onOpen, onNew, o
         {pick("severity", "Severidad", "severity")}
         {pick("origin", "Origen", "origin")}
         <span className="text-sm text-muted-foreground ml-auto">{rows.length} de {alerts.length}</span>
+        <div className="flex rounded-md border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setView("table")}
+            aria-label="Vista tabla"
+            className={`px-2.5 py-1.5 inline-flex items-center ${view === "table" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}
+          >
+            <Table2 className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("cards")}
+            aria-label="Vista tarjetas"
+            className={`px-2.5 py-1.5 inline-flex items-center border-l ${view === "cards" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+        </div>
         <Button variant="outline" size="sm" onClick={() => downloadCsv(alertsToCsv(rows))}>
           <Download className="w-4 h-4 mr-1" />Exportar CSV
         </Button>
         {canEdit && <Button size="sm" onClick={onNew}><Plus className="w-4 h-4 mr-1" />Nueva</Button>}
       </div>
-      <div className="flex flex-col gap-2.5">
-        {rows.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">Sin alertas que coincidan.</p>}
-        {rows.map((a) => <AlertCard key={a.alert_id} alert={a} canEdit={canEdit} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} />)}
-      </div>
+      {view === "table" ? (
+        <AlertsDataTable alerts={rows} canEdit={canEdit} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} />
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {rows.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">Sin alertas que coincidan.</p>}
+          {rows.map((a) => <AlertCard key={a.alert_id} alert={a} canEdit={canEdit} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} />)}
+        </div>
+      )}
     </div>
   );
 }
