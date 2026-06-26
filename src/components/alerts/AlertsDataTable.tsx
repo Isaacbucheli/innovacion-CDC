@@ -160,9 +160,9 @@ export default function AlertsDataTable({
         </DropdownMenu>
       </div>
 
-      <div className="rounded-lg border bg-card overflow-auto max-h-[65vh]">
+      <div className="rounded-lg border bg-card overflow-x-auto">
         <Table>
-          <TableHeader className="sticky top-0 z-10 bg-secondary">
+          <TableHeader className="bg-secondary">
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id}>
                 {hg.headers.map((h) => (
