@@ -3,7 +3,7 @@ import AppShell from "@/components/AppShell";
 
 export default function CatalogPage() {
   return (
-    <AppShell title="Catálogo de alertas">
+    <AppShell title="Catálogo de alertas" active="alerts">
       <Tabs defaultValue="alerts">
         <TabsList>
           <TabsTrigger value="alerts">Alertas</TabsTrigger>
