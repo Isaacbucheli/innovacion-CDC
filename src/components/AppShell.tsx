@@ -2,7 +2,7 @@ import { Bell, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearSession, getName } from "@/lib/auth";
 
-export default function AppShell({ title, active, children }: { title: string; active?: string; children: React.ReactNode }) {
+export default function AppShell({ title, active, headerRight, children }: { title: string; active?: string; headerRight?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="min-h-screen grid grid-cols-[240px_1fr] bg-secondary">
       <aside className="bg-white border-r flex flex-col p-5 gap-2">
@@ -25,9 +25,12 @@ export default function AppShell({ title, active, children }: { title: string; a
         </div>
       </aside>
       <main className="overflow-y-auto">
-        <header className="px-8 py-5 border-b bg-background">
-          <h1 className="text-xl font-semibold">{title}</h1>
-          <p className="text-sm text-muted-foreground">Catálogo estándar de alertas Azure Monitor. Centralizado para el equipo.</p>
+        <header className="px-8 py-5 border-b bg-background flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold">{title}</h1>
+            <p className="text-sm text-muted-foreground">Catálogo estándar de alertas Azure Monitor. Centralizado para el equipo.</p>
+          </div>
+          {headerRight}
         </header>
         <div className="p-8">{children}</div>
       </main>

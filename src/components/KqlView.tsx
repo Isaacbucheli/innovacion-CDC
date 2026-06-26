@@ -3,14 +3,12 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import type { KqlQuery } from "@/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import CodeBlock from "@/components/CodeBlock";
 
-export default function KqlView({ kql, canEdit, onNew, onEdit, onDelete }: {
-  kql: KqlQuery[]; canEdit: boolean; onNew: () => void; onEdit: (k: KqlQuery) => void; onDelete: (k: KqlQuery) => void;
+export default function KqlView({ kql, canEdit, onOpen, onNew, onEdit, onDelete }: {
+  kql: KqlQuery[]; canEdit: boolean;
+  onOpen: (k: KqlQuery) => void; onNew: () => void; onEdit: (k: KqlQuery) => void; onDelete: (k: KqlQuery) => void;
 }) {
   const [q, setQ] = useState("");
-  const [open, setOpen] = useState<KqlQuery | null>(null);
   const rows = kql.filter((k) => `${k.name} ${k.description ?? ""}`.toLowerCase().includes(q.trim().toLowerCase()));
   return (
     <div className="py-4">
@@ -21,7 +19,7 @@ export default function KqlView({ kql, canEdit, onNew, onEdit, onDelete }: {
       <div className="flex flex-col gap-2">
         {rows.map((k) => (
           <div key={k.kql_id} className="flex items-center gap-2 bg-background border rounded-lg p-3">
-            <button className="flex-1 text-left min-w-0" onClick={() => setOpen(k)}>
+            <button className="flex-1 text-left min-w-0" onClick={() => onOpen(k)}>
               <div className="text-sm font-medium">{k.name}</div>
               <div className="text-xs text-muted-foreground truncate">{k.description}</div>
             </button>
@@ -32,15 +30,6 @@ export default function KqlView({ kql, canEdit, onNew, onEdit, onDelete }: {
           </div>
         ))}
       </div>
-      <Sheet open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader><SheetTitle>{open?.name}</SheetTitle></SheetHeader>
-          {open && <div className="space-y-3 mt-4">
-            {open.description && <p className="text-sm text-muted-foreground">{open.description}</p>}
-            {open.kql_query && <CodeBlock code={open.kql_query} />}
-          </div>}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }

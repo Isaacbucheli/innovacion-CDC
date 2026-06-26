@@ -1,13 +1,17 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Search } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import AppShell from "@/components/AppShell";
 import AlertsView from "@/components/alerts/AlertsView";
 import AlertDetailSheet from "@/components/alerts/AlertDetailSheet";
 import AlertFormDialog from "@/components/alerts/AlertFormDialog";
 import KqlView from "@/components/KqlView";
+import KqlDetailSheet from "@/components/KqlDetailSheet";
 import KqlFormDialog from "@/components/KqlFormDialog";
 import ConfirmDelete from "@/components/ConfirmDelete";
 import LeyendaView from "@/components/LeyendaView";
+import CommandPalette, { type TabKey } from "@/components/CommandPalette";
 import { useCatalog } from "@/hooks/useCatalog";
 import { canEdit } from "@/lib/auth";
 import { deleteAlert, deleteKql } from "@/lib/api";
@@ -18,11 +22,25 @@ import type { Alert, KqlQuery } from "@/types";
 export default function CatalogPage() {
   const { alerts, kql, loading, error, reload } = useCatalog();
   const editable = canEdit();
+  const [tab, setTab] = useState<TabKey>("alerts");
+  const [cmdOpen, setCmdOpen] = useState(false);
   const [detail, setDetail] = useState<Alert | null>(null);
+  const [kqlDetail, setKqlDetail] = useState<KqlQuery | null>(null);
   const [editAlert, setEditAlert] = useState<Alert | null | undefined>(undefined);
   const [delAlert, setDelAlert] = useState<Alert | null>(null);
   const [editKql, setEditKql] = useState<KqlQuery | null | undefined>(undefined);
   const [delKql, setDelKql] = useState<KqlQuery | null>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCmdOpen((o) => !o);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   const handleDelAlert = useCallback(async () => {
     if (!editable || !delAlert) return;
@@ -47,8 +65,18 @@ export default function CatalogPage() {
   }, [editable, delKql, reload]);
 
   return (
-    <AppShell title="Catálogo de alertas" active="alerts">
-      <Tabs defaultValue="alerts">
+    <AppShell
+      title="Catálogo de alertas"
+      active="alerts"
+      headerRight={
+        <Button variant="outline" size="sm" className="text-muted-foreground" onClick={() => setCmdOpen(true)}>
+          <Search className="w-4 h-4 mr-2" />
+          Buscar
+          <kbd className="ml-2 text-[11px] font-medium border rounded px-1.5 py-0.5 bg-secondary">⌘K</kbd>
+        </Button>
+      }
+    >
+      <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
         <TabsList>
           <TabsTrigger value="alerts">Alertas</TabsTrigger>
           <TabsTrigger value="kql">Biblioteca KQL</TabsTrigger>
@@ -67,6 +95,7 @@ export default function CatalogPage() {
           {loading ? <Skeleton className="h-40 w-full mt-4" />
             : error ? <p className="text-destructive py-6">{error}</p>
             : <KqlView kql={kql} canEdit={editable}
+                onOpen={(k) => setKqlDetail(k)}
                 onNew={() => { if (editable) setEditKql(null); }}
                 onEdit={(k) => { if (editable) setEditKql(k); }}
                 onDelete={(k) => { if (editable) setDelKql(k); }} />}
@@ -75,6 +104,7 @@ export default function CatalogPage() {
       </Tabs>
 
       <AlertDetailSheet alert={detail} open={!!detail} onOpenChange={(o) => !o && setDetail(null)} />
+      <KqlDetailSheet kql={kqlDetail} open={!!kqlDetail} onOpenChange={(o) => !o && setKqlDetail(null)} />
 
       <AlertFormDialog
         open={editAlert !== undefined}
@@ -99,6 +129,15 @@ export default function CatalogPage() {
         label={delKql?.name ?? ""}
         onOpenChange={(o) => !o && setDelKql(null)}
         onConfirm={handleDelKql} />
+
+      <CommandPalette
+        open={cmdOpen}
+        onOpenChange={setCmdOpen}
+        alerts={alerts}
+        kql={kql}
+        onOpenAlert={(a) => setDetail(a)}
+        onOpenKql={(k) => setKqlDetail(k)}
+        onGoTab={setTab} />
     </AppShell>
   );
 }
