@@ -27,8 +27,8 @@ export default function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-secondary p-4">
       <Card className="w-full max-w-sm p-6">
-        <h1 className="text-xl font-semibold mb-1">Innovación CDC</h1>
-        <p className="text-sm text-muted-foreground mb-5">Catálogo de alertas — ingresa con tu cuenta BIT.</p>
+        <img src="/business-it-logo.webp" alt="Business IT" className="h-10 w-auto mb-4" />
+        <p className="text-sm text-muted-foreground mb-5">Catálogo de alertas — ingresa con tu cuenta.</p>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="email">Correo</Label>

@@ -11,11 +11,12 @@ test("muestra el título y el ítem de menú", () => {
   // Cabecera
   expect(screen.getByRole("heading", { name: "Catálogo de alertas" })).toBeInTheDocument();
   expect(screen.getByText("contenido")).toBeInTheDocument();
-  // Logo BIT + botón salir
-  expect(screen.getByText("BIT")).toBeInTheDocument();
+  // Logo de marca (Business IT) + botón salir
+  expect(screen.getByAltText("Business IT")).toBeInTheDocument();
+  expect(screen.getByText("Gestión CDC")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /Salir/i })).toBeInTheDocument();
-  // Ítem de menú del sidebar y su estado activo
+  // Ítem de menú del sidebar y su estado activo (verde de marca)
   const navItem = screen.getByRole("button", { name: /Catálogo de alertas/i });
   expect(navItem).toBeInTheDocument();
-  expect(navItem).toHaveClass("bg-primary/15");
+  expect(navItem).toHaveClass("bg-[#A3C243]");
 });
