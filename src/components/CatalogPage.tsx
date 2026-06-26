@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AppShell from "@/components/AppShell";
 import AlertsView from "@/components/alerts/AlertsView";
@@ -24,7 +24,27 @@ export default function CatalogPage() {
   const [editKql, setEditKql] = useState<KqlQuery | null | undefined>(undefined);
   const [delKql, setDelKql] = useState<KqlQuery | null>(null);
 
-  const guard = (fn: () => void) => () => { if (editable) fn(); };
+  const handleDelAlert = useCallback(async () => {
+    if (!editable || !delAlert) return;
+    try {
+      await deleteAlert(delAlert.alert_id);
+      setDelAlert(null);
+      reload();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Error al eliminar la alerta");
+    }
+  }, [editable, delAlert, reload]);
+
+  const handleDelKql = useCallback(async () => {
+    if (!editable || !delKql) return;
+    try {
+      await deleteKql(delKql.kql_id);
+      setDelKql(null);
+      reload();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Error al eliminar la consulta KQL");
+    }
+  }, [editable, delKql, reload]);
 
   return (
     <AppShell title="Catálogo de alertas" active="alerts">
@@ -72,13 +92,13 @@ export default function CatalogPage() {
         open={!!delAlert}
         label={delAlert?.name ?? ""}
         onOpenChange={(o) => !o && setDelAlert(null)}
-        onConfirm={guard(async () => { if (delAlert) { await deleteAlert(delAlert.alert_id); setDelAlert(null); reload(); } })} />
+        onConfirm={handleDelAlert} />
 
       <ConfirmDelete
         open={!!delKql}
         label={delKql?.name ?? ""}
         onOpenChange={(o) => !o && setDelKql(null)}
-        onConfirm={guard(async () => { if (delKql) { await deleteKql(delKql.kql_id); setDelKql(null); reload(); } })} />
+        onConfirm={handleDelKql} />
     </AppShell>
   );
 }
