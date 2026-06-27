@@ -19,10 +19,13 @@ export default function ClientCombobox({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const selected = clients.find((c) => c.client_id === value);
 
   useEffect(() => {
     if (!open) return;
+    // Enfocar el buscador al abrir: un clic y ya se puede escribir (como el Catálogo).
+    const focusId = requestAnimationFrame(() => inputRef.current?.focus());
     const onDoc = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
@@ -32,6 +35,7 @@ export default function ClientCombobox({
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
     return () => {
+      cancelAnimationFrame(focusId);
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onKey);
     };
@@ -54,7 +58,7 @@ export default function ClientCombobox({
       {open && (
         <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
           <Command>
-            <CommandInput placeholder="Buscar cliente…" />
+            <CommandInput ref={inputRef} autoFocus placeholder="Buscar cliente…" />
             <CommandList>
               <CommandEmpty>Sin coincidencias.</CommandEmpty>
               <CommandGroup>
