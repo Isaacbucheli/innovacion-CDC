@@ -24,7 +24,7 @@ const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(n
 const SHORTCUT_LABEL = IS_MAC ? "⌘K" : "Ctrl K";
 
 // undefined = diálogo cerrado, null = crear nuevo, objeto = editar
-export default function CatalogPage() {
+export default function CatalogPage({ onNavigate }: { onNavigate?: (s: string) => void }) {
   const { alerts, kql, loading, error, reload } = useCatalog();
   const editable = canEdit();
   const [tab, setTab] = useState<TabKey>("alerts");
@@ -72,7 +72,9 @@ export default function CatalogPage() {
   return (
     <AppShell
       title="Catálogo de alertas"
+      subtitle="Catálogo estándar de alertas Azure Monitor. Centralizado para el equipo."
       active="alerts"
+      onNavigate={onNavigate}
       headerRight={
         <Button variant="outline" size="sm" className="text-muted-foreground" onClick={() => setCmdOpen(true)}>
           <Search className="w-4 h-4 mr-2" />

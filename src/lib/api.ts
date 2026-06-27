@@ -1,4 +1,18 @@
-import type { Alert, KqlQuery, Role } from "@/types";
+import type {
+  Alert,
+  AnalysisSummary,
+  CalculateRequest,
+  CalculateResponse,
+  ClientSummary,
+  CostResult,
+  InventoryRow,
+  KqlQuery,
+  PowerHistoryResult,
+  RiCoverageResult,
+  Role,
+  Scenario,
+  ServiceCatalogItem,
+} from "@/types";
 import { clearSession, getToken, setSession } from "@/lib/auth";
 
 export function apiBase(): string {
@@ -54,3 +68,61 @@ export const listKql = () => request<KqlQuery[]>("/alert-catalog/kql", {}, catal
 export const createKql = (p: Partial<KqlQuery>) => request<{ kql_id: number }>("/alert-catalog/kql", jsonOpts("POST", p), catalogBase());
 export const updateKql = (id: number, p: Partial<KqlQuery>) => request("/alert-catalog/kql/" + id, jsonOpts("PUT", p), catalogBase());
 export const deleteKql = (id: number) => request("/alert-catalog/kql/" + id, { method: "DELETE" }, catalogBase());
+
+// ---- Costos ----
+// Clientes, análisis y catálogo de servicios siguen en el FastAPI (apiBase).
+export const listClients = () => request<ClientSummary[]>("/clients");
+export const listAnalyses = () => request<AnalysisSummary[]>("/analysis");
+export const ensureCurrentAnalysis = (clientId: number) =>
+  request<AnalysisSummary>(`/analysis/client/${clientId}/current`, { method: "POST" });
+export const listActiveServices = () => request<ServiceCatalogItem[]>("/service-catalog/active");
+
+// Lecturas de costos: servidas por el backend .NET migrado (catalogBase).
+export const getCostResults = (analysisId: number, serviceKey?: string) =>
+  request<CostResult[]>(
+    `/analysis/${analysisId}/results${serviceKey ? `?service_key=${encodeURIComponent(serviceKey)}` : ""}`,
+    {},
+    catalogBase(),
+  );
+export const getScenarios = (analysisId: number) =>
+  request<Scenario[]>(`/analysis/${analysisId}/scenarios`, {}, catalogBase());
+
+// Escrituras de costos y operaciones Azure: siguen en el FastAPI (apiBase, estrangulador).
+export const calculateCosts = (analysisId: number, body: CalculateRequest) =>
+  request<CalculateResponse>(`/analysis/${analysisId}/calculate`, jsonOpts("POST", body));
+export const recalcScenarios = (analysisId: number) =>
+  request<unknown>(`/analysis/${analysisId}/scenarios`, { method: "POST" });
+export const setManualCost = (
+  costResultId: number,
+  body: { manual_monthly_cost: number | null; manual_cost_note?: string | null },
+) => request<{ cost_result_id: number }>(`/cost-results/${costResultId}/manual-cost`, jsonOpts("PUT", body));
+export const refreshRiCoverage = (analysisId: number) =>
+  request<RiCoverageResult>(`/analysis/${analysisId}/ri-coverage/refresh`, { method: "POST" });
+export const refreshPowerHistory = (analysisId: number) =>
+  request<PowerHistoryResult>(`/analysis/${analysisId}/power-history/refresh`, { method: "POST" });
+export const clearPriceCache = () =>
+  request<{ removed_rows?: number; message?: string }>(`/prices/refresh-all`, { method: "POST" });
+export const importInventory = (analysisId: number, body: { services: string[]; replace_existing: boolean }) =>
+  request<unknown>(`/azure/import/inventory/${analysisId}`, jsonOpts("POST", body));
+export const getInventorySummary = (analysisId: number) =>
+  request<InventoryRow[]>(`/azure/import/inventory/${analysisId}/summary`);
+export const generateExcel = (analysisId: number) =>
+  request<{ download_url?: string; file_name?: string }>(`/excel/generate/${analysisId}`, { method: "POST" });
+
+/** Descarga autenticada (blob) desde el FastAPI; usado por la exportación a Excel. */
+export async function downloadFromApi(path: string, fileName: string, base: string = apiBase()): Promise<void> {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const res = await fetch(`${base}${path}`, { headers });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

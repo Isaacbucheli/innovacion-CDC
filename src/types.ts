@@ -23,3 +23,133 @@ export interface KqlQuery {
   kql_query: string | null;
   is_active: boolean;
 }
+
+// ---- Módulo de costos (migración estranguladora: lecturas servidas por el backend .NET) ----
+
+/** Una fila de resultado de costo. Refleja CostResultRow del backend .NET (snake_case). */
+export interface CostResult {
+  cost_result_id: number;
+  resource_id: number;
+  service_key: string | null;
+  resource_name: string | null;
+  resource_type: string | null;
+  location: string | null;
+  subscription_name: string | null;
+  resource_group: string | null;
+  azure_resource_id: string | null;
+  payg_hourly: number | null;
+  payg_monthly: number | null;
+  ri_1y_monthly: number | null;
+  ri_3y_monthly: number | null;
+  savings_1y_pct: number | null;
+  savings_3y_pct: number | null;
+  savings_1y_monthly: number | null;
+  savings_3y_monthly: number | null;
+  sql_addon_monthly: number | null;
+  ahb_discount_monthly: number | null;
+  storage_monthly: number | null;
+  calculation_status: string | null;
+  is_variable_pricing: boolean | null;
+  is_manual_cost: boolean | null;
+  manual_monthly_cost: number | null;
+  manual_cost_note: string | null;
+  ri_applies: boolean | null;
+  ri_not_applicable_reason: string | null;
+  ri_coverage: string | null;
+  ri_reservation_name: string | null;
+  ri_term: string | null;
+  power_running_hours: number | null;
+  power_uptime_pct: number | null;
+  power_period_start: string | null;
+  power_period_end: string | null;
+  calculation_notes: string | null;
+  calculated_at: string | null;
+}
+
+export interface ScenarioConfig {
+  use_ri_1y: boolean;
+  use_ri_3y: boolean;
+  eliminate_stopped_vm_disks: boolean;
+  eliminate_orphan_disks: boolean;
+  eliminate_orphan_ips: boolean;
+}
+
+export interface ScenarioBreakdown {
+  service_key: string | null;
+  line_label: string | null;
+  monthly_cost: number;
+  note: string | null;
+}
+
+/** Un escenario calculado. Refleja ScenarioReadDto del backend .NET. */
+export interface Scenario {
+  scenario_id: number;
+  number: number;
+  name: string | null;
+  description: string | null;
+  total_monthly: number;
+  total_annual: number;
+  savings_monthly: number;
+  savings_annual: number;
+  savings_pct: number;
+  config: ScenarioConfig;
+  calculated_at: string | null;
+  breakdown: ScenarioBreakdown[];
+}
+
+/** Cliente (GET /clients, FastAPI). */
+export interface ClientSummary {
+  client_id: number;
+  client_name: string;
+}
+
+/** Análisis/evaluación (GET /analysis y POST /analysis/client/{id}/current, FastAPI). */
+export interface AnalysisSummary {
+  analysis_id: number;
+  analysis_name: string;
+  client_id?: number;
+}
+
+/** Servicio del catálogo activo (GET /service-catalog/active, FastAPI). */
+export interface ServiceCatalogItem {
+  service_key: string;
+  service_name?: string | null;
+  is_internal?: boolean | null;
+}
+
+// ---- Escrituras de costos (siguen en FastAPI durante el estrangulador) ----
+
+export interface CalculateRequest {
+  service_keys?: string[];
+  auto_build_scenarios?: boolean;
+  resource_offset?: number;
+  resource_limit?: number;
+  replace_existing?: boolean;
+}
+
+export interface CalculateResponse {
+  analysis_id: number;
+  summary?: Record<string, { has_more?: boolean }>;
+  error?: string;
+  scenarios_error?: string;
+}
+
+export interface RiCoverageResult {
+  confirmed_count?: number;
+  estimated?: { estimated_units?: number }[];
+  source?: string;
+}
+
+export interface PowerHistoryResult {
+  updated_count?: number;
+  vms_with_events?: number;
+  period_start?: string;
+  source?: string;
+}
+
+/** Fila del resumen de inventario (GET /azure/import/inventory/{id}/summary). */
+export interface InventoryRow {
+  service_category: string | null;
+  resource_type: string | null;
+  count: number | null;
+}

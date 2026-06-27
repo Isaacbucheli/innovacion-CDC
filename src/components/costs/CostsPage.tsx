@@ -1,0 +1,372 @@
+import { useEffect, useMemo, useState } from "react";
+import { Calculator, Download, Search, Upload } from "lucide-react";
+import { toast } from "sonner";
+import AppShell from "@/components/AppShell";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import CostsKpis from "@/components/costs/CostsKpis";
+import ServicesSummary from "@/components/costs/ServicesSummary";
+import CostsDataTable from "@/components/costs/CostsDataTable";
+import ScenarioCards from "@/components/costs/ScenarioCards";
+import SubscriptionFilter from "@/components/costs/SubscriptionFilter";
+import InventorySummary from "@/components/costs/InventorySummary";
+import CalculateDialog from "@/components/costs/CalculateDialog";
+import ImportDialog from "@/components/costs/ImportDialog";
+import OptionsMenu from "@/components/costs/OptionsMenu";
+import ManualCostDialog from "@/components/costs/ManualCostDialog";
+import { useCosts } from "@/hooks/useCosts";
+import { applySubscriptionFilter, computeKpis, filterResults, serviceName, subscriptionNames } from "@/lib/costs";
+import { bestEffortRefresh, runCalculation } from "@/lib/costActions";
+import {
+  clearPriceCache,
+  downloadFromApi,
+  generateExcel,
+  importInventory,
+  recalcScenarios,
+  refreshPowerHistory,
+  refreshRiCoverage,
+} from "@/lib/api";
+import { canEdit, getRole } from "@/lib/auth";
+import type { CostResult } from "@/types";
+
+const RI_SOURCE_LABELS: Record<string, string> = {
+  consumption: "consumo confirmado (Azure)",
+  partial: "parcial (confirmado + estimado)",
+  estimated_only: "solo estimado",
+  no_reservations: "sin reservas activas",
+  no_analysis: "sin análisis",
+  error: "error de lectura",
+};
+
+const POWER_SOURCE_LABELS: Record<string, string> = {
+  activity_log: "Activity Log de Azure",
+  no_events: "sin eventos de encendido/apagado en el periodo",
+  no_vms: "sin VMs en el análisis",
+  no_analysis: "sin análisis",
+};
+
+const msg = (e: unknown) => (e instanceof Error ? e.message : "Error inesperado");
+
+export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => void }) {
+  const {
+    clients,
+    services,
+    clientId,
+    analysis,
+    results,
+    scenarios,
+    inventory,
+    loading,
+    dataLoading,
+    error,
+    selectClient,
+    reloadData,
+    reloadInventory,
+  } = useCosts();
+
+  const editable = canEdit();
+  const isAdmin = getRole() === "admin";
+
+  const [subs, setSubs] = useState<string[] | null>(null);
+  const [q, setQ] = useState("");
+  const [serviceKey, setServiceKey] = useState("");
+  const [hideReserved, setHideReserved] = useState(false);
+  const [tab, setTab] = useState("servicios");
+  const [busy, setBusy] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [manualRow, setManualRow] = useState<CostResult | null>(null);
+
+  // Al cambiar de cliente, los nombres de suscripción cambian: resetear el filtro.
+  useEffect(() => {
+    setSubs(null);
+  }, [clientId]);
+
+  const subRows = useMemo(() => applySubscriptionFilter(results, subs), [results, subs]);
+  const kpis = useMemo(() => computeKpis(subRows, scenarios), [subRows, scenarios]);
+  const tableRows = useMemo(
+    () => filterResults(subRows, { q, serviceKey, hideReserved }),
+    [subRows, q, serviceKey, hideReserved],
+  );
+  const subNames = useMemo(() => subscriptionNames(results), [results]);
+
+  async function doCalculate(serviceKeys: string[], autoBuild: boolean) {
+    if (!analysis) return;
+    setBusy(true);
+    const id = toast.loading("Calculando costos…");
+    try {
+      await runCalculation(analysis.analysis_id, serviceKeys, { autoBuildScenarios: autoBuild }, (p) =>
+        toast.loading(`Calculando ${p.service} (${p.index + 1}/${p.total}), bloque ${p.batch}…`, { id }),
+      );
+      await bestEffortRefresh(analysis.analysis_id);
+      toast.success("Costos calculados correctamente.", { id });
+      setCalcOpen(false);
+      reloadData();
+    } catch (e) {
+      toast.error(`Error calculando costos: ${msg(e)}`, { id });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doRecalcScenarios() {
+    if (!analysis) return;
+    setBusy(true);
+    const id = toast.loading("Recalculando escenarios…");
+    try {
+      await recalcScenarios(analysis.analysis_id);
+      toast.success("Escenarios recalculados correctamente.", { id });
+      reloadData();
+    } catch (e) {
+      toast.error(`Error recalculando escenarios: ${msg(e)}`, { id });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doRefreshRi() {
+    if (!analysis) return;
+    setBusy(true);
+    const id = toast.loading("Actualizando cobertura RI…");
+    try {
+      const data = await refreshRiCoverage(analysis.analysis_id);
+      const est = (data.estimated ?? []).reduce((s, g) => s + (g.estimated_units ?? 0), 0);
+      const src = RI_SOURCE_LABELS[data.source ?? ""] ?? data.source ?? "";
+      toast.success(
+        `Cobertura RI: ${data.confirmed_count ?? 0} confirmados${est ? ` (+${est} estimados por SKU/región)` : ""}. Fuente: ${src}.`,
+        { id },
+      );
+      reloadData();
+    } catch (e) {
+      toast.error(`Error actualizando cobertura RI: ${msg(e)}`, { id });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doRefreshPower() {
+    if (!analysis) return;
+    setBusy(true);
+    const id = toast.loading("Actualizando encendido/apagado…");
+    try {
+      const data = await refreshPowerHistory(analysis.analysis_id);
+      const period = (data.period_start ?? "").slice(0, 7);
+      const src = POWER_SOURCE_LABELS[data.source ?? ""] ?? data.source ?? "";
+      toast.success(
+        `Encendido/apagado: ${data.updated_count ?? 0} VM(s) actualizadas${period ? ` (periodo ${period})` : ""}. Fuente: ${src}.`,
+        { id },
+      );
+      reloadData();
+    } catch (e) {
+      toast.error(`Error actualizando encendido/apagado: ${msg(e)}`, { id });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doClearCache() {
+    setBusy(true);
+    const id = toast.loading("Limpiando caché de precios…");
+    try {
+      const r = await clearPriceCache();
+      toast.success(`Caché de precios limpiado${r.removed_rows != null ? ` (${r.removed_rows} filas)` : ""}.`, { id });
+    } catch (e) {
+      toast.error(`Error limpiando caché: ${msg(e)}`, { id });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doImport(replaceExisting: boolean) {
+    if (!analysis) return;
+    setBusy(true);
+    const id = toast.loading("Importando inventario…");
+    try {
+      await importInventory(analysis.analysis_id, {
+        services: services.map((s) => s.service_key),
+        replace_existing: replaceExisting,
+      });
+      toast.success("Inventario importado correctamente.", { id });
+      setImportOpen(false);
+      reloadInventory();
+    } catch (e) {
+      toast.error(`Error importando inventario: ${msg(e)}`, { id });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doExcel() {
+    if (!analysis) return;
+    setBusy(true);
+    const id = toast.loading("Generando Excel…");
+    try {
+      const r = await generateExcel(analysis.analysis_id);
+      if (r.download_url) await downloadFromApi(r.download_url, r.file_name || "resultado-optimizacion-costos.xlsx");
+      toast.success("Excel generado y descargado desde la plantilla oficial.", { id });
+    } catch (e) {
+      toast.error(`Error generando Excel: ${msg(e)}`, { id });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const clientSelect = (
+    <Select value={clientId != null ? String(clientId) : ""} onValueChange={(v) => selectClient(Number(v))}>
+      <SelectTrigger className="w-[260px]">
+        <SelectValue placeholder="Seleccione cliente" />
+      </SelectTrigger>
+      <SelectContent>
+        {clients.map((c) => (
+          <SelectItem key={c.client_id} value={String(c.client_id)}>
+            {c.client_name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
+  return (
+    <AppShell
+      title="Optimización de costos"
+      subtitle="Costos PAYG y escenarios de ahorro por cliente, calculados con Azure Retail Prices."
+      active="costos"
+      onNavigate={onNavigate}
+      headerRight={clientSelect}
+    >
+      {loading ? (
+        <Skeleton className="h-40 w-full" />
+      ) : (
+        <>
+          {error && <p className="text-destructive mb-4">{error}</p>}
+          <p className="text-sm text-muted-foreground mb-4">
+            {analysis
+              ? `Evaluación actual: #${analysis.analysis_id} — ${analysis.analysis_name}`
+              : "Este cliente aún no tiene una evaluación activa. Se crea desde administración."}
+          </p>
+
+          <div className="flex flex-wrap gap-2 mb-4">
+            {editable && (
+              <Button size="sm" disabled={busy || !analysis} onClick={() => setCalcOpen(true)}>
+                <Calculator className="w-4 h-4 mr-1" />
+                Calcular costos
+              </Button>
+            )}
+            {editable && (
+              <Button variant="outline" size="sm" disabled={busy || !analysis} onClick={() => setImportOpen(true)}>
+                <Upload className="w-4 h-4 mr-1" />
+                Importar inventario
+              </Button>
+            )}
+            <Button variant="outline" size="sm" disabled={busy || !analysis} onClick={doExcel}>
+              <Download className="w-4 h-4 mr-1" />
+              Exportar Excel
+            </Button>
+            {editable && (
+              <OptionsMenu
+                disabled={busy || !analysis}
+                isAdmin={isAdmin}
+                onRecalcScenarios={doRecalcScenarios}
+                onRefreshRi={doRefreshRi}
+                onRefreshPower={doRefreshPower}
+                onClearCache={doClearCache}
+              />
+            )}
+          </div>
+
+          <CostsKpis kpis={kpis} />
+
+          {subNames.length > 1 && (
+            <div className="flex justify-end mb-3">
+              <SubscriptionFilter names={subNames} selected={subs} onChange={setSubs} />
+            </div>
+          )}
+
+          <Tabs value={tab} onValueChange={setTab}>
+            <TabsList>
+              <TabsTrigger value="servicios">Servicios</TabsTrigger>
+              <TabsTrigger value="resultados">Resultados</TabsTrigger>
+              <TabsTrigger value="escenarios">Escenarios</TabsTrigger>
+              <TabsTrigger value="inventario">Inventario</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="servicios">
+              {dataLoading ? <Skeleton className="h-40 w-full mt-4" /> : <ServicesSummary rows={subRows} />}
+            </TabsContent>
+
+            <TabsContent value="resultados">
+              <div className="flex gap-2 flex-wrap items-center mb-4">
+                <div className="relative flex-1 min-w-[200px] max-w-sm">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Buscar recurso, grupo, región…"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                  />
+                </div>
+                <Select value={serviceKey || "__all"} onValueChange={(v) => setServiceKey(v === "__all" ? "" : v)}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Servicio" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all">Todos los servicios</SelectItem>
+                    {services.map((s) => (
+                      <SelectItem key={s.service_key} value={s.service_key}>
+                        {serviceName(s.service_key)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                  <input type="checkbox" checked={hideReserved} onChange={(e) => setHideReserved(e.target.checked)} />
+                  Ocultar reservados
+                </label>
+                <span className="text-sm text-muted-foreground ml-auto">
+                  {tableRows.length} de {subRows.length}
+                </span>
+              </div>
+              {dataLoading ? (
+                <Skeleton className="h-40 w-full" />
+              ) : (
+                <CostsDataTable rows={tableRows} canEdit={editable} onEditManual={setManualRow} />
+              )}
+            </TabsContent>
+
+            <TabsContent value="escenarios">
+              {dataLoading ? <Skeleton className="h-40 w-full mt-4" /> : <ScenarioCards scenarios={scenarios} />}
+            </TabsContent>
+
+            <TabsContent value="inventario">
+              {dataLoading ? <Skeleton className="h-40 w-full mt-4" /> : <InventorySummary rows={inventory} />}
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
+
+      <CalculateDialog
+        open={calcOpen}
+        services={services}
+        busy={busy}
+        onOpenChange={setCalcOpen}
+        onConfirm={doCalculate}
+      />
+      <ImportDialog
+        open={importOpen}
+        services={services}
+        busy={busy}
+        onOpenChange={setImportOpen}
+        onConfirm={doImport}
+      />
+      <ManualCostDialog
+        row={manualRow}
+        open={manualRow !== null}
+        onOpenChange={(o) => !o && setManualRow(null)}
+        onSaved={reloadData}
+      />
+    </AppShell>
+  );
+}
