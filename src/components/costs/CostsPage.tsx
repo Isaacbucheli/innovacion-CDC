@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Calculator, Download, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 import AppShell from "@/components/AppShell";
+import BusyOverlay from "@/components/BusyOverlay";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -77,6 +78,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
   const [hideReserved, setHideReserved] = useState(false);
   const [tab, setTab] = useState("servicios");
   const [busy, setBusy] = useState(false);
+  const [busyMsg, setBusyMsg] = useState<{ title: string; detail?: string }>({ title: "" });
   const [calcOpen, setCalcOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [manualRow, setManualRow] = useState<CostResult | null>(null);
@@ -96,18 +98,19 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
 
   async function doCalculate(serviceKeys: string[], autoBuild: boolean) {
     if (!analysis) return;
+    setBusyMsg({ title: "Calculando costos", detail: "Preparando…" });
     setBusy(true);
-    const id = toast.loading("Calculando costos…");
     try {
       await runCalculation(analysis.analysis_id, serviceKeys, { autoBuildScenarios: autoBuild }, (p) =>
-        toast.loading(`Calculando ${p.service} (${p.index + 1}/${p.total}), bloque ${p.batch}…`, { id }),
+        setBusyMsg({ title: "Calculando costos", detail: `${p.service} (${p.index + 1}/${p.total}), bloque ${p.batch}…` }),
       );
+      setBusyMsg({ title: "Afinando resultados", detail: "Actualizando cobertura RI y encendido/apagado…" });
       await bestEffortRefresh(analysis.analysis_id);
-      toast.success("Costos calculados correctamente.", { id });
+      toast.success("Costos calculados correctamente.");
       setCalcOpen(false);
       reloadData();
     } catch (e) {
-      toast.error(`Error calculando costos: ${msg(e)}`, { id });
+      toast.error(`Error calculando costos: ${msg(e)}`);
     } finally {
       setBusy(false);
     }
@@ -115,14 +118,14 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
 
   async function doRecalcScenarios() {
     if (!analysis) return;
+    setBusyMsg({ title: "Recalculando escenarios", detail: "Con los costos actuales…" });
     setBusy(true);
-    const id = toast.loading("Recalculando escenarios…");
     try {
       await recalcScenarios(analysis.analysis_id);
-      toast.success("Escenarios recalculados correctamente.", { id });
+      toast.success("Escenarios recalculados correctamente.");
       reloadData();
     } catch (e) {
-      toast.error(`Error recalculando escenarios: ${msg(e)}`, { id });
+      toast.error(`Error recalculando escenarios: ${msg(e)}`);
     } finally {
       setBusy(false);
     }
@@ -130,19 +133,18 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
 
   async function doRefreshRi() {
     if (!analysis) return;
+    setBusyMsg({ title: "Actualizando cobertura RI", detail: "Cruzando reservas activas contra los recursos…" });
     setBusy(true);
-    const id = toast.loading("Actualizando cobertura RI…");
     try {
       const data = await refreshRiCoverage(analysis.analysis_id);
       const est = (data.estimated ?? []).reduce((s, g) => s + (g.estimated_units ?? 0), 0);
       const src = RI_SOURCE_LABELS[data.source ?? ""] ?? data.source ?? "";
       toast.success(
         `Cobertura RI: ${data.confirmed_count ?? 0} confirmados${est ? ` (+${est} estimados por SKU/región)` : ""}. Fuente: ${src}.`,
-        { id },
       );
       reloadData();
     } catch (e) {
-      toast.error(`Error actualizando cobertura RI: ${msg(e)}`, { id });
+      toast.error(`Error actualizando cobertura RI: ${msg(e)}`);
     } finally {
       setBusy(false);
     }
@@ -150,32 +152,31 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
 
   async function doRefreshPower() {
     if (!analysis) return;
+    setBusyMsg({ title: "Actualizando encendido/apagado", detail: "Leyendo el Activity Log del mes anterior…" });
     setBusy(true);
-    const id = toast.loading("Actualizando encendido/apagado…");
     try {
       const data = await refreshPowerHistory(analysis.analysis_id);
       const period = (data.period_start ?? "").slice(0, 7);
       const src = POWER_SOURCE_LABELS[data.source ?? ""] ?? data.source ?? "";
       toast.success(
         `Encendido/apagado: ${data.updated_count ?? 0} VM(s) actualizadas${period ? ` (periodo ${period})` : ""}. Fuente: ${src}.`,
-        { id },
       );
       reloadData();
     } catch (e) {
-      toast.error(`Error actualizando encendido/apagado: ${msg(e)}`, { id });
+      toast.error(`Error actualizando encendido/apagado: ${msg(e)}`);
     } finally {
       setBusy(false);
     }
   }
 
   async function doClearCache() {
+    setBusyMsg({ title: "Limpiando caché de precios", detail: "Azure Retail Prices…" });
     setBusy(true);
-    const id = toast.loading("Limpiando caché de precios…");
     try {
       const r = await clearPriceCache();
-      toast.success(`Caché de precios limpiado${r.removed_rows != null ? ` (${r.removed_rows} filas)` : ""}.`, { id });
+      toast.success(`Caché de precios limpiado${r.removed_rows != null ? ` (${r.removed_rows} filas)` : ""}.`);
     } catch (e) {
-      toast.error(`Error limpiando caché: ${msg(e)}`, { id });
+      toast.error(`Error limpiando caché: ${msg(e)}`);
     } finally {
       setBusy(false);
     }
@@ -183,18 +184,18 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
 
   async function doImport(replaceExisting: boolean) {
     if (!analysis) return;
+    setBusyMsg({ title: "Importando inventario", detail: "Leyendo recursos del cliente en Azure…" });
     setBusy(true);
-    const id = toast.loading("Importando inventario…");
     try {
       await importInventory(analysis.analysis_id, {
         services: services.map((s) => s.service_key),
         replace_existing: replaceExisting,
       });
-      toast.success("Inventario importado correctamente.", { id });
+      toast.success("Inventario importado correctamente.");
       setImportOpen(false);
       reloadInventory();
     } catch (e) {
-      toast.error(`Error importando inventario: ${msg(e)}`, { id });
+      toast.error(`Error importando inventario: ${msg(e)}`);
     } finally {
       setBusy(false);
     }
@@ -202,14 +203,14 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
 
   async function doExcel() {
     if (!analysis) return;
+    setBusyMsg({ title: "Generando Excel", detail: "Plantilla ejecutiva…" });
     setBusy(true);
-    const id = toast.loading("Generando Excel…");
     try {
       const r = await generateExcel(analysis.analysis_id);
       if (r.download_url) await downloadFromApi(r.download_url, r.file_name || "resultado-optimizacion-costos.xlsx");
-      toast.success("Excel generado y descargado desde la plantilla oficial.", { id });
+      toast.success("Excel generado y descargado desde la plantilla oficial.");
     } catch (e) {
-      toast.error(`Error generando Excel: ${msg(e)}`, { id });
+      toast.error(`Error generando Excel: ${msg(e)}`);
     } finally {
       setBusy(false);
     }
@@ -236,7 +237,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
               : "Este cliente aún no tiene una evaluación activa. Se crea desde administración."}
           </p>
 
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-5">
             {editable && (
               <Button size="sm" disabled={busy || !analysis} onClick={() => setCalcOpen(true)}>
                 <Calculator className="w-4 h-4 mr-1" />
@@ -355,6 +356,8 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
         onOpenChange={(o) => !o && setManualRow(null)}
         onSaved={reloadData}
       />
+
+      <BusyOverlay show={busy} title={busyMsg.title} detail={busyMsg.detail} />
     </AppShell>
   );
 }
