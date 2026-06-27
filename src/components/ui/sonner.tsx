@@ -25,14 +25,27 @@ const Toaster = ({ ...props }: ToasterProps) => {
         loading: <LoaderCircle className="h-4 w-4 animate-spin" />,
       }}
       toastOptions={{
+        // Marca Business IT: superficie clara + tipografía/colores del brandbook.
+        // Verde #A3C243 como acento POSITIVO (éxito/carga); rojo y ámbar funcionales
+        // para error/aviso; gris #606161 para info. Acento como barra izquierda + icono.
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
+            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border group-[.toaster]:border-border group-[.toaster]:rounded-lg group-[.toaster]:shadow-lg",
+          title: "group-[.toast]:font-semibold",
           description: "group-[.toast]:text-muted-foreground",
           actionButton:
             "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
           cancelButton:
             "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+          success:
+            "group-[.toaster]:border-l-4 group-[.toaster]:border-l-[#A3C243] [&_[data-icon]]:text-[#A3C243]",
+          error:
+            "group-[.toaster]:border-l-4 group-[.toaster]:border-l-destructive [&_[data-icon]]:text-destructive",
+          warning:
+            "group-[.toaster]:border-l-4 group-[.toaster]:border-l-amber-500 [&_[data-icon]]:text-amber-500",
+          info:
+            "group-[.toaster]:border-l-4 group-[.toaster]:border-l-[#606161] [&_[data-icon]]:text-[#606161]",
+          loading: "[&_[data-icon]]:text-[#A3C243]",
         },
       }}
       {...props}

@@ -15,7 +15,7 @@ export default function App() {
           <CatalogPage onNavigate={setSection} />
         )}
       </AuthGate>
-      <Toaster richColors position="top-right" />
+      <Toaster position="top-right" />
     </>
   );
 }
