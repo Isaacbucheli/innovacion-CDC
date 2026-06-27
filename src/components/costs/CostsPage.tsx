@@ -14,6 +14,7 @@ import ScenarioCards from "@/components/costs/ScenarioCards";
 import SubscriptionFilter from "@/components/costs/SubscriptionFilter";
 import InventorySummary from "@/components/costs/InventorySummary";
 import CalculateDialog from "@/components/costs/CalculateDialog";
+import ClientCombobox from "@/components/costs/ClientCombobox";
 import ImportDialog from "@/components/costs/ImportDialog";
 import OptionsMenu from "@/components/costs/OptionsMenu";
 import ManualCostDialog from "@/components/costs/ManualCostDialog";
@@ -214,20 +215,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
     }
   }
 
-  const clientSelect = (
-    <Select value={clientId != null ? String(clientId) : ""} onValueChange={(v) => selectClient(Number(v))}>
-      <SelectTrigger className="w-[260px]">
-        <SelectValue placeholder="Seleccione cliente" />
-      </SelectTrigger>
-      <SelectContent>
-        {clients.map((c) => (
-          <SelectItem key={c.client_id} value={String(c.client_id)}>
-            {c.client_name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
+  const clientSelect = <ClientCombobox clients={clients} value={clientId} onChange={selectClient} />;
 
   return (
     <AppShell
