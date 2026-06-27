@@ -357,7 +357,11 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
         onSaved={reloadData}
       />
 
-      <BusyOverlay show={busy} title={busyMsg.title} detail={busyMsg.detail} />
+      <BusyOverlay
+        show={busy || dataLoading}
+        title={busy ? busyMsg.title : "Cargando datos del cliente"}
+        detail={busy ? busyMsg.detail : "Resultados, escenarios e inventario…"}
+      />
     </AppShell>
   );
 }
