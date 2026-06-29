@@ -274,3 +274,20 @@ export interface WafAdvisorSyncResult {
   resolved_findings: number;
   warnings?: string[];
 }
+
+/** Resultado de consolidar duplicados (POST /waf/clients/{id}/consolidate-duplicates). */
+export interface WafConsolidateResult {
+  message: string;
+  client_id: number;
+  merged: number;
+  ai_calls: number;
+}
+
+/** Resultado de refrescar Advisor Score (POST /waf/admin/advisor-score/refresh). */
+export interface WafScoreRefreshResult {
+  message: string;
+  clients_total: number;
+  clients_refreshed: number;
+  clients_failed: number;
+  results: { client_id: number; status: string; snapshot_date: string | null; captured_at: string | null; subscriptions_scored: number }[];
+}
