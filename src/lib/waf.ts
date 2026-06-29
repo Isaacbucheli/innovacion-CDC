@@ -18,6 +18,18 @@ export function pillarIcon(n: number): string {
   return `/assets/azure-icons/${PILLAR_ICON[n] ?? "advisor.svg"}`;
 }
 
+// Azul de marca de Azure: un solo color para todas las barras de avance (elegante,
+// legible en claro y oscuro). Reemplaza el multicolor por pilar.
+export const AZURE_BLUE = "#0078D4";
+
+// Avance del pilar, misma lógica que PRD (renderWafSections): un pilar SIN
+// recomendaciones, con la matriz poblada, está "todo aplicado" → 100%; si no hay
+// datos en ningún pilar → 0%; si tiene recomendaciones → su avg_progress redondeado.
+export function computePillarAvance(totalRecs: number, avgProgress: number, matrixPopulated: boolean): number {
+  if (totalRecs === 0) return matrixPopulated ? 100 : 0;
+  return Math.max(0, Math.min(100, Math.round(avgProgress)));
+}
+
 // Color del Advisor Score: verde ≥80, ámbar ≥50, rojo <50 (clases con variante dark).
 export function scoreClass(score: number): string {
   if (score >= 80) return "text-green-600 dark:text-green-400";
