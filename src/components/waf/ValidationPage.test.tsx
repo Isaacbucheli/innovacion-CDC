@@ -7,7 +7,8 @@ vi.mock("@/lib/api", () => ({
   getWafCatalog: vi.fn(async () => [
     { canonical_id: 1, advisor_name: "Enable MFA", advisor_category: "Security", pillar_number: 2, review_scope_es: "MFA admins", benefit_es: "", client_action_es: "", bit_action_es: "", is_excluded: false, exclusion_reason: null, consolidates_to_id: null, ai_review_status: "pending", ai_decision: null, ai_confidence: null, ai_possible_additional_cost: false, ai_cost_reason: null, ai_exclusion_reason: null, ai_duplicate_group_key: null, ai_reviewed_at: null, created_at: "", updated_at: "" },
   ]),
-  analyzeAllWafCanonicals: vi.fn(async () => ({ total: 0, processed: 0, applied: 0, errors: [] })),
+  analyzeWafCanonical: vi.fn(async () => ({ canonical_id: 1, suggestion: {} })),
+  applyWafSuggestion: vi.fn(async () => ({ message: "ok", canonical_id: 1 })),
 }));
 vi.mock("@/lib/auth", () => ({ getRole: () => "admin", getName: () => "Admin BIT", clearSession: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
