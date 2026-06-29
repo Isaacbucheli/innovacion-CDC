@@ -22,7 +22,9 @@ import { clearSession, getToken, setSession } from "@/lib/auth";
 // (si VITE_API_BASE_URL no está, las llamadas van al propio origen y fallan ruidosamente, no a prod).
 export function apiBase(): string {
   if (import.meta.env.DEV) return "/api";
-  return (import.meta.env.VITE_API_BASE_URL as string) || "";
+  // Backend del stack NUEVO: app-optimizacion-costos-api-dotnet (conectado a sqldb-optimizacion-costos-valida).
+  // NO es el antiguo: el antiguo es el FastAPI + BD de prod. Override con VITE_API_BASE_URL si cambia el host.
+  return (import.meta.env.VITE_API_BASE_URL as string) || "https://app-optimizacion-costos-api-dotnet.azurewebsites.net";
 }
 
 export async function request<T>(path: string, opts: RequestInit = {}, base: string = apiBase()): Promise<T> {
