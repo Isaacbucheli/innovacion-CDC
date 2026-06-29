@@ -1,5 +1,5 @@
 import type { WafSection } from "@/types";
-import { pillarColor, pillarIcon, scoreClass, computePillarAvance, AZURE_BLUE } from "@/lib/waf";
+import { pillarIcon, scoreClass, scoreColor, computePillarAvance, AZURE_BLUE } from "@/lib/waf";
 
 export default function PillarCards({ sections, activePillar, onPick, scores }: {
   sections: WafSection[];
@@ -13,7 +13,6 @@ export default function PillarCards({ sections, activePillar, onPick, scores }: 
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
       {sections.map((s) => {
         const active = activePillar === s.section_num;
-        const color = pillarColor(s.section_num);
         const score = scores ? scores[s.section_num] : undefined;
         const avance = computePillarAvance(s.total_recs, s.avg_progress, matrixPopulated);
         return (
@@ -32,13 +31,16 @@ export default function PillarCards({ sections, activePillar, onPick, scores }: 
             </div>
             <div className="text-sm font-medium leading-snug min-h-[2.5rem]">{s.section_name}</div>
             {score != null && (
-              <div className="pl-2 border-l-2" style={{ borderColor: color }}>
-                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Score</div>
-                <div className={`text-xl font-bold tabular-nums ${scoreClass(score)}`}>{score}%</div>
+              <>
+                {/* Barra lateral de altura constante (solo Score + %), estilo Azure Advisor. */}
+                <div className="pl-2.5 border-l-[3px]" style={{ borderColor: scoreColor(score) }}>
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Score</div>
+                  <div className={`text-xl font-bold tabular-nums leading-tight ${scoreClass(score)}`}>{score}%</div>
+                </div>
                 {s.total_recs === 0 && (
-                  <div className="text-[11px] text-[#5a7016] dark:text-[#a9c46a] mt-0.5">✓ Estás siguiendo todas las recomendaciones</div>
+                  <div className="text-[11px] text-[#5a7016] dark:text-[#a9c46a]">✓ Estás siguiendo todas las recomendaciones</div>
                 )}
-              </div>
+              </>
             )}
             {/* Bloque de métricas anclado al fondo: alinea número/recursos/barra/avance entre tarjetas. */}
             <div className="mt-auto flex flex-col gap-2 pt-1">

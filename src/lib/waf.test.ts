@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterRecommendations, validateTracking, impactMeta, pillarColor, pillarIcon, scoreClass, advisorSyncSummary, computePillarAvance, excelRowAction, defaultApproved, buildApplyItem, excelSummary } from "@/lib/waf";
+import { filterRecommendations, validateTracking, impactMeta, pillarColor, pillarIcon, scoreClass, scoreColor, advisorSyncSummary, computePillarAvance, excelRowAction, defaultApproved, buildApplyItem, excelSummary } from "@/lib/waf";
 import type { WafRecommendation, WafAdvisorSyncResult, WafExcelPreviewRow, WafExcelApplyResult } from "@/types";
 
 const rec = (over: Partial<WafRecommendation>): WafRecommendation => ({
@@ -53,6 +53,11 @@ describe("scoreClass", () => {
   });
   it("scoreClass(60) incluye amber", () => {
     expect(scoreClass(60)).toContain("amber");
+  });
+  it("scoreColor: verde de marca ≥80, ámbar ≥50, rojo <50", () => {
+    expect(scoreColor(90)).toBe("#A3C243");
+    expect(scoreColor(60)).toBe("#d97706");
+    expect(scoreColor(30)).toBe("#dc2626");
   });
   it("scoreClass(30) incluye red", () => {
     expect(scoreClass(30)).toContain("red");

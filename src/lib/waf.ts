@@ -38,6 +38,13 @@ export function scoreClass(score: number): string {
   return "text-red-600 dark:text-red-400";
 }
 
+// Color de la barra lateral del Score (estilo Azure Advisor): verde de marca / ámbar / rojo.
+export function scoreColor(score: number): string {
+  if (score >= 80) return "#A3C243";
+  if (score >= 50) return "#d97706";
+  return "#dc2626";
+}
+
 export const IMPACT_META: Record<string, { label: string; chip: string }> = {
   high: { label: "Alta", chip: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200" },
   medium: { label: "Media", chip: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200" },
