@@ -2,6 +2,7 @@ import { useState } from "react";
 import AuthGate from "@/components/AuthGate";
 import CatalogPage from "@/components/CatalogPage";
 import CostsPage from "@/components/costs/CostsPage";
+import ClientsPage from "@/components/clients/ClientsPage";
 import { Toaster } from "@/components/ui/sonner";
 
 export default function App() {
@@ -11,6 +12,8 @@ export default function App() {
       <AuthGate>
         {section === "costos" ? (
           <CostsPage onNavigate={setSection} />
+        ) : section === "clientes" ? (
+          <ClientsPage onNavigate={setSection} />
         ) : (
           <CatalogPage onNavigate={setSection} />
         )}

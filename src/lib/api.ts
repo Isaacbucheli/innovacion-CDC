@@ -3,6 +3,7 @@ import type {
   AnalysisSummary,
   CalculateRequest,
   CalculateResponse,
+  ClientAdmin,
   ClientSummary,
   CostResult,
   InventoryRow,
@@ -72,6 +73,61 @@ export const deleteKql = (id: number) => request("/alert-catalog/kql/" + id, { m
 
 // ---- Costos: clientes, análisis y catálogo de servicios ----
 export const listClients = () => request<ClientSummary[]>("/clients");
+
+// ---- Administración de clientes (GET /clients tipado completo + CRUD + logo) ----
+export const listClientsAdmin = () => request<ClientAdmin[]>("/clients");
+export const createClient = (name: string) =>
+  request<{ message?: string; client_id: number }>("/clients", jsonOpts("POST", { client_name: name }));
+export const renameClient = (id: number, name: string) =>
+  request<unknown>(`/clients/${id}`, jsonOpts("PUT", { client_name: name }));
+export const purgeClient = (id: number, confirmName: string) =>
+  request<unknown>(`/clients/${id}/purge`, jsonOpts("POST", { confirm_client_name: confirmName }));
+export const deleteClient = (id: number, confirmName: string) =>
+  request<unknown>(`/clients/${id}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirm_client_name: confirmName }),
+  });
+export const deleteClientLogo = (id: number) =>
+  request<unknown>(`/clients/${id}/logo`, { method: "DELETE" });
+
+/** Sube el logo del cliente (multipart). El browser fija el Content-Type con su boundary. */
+export async function uploadClientLogo(id: number, file: File, base: string = apiBase()): Promise<void> {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${base}/clients/${id}/logo`, { method: "PUT", headers, body: form });
+  if (res.status === 401) {
+    clearSession();
+    if (typeof location !== "undefined") location.reload();
+    throw new Error("Sesión expirada");
+  }
+  if (!res.ok) {
+    const text = await res.text();
+    let detail = text;
+    try { detail = JSON.parse(text).detail ?? text; } catch { /* texto plano */ }
+    throw new Error(detail || `HTTP ${res.status}`);
+  }
+}
+
+/** Descarga autenticada del logo y devuelve un objectURL, o null si el cliente no tiene logo (404). */
+export async function fetchClientLogoObjectUrl(id: number, base: string = apiBase()): Promise<string | null> {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const res = await fetch(`${base}/clients/${id}/logo`, { headers });
+  if (res.status === 404) return null;
+  if (res.status === 401) {
+    clearSession();
+    if (typeof location !== "undefined") location.reload();
+    throw new Error("Sesión expirada");
+  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
 export const listAnalyses = () => request<AnalysisSummary[]>("/analysis");
 export const ensureCurrentAnalysis = (clientId: number) =>
   request<AnalysisSummary>(`/analysis/client/${clientId}/current`, { method: "POST" });

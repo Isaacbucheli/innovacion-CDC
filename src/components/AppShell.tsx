@@ -1,10 +1,11 @@
-import { Bell, LogOut, Wallet } from "lucide-react";
+import { Bell, Building2, LogOut, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearSession, getName } from "@/lib/auth";
 
 const NAV = [
   { key: "alerts", label: "Catálogo de alertas", Icon: Bell },
   { key: "costos", label: "Optimización de costos", Icon: Wallet },
+  { key: "clientes", label: "Clientes", Icon: Building2 },
 ] as const;
 
 export default function AppShell({

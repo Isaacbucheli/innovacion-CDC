@@ -103,6 +103,18 @@ export interface ClientSummary {
   client_name: string;
 }
 
+/** Cliente con metadatos de administración (GET /clients, backend .NET). */
+export interface ClientAdmin {
+  client_id: number;
+  client_name: string;
+  tax_id: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  is_active: boolean;
+  created_at: string | null;
+  logo_blob_name: string | null;
+}
+
 /** Análisis/evaluación (GET /analysis y POST /analysis/client/{id}/current, backend .NET). */
 export interface AnalysisSummary {
   analysis_id: number;
