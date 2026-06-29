@@ -38,12 +38,16 @@ export default function ValidationPage({ onNavigate }: { onNavigate?: (key: stri
   useEffect(() => { if (isAdmin) load(); }, [statusFilter, excludedFilter, isAdmin]);
 
   async function runBatch() {
-    setBusyMsg("Analizando y aplicando pendientes…");
+    // Lotes PEQUEÑOS por petición: cada análisis llama a Azure OpenAI (varios seg.);
+    // un lote grande (50) excede el timeout ~230s de App Service → 502/"Failed to fetch".
+    // Con limit bajo cada request termina rápido y el front itera hasta drenar (tope alto anti-loop).
     let applied = 0;
+    setBusyMsg("Analizando y aplicando pendientes…");
     try {
-      for (let i = 0; i < 20; i++) {
-        const r = await analyzeAllWafCanonicals({ limit: 50, apply: true });
+      for (let i = 0; i < 100; i++) {
+        const r = await analyzeAllWafCanonicals({ limit: 10, apply: true });
         applied += r.applied;
+        setBusyMsg(`Analizando y aplicando pendientes… (${applied} aplicadas)`);
         if (r.total === 0 || r.processed === 0) break;
       }
       toast.success(`Curación IA: ${applied} aplicada${applied === 1 ? "" : "s"}`);
