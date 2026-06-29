@@ -240,3 +240,9 @@ export interface WafTrackingUpdate {
   priority_override: number | null;
   internal_notes: string | null;
 }
+
+/** Advisor Score por pilar (GET /waf/clients/{id}/advisor-score, backend .NET). */
+export interface WafAdvisorScore {
+  has_connection: boolean;
+  pillars: Record<string, number>;
+}

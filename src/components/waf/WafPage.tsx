@@ -28,7 +28,7 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
       <BusyOverlay show={waf.loading || waf.dataLoading} title="Cargando recomendaciones" />
       <div className="space-y-5">
         <WafKpis summary={waf.summary} avgProgress={avgProgress} />
-        <PillarCards sections={waf.sections} activePillar={pillar} onPick={setPillar} />
+        <PillarCards sections={waf.sections} activePillar={pillar} onPick={setPillar} scores={waf.scores} />
         {waf.error && <p className="text-sm text-destructive">{waf.error}</p>}
         <WafDataTable recommendations={filtered} pillarNames={waf.pillarNames} minPct={0} maxPct={100} onOpen={open} />
       </div>

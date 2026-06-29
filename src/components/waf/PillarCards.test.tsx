@@ -10,7 +10,7 @@ const sections: WafSection[] = [
 
 test("muestra una tarjeta por sección y dispara onPick al hacer clic", () => {
   const onPick = vi.fn();
-  render(<PillarCards sections={sections} activePillar={null} onPick={onPick} />);
+  render(<PillarCards sections={sections} activePillar={null} onPick={onPick} scores={null} />);
   expect(screen.getByText("Seguridad")).toBeInTheDocument();
   fireEvent.click(screen.getByText("Costos"));
   expect(onPick).toHaveBeenCalledWith(5);
@@ -18,7 +18,14 @@ test("muestra una tarjeta por sección y dispara onPick al hacer clic", () => {
 
 test("clic en la tarjeta activa la deselecciona (onPick null)", () => {
   const onPick = vi.fn();
-  render(<PillarCards sections={sections} activePillar={5} onPick={onPick} />);
+  render(<PillarCards sections={sections} activePillar={5} onPick={onPick} scores={null} />);
   fireEvent.click(screen.getByText("Costos"));
   expect(onPick).toHaveBeenCalledWith(null);
+});
+
+test("muestra Score y porcentaje cuando scores tiene datos", () => {
+  const costos: WafSection = { section_num: 5, section_name: "Costos", total_recs: 6, total_resources: 31, avg_progress: 40, high_recs: 3, medium_recs: 1 };
+  render(<PillarCards sections={[costos]} activePillar={null} onPick={vi.fn()} scores={{ 5: 60 }} />);
+  expect(screen.getByText("Score")).toBeInTheDocument();
+  expect(screen.getByText("60%")).toBeInTheDocument();
 });
