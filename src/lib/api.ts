@@ -19,6 +19,9 @@ import type {
   WafAdvisorSyncResult,
   WafComment,
   WafConsolidateResult,
+  WafExcelApplyRequest,
+  WafExcelApplyResult,
+  WafExcelPreview,
   WafHistoryEntry,
   WafRecommendation,
   WafRecommendationDetail,
@@ -239,6 +242,23 @@ export const consolidateWafDuplicates = (clientId: number, useAi: boolean) =>
   request<WafConsolidateResult>(`/waf/clients/${clientId}/consolidate-duplicates?use_ai=${useAi}`, { method: "POST" });
 export const refreshWafAdvisorScore = (clientId: number, includeInReports: boolean) =>
   request<WafScoreRefreshResult>(`/waf/admin/advisor-score/refresh`, jsonOpts("POST", { client_id: clientId, include_in_reports: includeInReports }));
+
+// ---- WAF: acciones (Slice B) — Import Excel ----
+/** Preview de la matriz Excel (multipart "file", ?use_ai). */
+export async function previewWafExcel(clientId: number, file: File, useAi: boolean, base: string = apiBase()): Promise<WafExcelPreview> {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${base}/waf/clients/${clientId}/excel-import/preview?use_ai=${useAi}`, { method: "POST", headers, body: form });
+  if (res.status === 401) { clearSession(); if (typeof location !== "undefined") location.reload(); throw new Error("Sesión expirada"); }
+  const text = await res.text();
+  if (!res.ok) { let d = text; try { d = JSON.parse(text).detail ?? text; } catch { /* texto plano */ } throw new Error(d || `HTTP ${res.status}`); }
+  return (text ? JSON.parse(text) : {}) as WafExcelPreview;
+}
+export const applyWafExcel = (clientId: number, body: WafExcelApplyRequest) =>
+  request<WafExcelApplyResult>(`/waf/clients/${clientId}/excel-import/apply`, jsonOpts("POST", body));
 
 /** Descarga autenticada (blob) desde el backend .NET; usado por la exportación a Excel. */
 export async function downloadFromApi(path: string, fileName: string, base: string = apiBase()): Promise<void> {
