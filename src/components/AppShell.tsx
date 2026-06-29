@@ -27,7 +27,7 @@ const MENU: Group[] = [
     items: [
       { label: "Recomendaciones", section: "waf" },
       { label: "Validación inteligente", adminOnly: true, soon: true },
-      { label: "Historial de ingestas", soon: true },
+      { label: "Historial de ingestas", section: "waf-ingestions" },
       { label: "Costo referencial Azure", section: "waf-cost" },
     ],
   },
