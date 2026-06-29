@@ -6,6 +6,7 @@ import ClientsPage from "@/components/clients/ClientsPage";
 import WafPage from "@/components/waf/WafPage";
 import CostReferencePage from "@/components/waf/CostReferencePage";
 import IngestionsPage from "@/components/waf/IngestionsPage";
+import ValidationPage from "@/components/waf/ValidationPage";
 import { Toaster } from "@/components/ui/sonner";
 
 export default function App() {
@@ -23,6 +24,8 @@ export default function App() {
           <CostReferencePage onNavigate={setSection} />
         ) : section === "waf-ingestions" ? (
           <IngestionsPage onNavigate={setSection} />
+        ) : section === "waf-validation" ? (
+          <ValidationPage onNavigate={setSection} />
         ) : (
           <CatalogPage onNavigate={setSection} />
         )}
