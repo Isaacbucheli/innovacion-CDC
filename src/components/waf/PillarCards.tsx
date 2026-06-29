@@ -36,7 +36,7 @@ export default function PillarCards({ sections, activePillar, onPick, scores }: 
                 <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Score</div>
                 <div className={`text-xl font-bold tabular-nums ${scoreClass(score)}`}>{score}%</div>
                 {s.total_recs === 0 && (
-                  <div className="text-[11px] text-green-700 dark:text-green-400 mt-0.5">✓ Estás siguiendo todas las recomendaciones</div>
+                  <div className="text-[11px] text-[#5a7016] dark:text-[#a9c46a] mt-0.5">✓ Estás siguiendo todas las recomendaciones</div>
                 )}
               </div>
             )}
