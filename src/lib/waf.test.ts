@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterRecommendations, validateTracking, impactMeta, pillarColor } from "@/lib/waf";
+import { filterRecommendations, validateTracking, impactMeta, pillarColor, pillarIcon, scoreClass } from "@/lib/waf";
 import type { WafRecommendation } from "@/types";
 
 const rec = (over: Partial<WafRecommendation>): WafRecommendation => ({
@@ -36,4 +36,25 @@ describe("validateTracking", () => {
 describe("meta", () => {
   it("impactMeta mapea High", () => { expect(impactMeta("High").label).toBe("Alta"); });
   it("pillarColor devuelve un color por número", () => { expect(pillarColor(5)).toMatch(/^#/); });
+});
+
+describe("pillarIcon", () => {
+  it("pillarIcon(1) contiene waf-performance.svg", () => {
+    expect(pillarIcon(1)).toContain("waf-performance.svg");
+  });
+  it("pillarIcon(99) contiene advisor.svg (fallback)", () => {
+    expect(pillarIcon(99)).toContain("advisor.svg");
+  });
+});
+
+describe("scoreClass", () => {
+  it("scoreClass(90) incluye green", () => {
+    expect(scoreClass(90)).toContain("green");
+  });
+  it("scoreClass(60) incluye amber", () => {
+    expect(scoreClass(60)).toContain("amber");
+  });
+  it("scoreClass(30) incluye red", () => {
+    expect(scoreClass(30)).toContain("red");
+  });
 });

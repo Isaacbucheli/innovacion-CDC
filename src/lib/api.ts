@@ -13,6 +13,7 @@ import type {
   Role,
   Scenario,
   ServiceCatalogItem,
+  WafAdvisorScore,
   WafComment,
   WafHistoryEntry,
   WafRecommendation,
@@ -176,6 +177,8 @@ export const getWafSummary = (clientId: number) =>
   request<WafSummary>(`/waf/clients/${clientId}/summary`);
 export const getWafSections = (clientId: number) =>
   request<WafSection[]>(`/waf/clients/${clientId}/sections`);
+export const getWafAdvisorScore = (clientId: number) =>
+  request<WafAdvisorScore>(`/waf/clients/${clientId}/advisor-score`);
 export const getWafRecommendations = (clientId: number, pillar?: number) =>
   request<WafRecommendation[]>(
     `/waf/clients/${clientId}/recommendations${pillar ? `?pillar=${pillar}` : ""}`,

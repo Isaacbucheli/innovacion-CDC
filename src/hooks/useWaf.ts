@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getWafRecommendations, getWafSections, getWafSummary, listClientsAdmin } from "@/lib/api";
+import { getWafAdvisorScore, getWafRecommendations, getWafSections, getWafSummary, listClientsAdmin } from "@/lib/api";
 import type { ClientAdmin, WafRecommendation, WafSection, WafSummary } from "@/types";
 
 const SELECTED_CLIENT_KEY = "innovacion_cdc_waf_client";
@@ -16,6 +16,7 @@ export function useWaf() {
   const [summary, setSummary] = useState<WafSummary | null>(null);
   const [sections, setSections] = useState<WafSection[]>([]);
   const [recommendations, setRecommendations] = useState<WafRecommendation[]>([]);
+  const [scores, setScores] = useState<Record<number, number> | null>(null);
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
   const [error, setError] = useState("");
@@ -49,9 +50,19 @@ export function useWaf() {
       ]);
       if (!mountedRef.current) return;
       setSummary(sum); setSections(secs); setRecommendations(recs);
+      // Advisor Score: enriquecimiento best-effort; si falla o no hay conexión, no rompe la vista.
+      let sc: Record<number, number> | null = null;
+      try {
+        const a = await getWafAdvisorScore(cid);
+        if (a?.has_connection && a.pillars) {
+          sc = {};
+          for (const [k, v] of Object.entries(a.pillars)) sc[Number(k)] = Math.round(Number(v) || 0);
+        }
+      } catch { sc = null; }
+      if (mountedRef.current) setScores(sc);
     } catch (e) {
       if (!mountedRef.current) return;
-      setSummary(null); setSections([]); setRecommendations([]);
+      setSummary(null); setSections([]); setRecommendations([]); setScores(null);
       setError(e instanceof Error ? e.message : "Error al cargar WAF");
     } finally {
       if (mountedRef.current) setDataLoading(false);
@@ -59,7 +70,7 @@ export function useWaf() {
   }, []);
 
   useEffect(() => {
-    if (clientId == null) { setSummary(null); setSections([]); setRecommendations([]); return; }
+    if (clientId == null) { setSummary(null); setSections([]); setRecommendations([]); setScores(null); return; }
     loadFor(clientId);
   }, [clientId, loadFor]);
 
@@ -76,5 +87,5 @@ export function useWaf() {
 
   const reloadData = useCallback(() => { if (clientId != null) loadFor(clientId); }, [clientId, loadFor]);
 
-  return { clients, clientId, summary, sections, recommendations, pillarNames, loading, dataLoading, error, selectClient, reloadData };
+  return { clients, clientId, summary, sections, recommendations, scores, pillarNames, loading, dataLoading, error, selectClient, reloadData };
 }

@@ -9,6 +9,22 @@ export function pillarColor(n: number): string {
   return PILLAR_COLOR[n] ?? "#888780";
 }
 
+// Icono Azure por número de pilar (1–5), igual que la matriz de PRD (sectionIcons).
+export const PILLAR_ICON: Record<number, string> = {
+  1: "waf-performance.svg", 2: "waf-operational.svg", 3: "waf-security.svg",
+  4: "waf-reliability.svg", 5: "waf-cost.svg",
+};
+export function pillarIcon(n: number): string {
+  return `/assets/azure-icons/${PILLAR_ICON[n] ?? "advisor.svg"}`;
+}
+
+// Color del Advisor Score: verde ≥80, ámbar ≥50, rojo <50 (clases con variante dark).
+export function scoreClass(score: number): string {
+  if (score >= 80) return "text-green-600 dark:text-green-400";
+  if (score >= 50) return "text-amber-600 dark:text-amber-400";
+  return "text-red-600 dark:text-red-400";
+}
+
 export const IMPACT_META: Record<string, { label: string; chip: string }> = {
   high: { label: "Alta", chip: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200" },
   medium: { label: "Media", chip: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200" },
