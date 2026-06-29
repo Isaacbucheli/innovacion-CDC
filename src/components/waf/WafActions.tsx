@@ -10,6 +10,7 @@ import AdvisorSyncDialog from "@/components/waf/AdvisorSyncDialog";
 import ImportCsvDialog from "@/components/waf/ImportCsvDialog";
 import ConsolidateDialog from "@/components/waf/ConsolidateDialog";
 import AdvisorScoreDialog from "@/components/waf/AdvisorScoreDialog";
+import ExcelImportDialog from "@/components/waf/ExcelImportDialog";
 import { runWafAdvisorSync, uploadWafIngestion, downloadFromApi, consolidateWafDuplicates, refreshWafAdvisorScore } from "@/lib/api";
 import { advisorSyncSummary } from "@/lib/waf";
 import { canEdit, getRole } from "@/lib/auth";
@@ -25,6 +26,7 @@ export default function WafActions({ clientId, onChanged }: { clientId: number; 
   const [csvOpen, setCsvOpen] = useState(false);
   const [consOpen, setConsOpen] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
+  const [excelOpen, setExcelOpen] = useState(false);
 
   async function doExport() {
     setBusyMsg({ title: "Generando Excel", detail: "Matriz WAF…" });
@@ -108,6 +110,7 @@ export default function WafActions({ clientId, onChanged }: { clientId: number; 
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Cargar datos</DropdownMenuLabel>
             <DropdownMenuItem onClick={() => setCsvOpen(true)}>Importar Advisor CSV</DropdownMenuItem>
+            {editable && <DropdownMenuItem onClick={() => setExcelOpen(true)}>Importar matriz Excel</DropdownMenuItem>}
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Mantenimiento</DropdownMenuLabel>
             {editable && <DropdownMenuItem onClick={() => setConsOpen(true)}><GitMerge className="w-4 h-4 mr-2" />Consolidar duplicados</DropdownMenuItem>}
@@ -119,6 +122,7 @@ export default function WafActions({ clientId, onChanged }: { clientId: number; 
       <ImportCsvDialog open={csvOpen} clientId={clientId} busy={busy} onOpenChange={setCsvOpen} onConfirm={doCsv} />
       <ConsolidateDialog open={consOpen} busy={busy} onOpenChange={setConsOpen} onConfirm={doConsolidate} />
       <AdvisorScoreDialog open={scoreOpen} busy={busy} onOpenChange={setScoreOpen} onConfirm={doScoreRefresh} />
+      <ExcelImportDialog open={excelOpen} clientId={clientId} onOpenChange={setExcelOpen} onChanged={onChanged} />
     </div>
   );
 }

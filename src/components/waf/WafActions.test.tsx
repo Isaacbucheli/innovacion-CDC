@@ -8,6 +8,8 @@ vi.mock("@/lib/api", () => ({
   downloadFromApi: vi.fn(async () => {}),
   consolidateWafDuplicates: vi.fn(async () => ({ message: "ok", client_id: 3, merged: 3, ai_calls: 5 })),
   refreshWafAdvisorScore: vi.fn(async () => ({ message: "ok", clients_total: 1, clients_refreshed: 1, clients_failed: 0, results: [] })),
+  previewWafExcel: vi.fn(async () => ({ file_name: "m.xlsx", client_id: 3, rows_total: 0, rows_matched: 0, rows_needs_review: 0, ai_enabled: true, rows: [] })),
+  applyWafExcel: vi.fn(),
 }));
 vi.mock("@/lib/auth", () => ({ canEdit: () => true, getRole: () => "admin" }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -63,4 +65,14 @@ test("Actualizar Advisor Score llama a la API y refresca", async () => {
   fireEvent.click(await screen.findByRole("button", { name: /^actualizar$/i }));
   await waitFor(() => expect(refreshWafAdvisorScore).toHaveBeenCalledWith(3, false));
   await waitFor(() => expect(onChanged).toHaveBeenCalled());
+});
+
+test("Importar matriz Excel abre el diálogo de preview", async () => {
+  const { default: WafActions } = await import("@/components/waf/WafActions");
+  render(<WafActions clientId={3} onChanged={vi.fn()} />);
+  const opcionesBtn = screen.getByRole("button", { name: /opciones/i });
+  fireEvent.pointerDown(opcionesBtn, { button: 0, ctrlKey: false });
+  fireEvent.click(opcionesBtn);
+  fireEvent.click(await screen.findByText(/importar matriz excel/i));
+  expect(await screen.findByText(/sube la matriz waf/i)).toBeInTheDocument();
 });
