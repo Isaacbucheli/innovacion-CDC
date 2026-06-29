@@ -1,4 +1,4 @@
-import type { WafRecommendation, WafAdvisorSyncResult } from "@/types";
+import type { WafRecommendation, WafAdvisorSyncResult, WafExcelPreviewRow, WafExcelApplyItem, WafExcelApplyResult } from "@/types";
 
 // Color por número de pilar (1–5). Mid-ramp: legible en claro y oscuro.
 // Los NOMBRES de pilar vienen del backend (section_name), no se hardcodean aquí.
@@ -75,4 +75,46 @@ export function validateTracking(form: {
 export function advisorSyncSummary(r: WafAdvisorSyncResult): string {
   const subs = `${r.subscriptions_processed} suscripción${r.subscriptions_processed === 1 ? "" : "es"}`;
   return `${subs} · ${r.new_recommendations} nuevas · ${r.resolved_findings} resueltas`;
+}
+
+// ---- Excel mapping (WAF import) ----
+export const EXCEL_STATUS_META: Record<string, { label: string; chip: string }> = {
+  matched: { label: "match", chip: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200" },
+  needs_review: { label: "revisar", chip: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200" },
+  new: { label: "nueva", chip: "bg-accent text-accent-foreground" },
+};
+
+export function excelRowAction(pr: WafExcelPreviewRow): "update" | "create" | null {
+  if (pr.suggested_match) return "update";
+  if (pr.can_create) return "create";
+  return null;
+}
+
+export function defaultApproved(pr: WafExcelPreviewRow): boolean {
+  if (pr.status === "matched") return true;
+  if (pr.status === "new" && pr.can_create) return true;
+  return false;
+}
+
+export function buildApplyItem(pr: WafExcelPreviewRow, approved: boolean): WafExcelApplyItem | null {
+  const action = excelRowAction(pr);
+  if (!action) return null;
+  const r = pr.row;
+  const base = {
+    row_number: r.row_number, approved,
+    completion_pct: r.completion_pct, remediation_start_date: r.remediation_start_date, execution_log: r.execution_log,
+  };
+  if (action === "update") {
+    return { ...base, action: "update", canonical_id: pr.suggested_match!.canonical_id };
+  }
+  return {
+    ...base, action: "create",
+    pillar_number: r.pillar_number, title: r.title, review_scope: r.raw_scope,
+    benefit: r.benefit, actions: r.actions, impact: r.impact,
+    projected_bit_effort: r.projected_bit_effort, resources: r.resources,
+  };
+}
+
+export function excelSummary(r: WafExcelApplyResult): string {
+  return `${r.rows_applied} aplicada${r.rows_applied === 1 ? "" : "s"} · ${r.rows_created} creada${r.rows_created === 1 ? "" : "s"} · ${r.rows_skipped} omitida${r.rows_skipped === 1 ? "" : "s"}`;
 }

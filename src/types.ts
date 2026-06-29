@@ -291,3 +291,73 @@ export interface WafScoreRefreshResult {
   clients_failed: number;
   results: { client_id: number; status: string; snapshot_date: string | null; captured_at: string | null; subscriptions_scored: number }[];
 }
+
+// ---- WAF: Import Excel (Slice B) ----
+export interface WafExcelRow {
+  row_number: number;
+  pillar_number: number | null;
+  excel_code: string | null;
+  title: string | null;
+  raw_scope: string | null;
+  completion_pct: number | null;
+  remediation_start_date: string | null;
+  execution_log: string | null;
+  benefit: string | null;
+  actions: string | null;
+  impact: string | null;
+  projected_bit_effort: string | null;
+  resources: string[];
+  warnings: string[];
+}
+export interface WafExcelSuggestedMatch {
+  canonical_id: number;
+  matrix_code: string | null;
+  pillar_number: number | null;
+  review_scope_es: string | null;
+  advisor_name: string | null;
+}
+export interface WafExcelPreviewRow {
+  row: WafExcelRow;
+  status: "matched" | "needs_review" | "new";
+  can_create: boolean;
+  match_source: string | null;
+  confidence: number | null;
+  reason: string | null;
+  suggested_match: WafExcelSuggestedMatch | null;
+}
+export interface WafExcelPreview {
+  file_name: string;
+  client_id: number;
+  rows_total: number;
+  rows_matched: number;
+  rows_needs_review: number;
+  ai_enabled: boolean;
+  rows: WafExcelPreviewRow[];
+}
+export interface WafExcelApplyItem {
+  row_number: number;
+  action: "update" | "create";
+  approved: boolean;
+  canonical_id?: number;
+  completion_pct?: number | null;
+  remediation_start_date?: string | null;
+  execution_log?: string | null;
+  pillar_number?: number | null;
+  title?: string | null;
+  review_scope?: string | null;
+  benefit?: string | null;
+  actions?: string | null;
+  impact?: string | null;
+  projected_bit_effort?: string | null;
+  resources?: string[];
+}
+export interface WafExcelApplyRequest { rows: WafExcelApplyItem[]; }
+export interface WafExcelApplyResult {
+  message: string;
+  client_id: number;
+  rows_applied: number;
+  rows_created: number;
+  rows_skipped: number;
+  changed_fields: Record<string, number>;
+  errors: { row_number: number; detail: string }[];
+}
