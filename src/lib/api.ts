@@ -19,10 +19,12 @@ import type {
   WafAdvisorSyncResult,
   WafComment,
   WafConsolidateResult,
+  WafCostReference,
   WafExcelApplyRequest,
   WafExcelApplyResult,
   WafExcelPreview,
   WafHistoryEntry,
+  WafIngestionRun,
   WafRecommendation,
   WafRecommendationDetail,
   WafResource,
@@ -199,6 +201,10 @@ export const getWafComments = (clientId: number, canonicalId: number) =>
   request<WafComment[]>(`/waf/clients/${clientId}/recommendations/${canonicalId}/comments`);
 export const getWafHistory = (clientId: number, canonicalId: number) =>
   request<WafHistoryEntry[]>(`/waf/clients/${clientId}/recommendations/${canonicalId}/history`);
+export const getWafCostReference = (clientId: number) =>
+  request<WafCostReference>(`/waf/clients/${clientId}/cost-reference`);
+export const getWafIngestionRuns = (clientId: number) =>
+  request<WafIngestionRun[]>(`/waf/clients/${clientId}/ingestion-runs`);
 
 // ---- WAF: escrituras ----
 export const updateWafTracking = (clientId: number, canonicalId: number, body: WafTrackingUpdate) =>

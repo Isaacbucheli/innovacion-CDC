@@ -166,4 +166,19 @@ describe("WAF api", () => {
     expect(calls[0][0]).toContain("/waf/clients/3/excel-import/apply");
     expect(JSON.parse((calls[0][1] as RequestInit).body as string).rows[0].canonical_id).toBe(9);
   });
+
+  it("getWafCostReference arma la URL", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 200 })));
+    const { getWafCostReference } = await import("@/lib/api");
+    await getWafCostReference(3);
+    const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0]).toContain("/waf/clients/3/cost-reference");
+  });
+  it("getWafIngestionRuns arma la URL", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("[]", { status: 200 })));
+    const { getWafIngestionRuns } = await import("@/lib/api");
+    await getWafIngestionRuns(3);
+    const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0]).toContain("/waf/clients/3/ingestion-runs");
+  });
 });
