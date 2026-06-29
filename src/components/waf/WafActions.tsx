@@ -17,7 +17,7 @@ function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
 export default function WafActions({ clientId, onChanged }: { clientId: number; onChanged: () => void }) {
   const editable = canEdit();
   const [busy, setBusy] = useState(false);
-  const [busyMsg, setBusyMsg] = useState<{ title: string; detail?: string }>({ title: "" });
+  const [busyMsg, setBusyMsg] = useState<{ title: string; detail?: string }>({ title: "Procesando…" });
   const [syncOpen, setSyncOpen] = useState(false);
   const [csvOpen, setCsvOpen] = useState(false);
 
