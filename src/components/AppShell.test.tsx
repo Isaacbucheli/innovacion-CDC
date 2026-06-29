@@ -44,3 +44,9 @@ test("incluye el conmutador de modo claro/oscuro", () => {
   renderShell();
   expect(screen.getByRole("button", { name: /modo (oscuro|claro)/i })).toBeInTheDocument();
 });
+
+test("el ítem Recomendaciones es navegable (no placeholder)", () => {
+  renderShell("waf");
+  const item = screen.getByRole("button", { name: /^Recomendaciones$/i });
+  expect(item).toHaveClass("bg-primary");
+});

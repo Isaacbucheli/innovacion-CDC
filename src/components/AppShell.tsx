@@ -25,7 +25,7 @@ const MENU: Group[] = [
     label: "Matriz mejoras Azure",
     icon: "/assets/azure-icons/advisor.svg",
     items: [
-      { label: "Recomendaciones", soon: true },
+      { label: "Recomendaciones", section: "waf" },
       { label: "Validación inteligente", adminOnly: true, soon: true },
       { label: "Historial de ingestas", soon: true },
       { label: "Costo referencial Azure", soon: true },
