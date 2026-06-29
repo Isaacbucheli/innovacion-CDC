@@ -63,9 +63,9 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
       onNavigate={onNavigate}
     >
       {loading ? (
-        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
+        <div className="flex flex-col gap-2">
           {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-[140px] w-full rounded-xl" />
+            <Skeleton key={i} className="h-[66px] w-full rounded-xl" />
           ))}
         </div>
       ) : error ? (
@@ -104,7 +104,7 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
           {pageRows.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">Sin clientes que coincidan.</p>
           ) : (
-            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
+            <div className="flex flex-col gap-2">
               {pageRows.map((row) => (
                 <ClientCard
                   key={row.original.client_id}

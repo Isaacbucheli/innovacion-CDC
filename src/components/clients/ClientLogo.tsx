@@ -10,19 +10,21 @@ function initials(name: string): string {
 }
 
 /**
- * Zona de logo de la tarjeta de cliente. Si el cliente tiene logo (logo_blob_name no nulo),
- * lo descarga de forma autenticada a un objectURL (revocado al desmontar / cambiar de cliente).
- * Si no, muestra las iniciales sobre un tinte de marca.
+ * Avatar cuadrado del cliente. Si tiene logo (logo_blob_name no nulo) lo descarga de forma
+ * autenticada a un objectURL (revocado al desmontar / cambiar de cliente). Si no, muestra las
+ * iniciales sobre un tinte de marca.
  */
 export default function ClientLogo({
   clientId,
   name,
   hasLogo,
+  size = 44,
   className = "",
 }: {
   clientId: number;
   name: string;
   hasLogo: boolean;
+  size?: number;
   className?: string;
 }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -50,18 +52,21 @@ export default function ClientLogo({
     };
   }, [clientId, hasLogo]);
 
+  const showImg = hasLogo && url;
   return (
     <div
-      className={`flex items-center justify-center rounded-lg bg-secondary overflow-hidden ${className}`}
-      style={{ height: 62 }}
+      className={`flex items-center justify-center rounded-lg overflow-hidden shrink-0 ${showImg ? "bg-secondary" : ""} ${className}`}
+      style={{
+        width: size,
+        height: size,
+        background: showImg ? undefined : "#EAF3DE",
+        color: "#3B6D11",
+      }}
     >
-      {hasLogo && url ? (
-        <img src={url} alt={name} className="max-h-[54px] max-w-[80%] object-contain" />
+      {showImg ? (
+        <img src={url} alt={name} className="max-h-full max-w-full object-contain p-1" />
       ) : (
-        <span
-          className="inline-flex items-center justify-center h-9 w-9 rounded-md text-sm font-semibold"
-          style={{ background: "#EAF3DE", color: "#3B6D11" }}
-        >
+        <span className="font-semibold" style={{ fontSize: Math.round(size * 0.32) }}>
           {initials(name)}
         </span>
       )}
