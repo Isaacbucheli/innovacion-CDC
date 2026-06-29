@@ -30,15 +30,8 @@ export function computePillarAvance(totalRecs: number, avgProgress: number, matr
   return Math.max(0, Math.min(100, Math.round(avgProgress)));
 }
 
-// Color del Advisor Score: verde de MARCA (#A3C243, olivo #5a7016 legible) ≥80,
-// ámbar ≥50, rojo <50. NO usar verdes genéricos de Tailwind (off-brand, brandbook).
-export function scoreClass(score: number): string {
-  if (score >= 80) return "text-[#5a7016] dark:text-[#a9c46a]";
-  if (score >= 50) return "text-amber-600 dark:text-amber-400";
-  return "text-red-600 dark:text-red-400";
-}
-
-// Color de la barra lateral del Score (estilo Azure Advisor): verde de marca / ámbar / rojo.
+// Color de la barra lateral del Score (estilo Azure Advisor): el número va neutro
+// y SOLO la barra lleva color. Verde de MARCA (#A3C243) ≥80, ámbar ≥50, rojo <50.
 export function scoreColor(score: number): string {
   if (score >= 80) return "#A3C243";
   if (score >= 50) return "#d97706";

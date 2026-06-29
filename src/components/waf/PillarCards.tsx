@@ -1,5 +1,5 @@
 import type { WafSection } from "@/types";
-import { pillarIcon, scoreClass, scoreColor, computePillarAvance, AZURE_BLUE } from "@/lib/waf";
+import { pillarIcon, scoreColor, computePillarAvance, AZURE_BLUE } from "@/lib/waf";
 
 export default function PillarCards({ sections, activePillar, onPick, scores }: {
   sections: WafSection[];
@@ -35,7 +35,7 @@ export default function PillarCards({ sections, activePillar, onPick, scores }: 
                 {/* Barra lateral de altura constante (solo Score + %), estilo Azure Advisor. */}
                 <div className="pl-2.5 border-l-[3px]" style={{ borderColor: scoreColor(score) }}>
                   <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Score</div>
-                  <div className={`text-xl font-bold tabular-nums leading-tight ${scoreClass(score)}`}>{score}%</div>
+                  <div className="text-xl font-bold tabular-nums leading-tight">{score}%</div>
                 </div>
                 {s.total_recs === 0 && (
                   <div className="text-[11px] text-[#5a7016] dark:text-[#a9c46a]">✓ Estás siguiendo todas las recomendaciones</div>
