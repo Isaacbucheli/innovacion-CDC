@@ -6,10 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { analyzeWafCanonical, applyWafSuggestion, updateWafCanonical } from "@/lib/api";
+import { REVIEW_STATUS_META, reviewStatusMeta } from "@/lib/waf";
 import type { WafCanonical, WafAiSuggestion, WafCanonicalUpdate } from "@/types";
 
 const PILLARS = [1, 2, 3, 4, 5];
-const REVIEW = ["pending", "reviewed", "applied", "requires_review", "excluded"];
+const REVIEW = Object.keys(REVIEW_STATUS_META);
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
 
 export default function CanonicalEditDialog({ open, canonical, onOpenChange, onSaved }: {
@@ -99,7 +100,7 @@ export default function CanonicalEditDialog({ open, canonical, onOpenChange, onS
             <Label>Estado de revisión</Label>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{REVIEW.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+              <SelectContent>{REVIEW.map((s) => <SelectItem key={s} value={s}>{reviewStatusMeta(s).label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         </div>
