@@ -1,4 +1,4 @@
-import type { WafRecommendation, WafAdvisorSyncResult, WafExcelPreviewRow, WafExcelApplyItem, WafExcelApplyResult } from "@/types";
+import type { WafRecommendation, WafAdvisorSyncResult, WafExcelPreviewRow, WafExcelApplyItem, WafExcelApplyResult, WafCanonical } from "@/types";
 
 // Color por número de pilar (1–5). Mid-ramp: legible en claro y oscuro.
 // Los NOMBRES de pilar vienen del backend (section_name), no se hardcodean aquí.
@@ -118,4 +118,23 @@ export function buildApplyItem(pr: WafExcelPreviewRow, approved: boolean): WafEx
 
 export function excelSummary(r: WafExcelApplyResult): string {
   return `${r.rows_applied} aplicada${r.rows_applied === 1 ? "" : "s"} · ${r.rows_created} creada${r.rows_created === 1 ? "" : "s"} · ${r.rows_skipped} omitida${r.rows_skipped === 1 ? "" : "s"}`;
+}
+
+export const REVIEW_STATUS_META: Record<string, { label: string; chip: string }> = {
+  pending: { label: "Pendiente", chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" },
+  reviewed: { label: "Revisada", chip: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200" },
+  applied: { label: "Aplicada", chip: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200" },
+  requires_review: { label: "Requiere revisión", chip: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200" },
+  excluded: { label: "Excluida", chip: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200" },
+};
+
+export function reviewStatusMeta(status: string | null): { label: string; chip: string } {
+  return REVIEW_STATUS_META[status ?? ""] ?? { label: status ?? "—", chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" };
+}
+
+export function filterCatalog(rows: WafCanonical[], q: string): WafCanonical[] {
+  const s = q.trim().toLowerCase();
+  if (!s) return rows;
+  return rows.filter((r) =>
+    (r.advisor_name ?? "").toLowerCase().includes(s) || (r.review_scope_es ?? "").toLowerCase().includes(s));
 }
