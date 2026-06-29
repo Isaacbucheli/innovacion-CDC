@@ -91,9 +91,10 @@ export default function AppShell({
     <div className="min-h-screen grid grid-cols-[260px_1fr] bg-secondary">
       <aside className="sticky top-0 h-screen flex flex-col gap-4 bg-card text-card-foreground border-r border-border px-4 py-6">
         <div>
-          {/* Logo que conmuta con el tema: oscuro sobre claro / blanco-verde sobre oscuro. */}
-          <img src="/business-it-logo.webp" alt="Business IT" className="w-[190px] max-w-full h-auto dark:hidden" />
-          <img src="/business-it-logo-white-green.webp" alt="" aria-hidden className="w-[190px] max-w-full h-auto hidden dark:block" />
+          {/* Logo que conmuta con el tema: oscuro sobre claro / blanco-verde sobre oscuro.
+              Tamaño por ALTURA (ambos assets recortados al contenido) → mismo tamaño en los dos modos. */}
+          <img src="/business-it-logo.webp" alt="Business IT" className="h-10 w-auto max-w-full object-contain dark:hidden" />
+          <img src="/business-it-logo-white-green.webp" alt="" aria-hidden className="h-10 w-auto max-w-full object-contain hidden dark:block" />
           <p className="mt-3 text-sm text-muted-foreground">Plataforma de optimización Azure</p>
         </div>
 
