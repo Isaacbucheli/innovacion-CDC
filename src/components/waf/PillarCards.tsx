@@ -30,7 +30,7 @@ export default function PillarCards({ sections, activePillar, onPick, scores }: 
                 <span className="text-[11px] font-medium text-red-600 dark:text-red-400">{s.high_recs} High</span>
               )}
             </div>
-            <div className="text-sm font-medium leading-snug">{s.section_name}</div>
+            <div className="text-sm font-medium leading-snug min-h-[2.5rem]">{s.section_name}</div>
             {score != null && (
               <div className="pl-2 border-l-2" style={{ borderColor: color }}>
                 <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Score</div>
@@ -40,14 +40,17 @@ export default function PillarCards({ sections, activePillar, onPick, scores }: 
                 )}
               </div>
             )}
-            <div className="text-2xl font-bold tabular-nums">{s.total_recs}</div>
-            <div className="text-[11px] text-muted-foreground">
-              {s.total_recs === 1 ? "recomendación" : "recomendaciones"} · {s.total_resources} {s.total_resources === 1 ? "recurso" : "recursos"}
+            {/* Bloque de métricas anclado al fondo: alinea número/recursos/barra/avance entre tarjetas. */}
+            <div className="mt-auto flex flex-col gap-2 pt-1">
+              <div className="text-2xl font-bold tabular-nums">{s.total_recs}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {s.total_recs === 1 ? "recomendación" : "recomendaciones"} · {s.total_resources} {s.total_resources === 1 ? "recurso" : "recursos"}
+              </div>
+              <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                <span className="block h-full rounded-full" style={{ width: `${avance}%`, background: AZURE_BLUE }} />
+              </div>
+              <div className="text-[11px] text-muted-foreground">avance {avance}%</div>
             </div>
-            <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-              <span className="block h-full rounded-full" style={{ width: `${avance}%`, background: AZURE_BLUE }} />
-            </div>
-            <div className="text-[11px] text-muted-foreground">avance {avance}%</div>
           </button>
         );
       })}
