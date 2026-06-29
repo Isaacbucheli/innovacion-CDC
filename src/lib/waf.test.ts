@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { filterRecommendations, validateTracking, impactMeta, pillarColor, pillarIcon, scoreClass, advisorSyncSummary, computePillarAvance } from "@/lib/waf";
-import type { WafRecommendation, WafAdvisorSyncResult } from "@/types";
+import { filterRecommendations, validateTracking, impactMeta, pillarColor, pillarIcon, scoreClass, advisorSyncSummary, computePillarAvance, excelRowAction, defaultApproved, buildApplyItem, excelSummary } from "@/lib/waf";
+import type { WafRecommendation, WafAdvisorSyncResult, WafExcelPreviewRow, WafExcelApplyResult } from "@/types";
 
 const rec = (over: Partial<WafRecommendation>): WafRecommendation => ({
   canonical_id: 1, matrix_code: "1.1", pillar_number: 1, review_scope_es: "x",
@@ -82,5 +82,45 @@ describe("computePillarAvance", () => {
   it("pilar con recomendaciones → avg_progress redondeado y acotado 0–100", () => {
     expect(computePillarAvance(6, 39.6, true)).toBe(40);
     expect(computePillarAvance(3, 120, true)).toBe(100);
+  });
+});
+
+// ---- Excel mapping ----
+const baseRow = (over: Partial<WafExcelPreviewRow["row"]> = {}): WafExcelPreviewRow["row"] => ({
+  row_number: 1, pillar_number: 5, excel_code: "5.1", title: "RI", raw_scope: "scope",
+  completion_pct: 80, remediation_start_date: null, execution_log: null, benefit: "b",
+  actions: "a", impact: "High", projected_bit_effort: "8h", resources: ["vm1"], warnings: [], ...over,
+});
+const pr = (over: Partial<WafExcelPreviewRow> = {}): WafExcelPreviewRow => ({
+  row: baseRow(), status: "matched", can_create: true, match_source: "deterministic",
+  confidence: 0.9, reason: "", suggested_match: { canonical_id: 9, matrix_code: "5.1", pillar_number: 5, review_scope_es: "x", advisor_name: "y" }, ...over,
+});
+
+describe("excel mapping", () => {
+  it("excelRowAction: con suggested_match → update", () => { expect(excelRowAction(pr())).toBe("update"); });
+  it("excelRowAction: sin match pero can_create → create", () => {
+    expect(excelRowAction(pr({ status: "new", suggested_match: null }))).toBe("create");
+  });
+  it("excelRowAction: sin match ni can_create → null", () => {
+    expect(excelRowAction(pr({ status: "needs_review", suggested_match: null, can_create: false }))).toBeNull();
+  });
+  it("defaultApproved: matched sí, needs_review no, new sí", () => {
+    expect(defaultApproved(pr())).toBe(true);
+    expect(defaultApproved(pr({ status: "needs_review", suggested_match: null }))).toBe(false);
+    expect(defaultApproved(pr({ status: "new", suggested_match: null }))).toBe(true);
+  });
+  it("buildApplyItem update lleva canonical_id; create lleva pillar/title", () => {
+    const up = buildApplyItem(pr(), true);
+    expect(up).toMatchObject({ action: "update", canonical_id: 9, row_number: 1, approved: true });
+    const cr = buildApplyItem(pr({ status: "new", suggested_match: null }), true);
+    expect(cr).toMatchObject({ action: "create", pillar_number: 5, title: "RI", review_scope: "scope" });
+  });
+  it("buildApplyItem devuelve null si no hay acción", () => {
+    expect(buildApplyItem(pr({ status: "needs_review", suggested_match: null, can_create: false }), true)).toBeNull();
+  });
+  it("excelSummary arma el texto", () => {
+    const r: WafExcelApplyResult = { message: "", client_id: 3, rows_applied: 8, rows_created: 2, rows_skipped: 1, changed_fields: {}, errors: [] };
+    const s = excelSummary(r);
+    expect(s).toContain("8"); expect(s).toContain("2"); expect(s).toContain("1");
   });
 });
