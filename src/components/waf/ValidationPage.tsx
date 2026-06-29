@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import CanonicalEditDialog from "@/components/waf/CanonicalEditDialog";
-import { getWafAiConfig, getWafCatalog, analyzeAllWafCanonicals } from "@/lib/api";
+import { getWafAiConfig, getWafCatalog, analyzeWafCanonical, applyWafSuggestion } from "@/lib/api";
 import { reviewStatusMeta, filterCatalog } from "@/lib/waf";
 import { getRole } from "@/lib/auth";
 import type { WafAiConfig, WafCanonical } from "@/types";
@@ -38,19 +38,23 @@ export default function ValidationPage({ onNavigate }: { onNavigate?: (key: stri
   useEffect(() => { if (isAdmin) load(); }, [statusFilter, excludedFilter, isAdmin]);
 
   async function runBatch() {
-    // Lotes PEQUEÑOS por petición: cada análisis llama a Azure OpenAI (varios seg.);
-    // un lote grande (50) excede el timeout ~230s de App Service → 502/"Failed to fetch".
-    // Con limit bajo cada request termina rápido y el front itera hasta drenar (tope alto anti-loop).
-    let applied = 0;
-    setBusyMsg("Analizando y aplicando pendientes…");
+    // El endpoint server-side `analyze-all` devuelve 503 en -valida (corre todo en
+    // una transacción y se cae). El individual `/{id}/analyze` SÍ funciona, así que
+    // orquestamos el lote desde el front: por cada canónica pendiente, analizar +
+    // aplicar con los endpoints individuales (probados). Progreso n/total.
+    setBusyMsg("Buscando pendientes…");
+    let applied = 0, failed = 0;
     try {
-      for (let i = 0; i < 100; i++) {
-        const r = await analyzeAllWafCanonicals({ limit: 10, apply: true });
-        applied += r.applied;
-        setBusyMsg(`Analizando y aplicando pendientes… (${applied} aplicadas)`);
-        if (r.total === 0 || r.processed === 0) break;
+      const pend = await getWafCatalog({ review_status: "pending" });
+      for (let i = 0; i < pend.length; i++) {
+        setBusyMsg(`Analizando y aplicando pendientes… (${i + 1}/${pend.length})`);
+        try {
+          const { suggestion } = await analyzeWafCanonical(pend[i].canonical_id);
+          await applyWafSuggestion(pend[i].canonical_id, suggestion);
+          applied++;
+        } catch { failed++; }
       }
-      toast.success(`Curación IA: ${applied} aplicada${applied === 1 ? "" : "s"}`);
+      toast.success(`Curación IA: ${applied} aplicada${applied === 1 ? "" : "s"}${failed ? ` · ${failed} con error` : ""}`);
       load();
     } catch (e) { toast.error(`Error en la curación: ${msg(e)}`); }
     finally { setBusyMsg(""); }
