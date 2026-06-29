@@ -49,3 +49,18 @@ test("Consolidar duplicados llama a la API y refresca", async () => {
   await waitFor(() => expect(consolidateWafDuplicates).toHaveBeenCalledWith(3, true));
   await waitFor(() => expect(onChanged).toHaveBeenCalled());
 });
+
+test("Actualizar Advisor Score llama a la API y refresca", async () => {
+  const { default: WafActions } = await import("@/components/waf/WafActions");
+  const { refreshWafAdvisorScore } = await import("@/lib/api");
+  const onChanged = vi.fn();
+  render(<WafActions clientId={3} onChanged={onChanged} />);
+  const opcionesBtn = screen.getByRole("button", { name: /opciones/i });
+  fireEvent.pointerDown(opcionesBtn, { button: 0, ctrlKey: false });
+  fireEvent.click(opcionesBtn);
+  const scoreItem = await screen.findByText(/actualizar advisor score/i);
+  fireEvent.click(scoreItem);
+  fireEvent.click(await screen.findByRole("button", { name: /^actualizar$/i }));
+  await waitFor(() => expect(refreshWafAdvisorScore).toHaveBeenCalledWith(3, false));
+  await waitFor(() => expect(onChanged).toHaveBeenCalled());
+});

@@ -108,8 +108,8 @@ export default function WafActions({ clientId, onChanged }: { clientId: number; 
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Cargar datos</DropdownMenuLabel>
             <DropdownMenuItem onClick={() => setCsvOpen(true)}>Importar Advisor CSV</DropdownMenuItem>
-            {(editable || isAdmin) && <DropdownMenuSeparator />}
-            {(editable || isAdmin) && <DropdownMenuLabel>Mantenimiento</DropdownMenuLabel>}
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Mantenimiento</DropdownMenuLabel>
             {editable && <DropdownMenuItem onClick={() => setConsOpen(true)}><GitMerge className="w-4 h-4 mr-2" />Consolidar duplicados</DropdownMenuItem>}
             {isAdmin && <DropdownMenuItem onClick={() => setScoreOpen(true)}><RefreshCw className="w-4 h-4 mr-2" />Actualizar Advisor Score</DropdownMenuItem>}
           </DropdownMenuContent>
