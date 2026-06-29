@@ -13,6 +13,14 @@ import type {
   Role,
   Scenario,
   ServiceCatalogItem,
+  WafComment,
+  WafHistoryEntry,
+  WafRecommendation,
+  WafRecommendationDetail,
+  WafResource,
+  WafSection,
+  WafSummary,
+  WafTrackingUpdate,
 } from "@/types";
 import { clearSession, getToken, setSession } from "@/lib/auth";
 
@@ -162,6 +170,34 @@ export const getInventorySummary = (analysisId: number) =>
   request<InventoryRow[]>(`/azure/import/inventory/${analysisId}/summary`);
 export const generateExcel = (analysisId: number) =>
   request<{ download_url?: string; file_name?: string }>(`/excel/generate/${analysisId}`, { method: "POST" });
+
+// ---- WAF (Matriz mejoras Azure): lecturas ----
+export const getWafSummary = (clientId: number) =>
+  request<WafSummary>(`/waf/clients/${clientId}/summary`);
+export const getWafSections = (clientId: number) =>
+  request<WafSection[]>(`/waf/clients/${clientId}/sections`);
+export const getWafRecommendations = (clientId: number, pillar?: number) =>
+  request<WafRecommendation[]>(
+    `/waf/clients/${clientId}/recommendations${pillar ? `?pillar=${pillar}` : ""}`,
+  );
+export const getWafRecommendation = (clientId: number, canonicalId: number) =>
+  request<WafRecommendationDetail>(`/waf/clients/${clientId}/recommendations/${canonicalId}`);
+export const getWafResources = (clientId: number, canonicalId: number) =>
+  request<WafResource[]>(`/waf/clients/${clientId}/recommendations/${canonicalId}/resources`);
+export const getWafComments = (clientId: number, canonicalId: number) =>
+  request<WafComment[]>(`/waf/clients/${clientId}/recommendations/${canonicalId}/comments`);
+export const getWafHistory = (clientId: number, canonicalId: number) =>
+  request<WafHistoryEntry[]>(`/waf/clients/${clientId}/recommendations/${canonicalId}/history`);
+
+// ---- WAF: escrituras ----
+export const updateWafTracking = (clientId: number, canonicalId: number, body: WafTrackingUpdate) =>
+  request<{ message: string }>(
+    `/waf/clients/${clientId}/recommendations/${canonicalId}/tracking`, jsonOpts("PUT", body),
+  );
+export const addWafComment = (clientId: number, canonicalId: number, comment_text: string) =>
+  request<{ comment_id: number }>(
+    `/waf/clients/${clientId}/recommendations/${canonicalId}/comments`, jsonOpts("POST", { comment_text }),
+  );
 
 /** Descarga autenticada (blob) desde el backend .NET; usado por la exportación a Excel. */
 export async function downloadFromApi(path: string, fileName: string, base: string = apiBase()): Promise<void> {

@@ -1,0 +1,80 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getWafRecommendations, getWafSections, getWafSummary, listClientsAdmin } from "@/lib/api";
+import type { ClientAdmin, WafRecommendation, WafSection, WafSummary } from "@/types";
+
+const SELECTED_CLIENT_KEY = "innovacion_cdc_waf_client";
+
+function readSelectedClient(): number | null {
+  const raw = localStorage.getItem(SELECTED_CLIENT_KEY);
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) ? n : null;
+}
+
+export function useWaf() {
+  const [clients, setClients] = useState<ClientAdmin[]>([]);
+  const [clientId, setClientId] = useState<number | null>(null);
+  const [summary, setSummary] = useState<WafSummary | null>(null);
+  const [sections, setSections] = useState<WafSection[]>([]);
+  const [recommendations, setRecommendations] = useState<WafRecommendation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
+  const [error, setError] = useState("");
+  const mountedRef = useRef(true);
+
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true); setError("");
+      try {
+        const cs = await listClientsAdmin();
+        if (!mountedRef.current) return;
+        setClients(cs);
+        const stored = readSelectedClient();
+        const initial = stored && cs.some((c) => c.client_id === stored) ? stored : cs[0]?.client_id ?? null;
+        setClientId(initial);
+      } catch (e) {
+        if (mountedRef.current) setError(e instanceof Error ? e.message : "Error al cargar clientes");
+      } finally {
+        if (mountedRef.current) setLoading(false);
+      }
+    })();
+  }, []);
+
+  const loadFor = useCallback(async (cid: number) => {
+    setDataLoading(true); setError("");
+    try {
+      const [sum, secs, recs] = await Promise.all([
+        getWafSummary(cid), getWafSections(cid), getWafRecommendations(cid),
+      ]);
+      if (!mountedRef.current) return;
+      setSummary(sum); setSections(secs); setRecommendations(recs);
+    } catch (e) {
+      if (!mountedRef.current) return;
+      setSummary(null); setSections([]); setRecommendations([]);
+      setError(e instanceof Error ? e.message : "Error al cargar WAF");
+    } finally {
+      if (mountedRef.current) setDataLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (clientId == null) { setSummary(null); setSections([]); setRecommendations([]); return; }
+    loadFor(clientId);
+  }, [clientId, loadFor]);
+
+  const pillarNames = useMemo(() => {
+    const m: Record<number, string> = {};
+    for (const s of sections) m[s.section_num] = s.section_name;
+    return m;
+  }, [sections]);
+
+  const selectClient = useCallback((id: number) => {
+    localStorage.setItem(SELECTED_CLIENT_KEY, String(id));
+    setClientId(id);
+  }, []);
+
+  const reloadData = useCallback(() => { if (clientId != null) loadFor(clientId); }, [clientId, loadFor]);
+
+  return { clients, clientId, summary, sections, recommendations, pillarNames, loading, dataLoading, error, selectClient, reloadData };
+}
