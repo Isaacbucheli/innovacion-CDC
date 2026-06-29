@@ -16,6 +16,9 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const filtered = filterRecommendations(waf.recommendations, { pillar });
+  const avgProgress = waf.recommendations.length
+    ? Math.round(waf.recommendations.reduce((s, r) => s + r.completion_pct, 0) / waf.recommendations.length)
+    : 0;
 
   function open(canonicalId: number) { setOpenId(canonicalId); setDialogOpen(true); }
 
@@ -24,7 +27,7 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
       headerRight={<WafClientHeader clients={waf.clients} clientId={waf.clientId} onSelect={waf.selectClient} />}>
       <BusyOverlay show={waf.loading || waf.dataLoading} title="Cargando recomendaciones" />
       <div className="space-y-5">
-        <WafKpis summary={waf.summary} />
+        <WafKpis summary={waf.summary} avgProgress={avgProgress} />
         <PillarCards sections={waf.sections} activePillar={pillar} onPick={setPillar} />
         {waf.error && <p className="text-sm text-destructive">{waf.error}</p>}
         <WafDataTable recommendations={filtered} pillarNames={waf.pillarNames} minPct={0} maxPct={100} onOpen={open} />

@@ -21,4 +21,7 @@ test("renderiza la vista WAF con KPIs, pilar y tabla", async () => {
   await waitFor(() => expect(screen.getByText("RI")).toBeInTheDocument());
   expect(screen.getByText("Recomendaciones activas")).toBeInTheDocument();
   expect(screen.getAllByText("Costos").length).toBeGreaterThan(0);
+  expect(screen.getByText("Recursos afectados")).toBeInTheDocument();
+  expect(screen.getByText("Avance promedio")).toBeInTheDocument();
+  expect(screen.getAllByText("10%").length).toBeGreaterThan(0);
 });
