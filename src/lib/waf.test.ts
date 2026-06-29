@@ -48,8 +48,8 @@ describe("pillarIcon", () => {
 });
 
 describe("scoreClass", () => {
-  it("scoreClass(90) incluye green", () => {
-    expect(scoreClass(90)).toContain("green");
+  it("scoreClass(90) usa el verde de marca (#5a7016)", () => {
+    expect(scoreClass(90)).toContain("#5a7016");
   });
   it("scoreClass(60) incluye amber", () => {
     expect(scoreClass(60)).toContain("amber");
