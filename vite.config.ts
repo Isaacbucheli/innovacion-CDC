@@ -7,18 +7,14 @@ export default defineConfig({
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
   server: {
     proxy: {
+      // Stack nuevo = backend ÚNICO en .NET, conectado a sqldb-optimizacion-costos-valida.
+      // DEV apunta al .NET LOCAL (su .env/appsettings.Development usa -valida) — NUNCA a prod.
+      // Override con VITE_DEV_API_TARGET si el backend local corre en otro puerto.
       "/api": {
-        target: "https://app-optimizacion-costos-api.azurewebsites.net",
+        target: process.env.VITE_DEV_API_TARGET || "http://localhost:5169",
         changeOrigin: true,
-        secure: true,
+        secure: false,
         rewrite: (p) => p.replace(/^\/api/, ""),
-      },
-      // Catálogo de alertas: backend .NET (migración estranguladora).
-      "/dotnet-api": {
-        target: "https://app-optimizacion-costos-api-dotnet.azurewebsites.net",
-        changeOrigin: true,
-        secure: true,
-        rewrite: (p) => p.replace(/^\/dotnet-api/, ""),
       },
     },
   },

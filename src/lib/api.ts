@@ -15,16 +15,14 @@ import type {
 } from "@/types";
 import { clearSession, getToken, setSession } from "@/lib/auth";
 
+// Stack nuevo: backend ÚNICO en .NET (B1–B8), conectado a la BD propia
+// `sqldb-optimizacion-costos-valida`. Python (prod) se mantiene en paralelo pero el front nuevo
+// NO le habla. En DEV se usa el proxy de Vite (/api → .NET local sobre -valida). En prod, la tarea
+// I fija VITE_API_BASE_URL al backend del stack nuevo. SIN fallback a prod: NUNCA apuntar al antiguo
+// (si VITE_API_BASE_URL no está, las llamadas van al propio origen y fallan ruidosamente, no a prod).
 export function apiBase(): string {
   if (import.meta.env.DEV) return "/api";
-  return (import.meta.env.VITE_API_BASE_URL as string) || "https://app-optimizacion-costos-api.azurewebsites.net";
-}
-
-// Backend .NET (migración estranguladora): SOLO el catálogo de alertas se sirve
-// desde aquí; auth y todo lo demás siguen en el FastAPI (apiBase).
-export function catalogBase(): string {
-  if (import.meta.env.DEV) return "/dotnet-api";
-  return (import.meta.env.VITE_CATALOG_API_BASE_URL as string) || "https://app-optimizacion-costos-api-dotnet.azurewebsites.net";
+  return (import.meta.env.VITE_API_BASE_URL as string) || "";
 }
 
 export async function request<T>(path: string, opts: RequestInit = {}, base: string = apiBase()): Promise<T> {
@@ -50,6 +48,7 @@ function jsonOpts(method: string, body: unknown): RequestInit {
   return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
 }
 
+// ---- Auth ----
 export interface LoginResult { access_token: string; role: Role; full_name?: string; email?: string }
 export async function login(email: string, password: string): Promise<LoginResult> {
   const r = await request<LoginResult>("/auth/login", jsonOpts("POST", { username: email, password }));
@@ -58,36 +57,33 @@ export async function login(email: string, password: string): Promise<LoginResul
 }
 export const me = () => request<{ role: Role; full_name?: string; email?: string }>("/auth/me");
 
-// Catálogo de alertas: servido por el backend .NET (catalogBase).
-export const listAlerts = () => request<Alert[]>("/alert-catalog", {}, catalogBase());
-export const createAlert = (p: Partial<Alert>) => request<{ alert_id: number }>("/alert-catalog", jsonOpts("POST", p), catalogBase());
-export const updateAlert = (id: number, p: Partial<Alert>) => request("/alert-catalog/" + id, jsonOpts("PUT", p), catalogBase());
-export const deleteAlert = (id: number) => request("/alert-catalog/" + id, { method: "DELETE" }, catalogBase());
+// ---- Catálogo de alertas ----
+export const listAlerts = () => request<Alert[]>("/alert-catalog");
+export const createAlert = (p: Partial<Alert>) => request<{ alert_id: number }>("/alert-catalog", jsonOpts("POST", p));
+export const updateAlert = (id: number, p: Partial<Alert>) => request("/alert-catalog/" + id, jsonOpts("PUT", p));
+export const deleteAlert = (id: number) => request("/alert-catalog/" + id, { method: "DELETE" });
 
-export const listKql = () => request<KqlQuery[]>("/alert-catalog/kql", {}, catalogBase());
-export const createKql = (p: Partial<KqlQuery>) => request<{ kql_id: number }>("/alert-catalog/kql", jsonOpts("POST", p), catalogBase());
-export const updateKql = (id: number, p: Partial<KqlQuery>) => request("/alert-catalog/kql/" + id, jsonOpts("PUT", p), catalogBase());
-export const deleteKql = (id: number) => request("/alert-catalog/kql/" + id, { method: "DELETE" }, catalogBase());
+export const listKql = () => request<KqlQuery[]>("/alert-catalog/kql");
+export const createKql = (p: Partial<KqlQuery>) => request<{ kql_id: number }>("/alert-catalog/kql", jsonOpts("POST", p));
+export const updateKql = (id: number, p: Partial<KqlQuery>) => request("/alert-catalog/kql/" + id, jsonOpts("PUT", p));
+export const deleteKql = (id: number) => request("/alert-catalog/kql/" + id, { method: "DELETE" });
 
-// ---- Costos ----
-// Clientes, análisis y catálogo de servicios siguen en el FastAPI (apiBase).
+// ---- Costos: clientes, análisis y catálogo de servicios ----
 export const listClients = () => request<ClientSummary[]>("/clients");
 export const listAnalyses = () => request<AnalysisSummary[]>("/analysis");
 export const ensureCurrentAnalysis = (clientId: number) =>
   request<AnalysisSummary>(`/analysis/client/${clientId}/current`, { method: "POST" });
 export const listActiveServices = () => request<ServiceCatalogItem[]>("/service-catalog/active");
 
-// Lecturas de costos: servidas por el backend .NET migrado (catalogBase).
+// ---- Costos: lecturas ----
 export const getCostResults = (analysisId: number, serviceKey?: string) =>
   request<CostResult[]>(
     `/analysis/${analysisId}/results${serviceKey ? `?service_key=${encodeURIComponent(serviceKey)}` : ""}`,
-    {},
-    catalogBase(),
   );
 export const getScenarios = (analysisId: number) =>
-  request<Scenario[]>(`/analysis/${analysisId}/scenarios`, {}, catalogBase());
+  request<Scenario[]>(`/analysis/${analysisId}/scenarios`);
 
-// Escrituras de costos y operaciones Azure: siguen en el FastAPI (apiBase, estrangulador).
+// ---- Costos: escrituras y operaciones Azure ----
 export const calculateCosts = (analysisId: number, body: CalculateRequest) =>
   request<CalculateResponse>(`/analysis/${analysisId}/calculate`, jsonOpts("POST", body));
 export const recalcScenarios = (analysisId: number) =>
@@ -109,7 +105,7 @@ export const getInventorySummary = (analysisId: number) =>
 export const generateExcel = (analysisId: number) =>
   request<{ download_url?: string; file_name?: string }>(`/excel/generate/${analysisId}`, { method: "POST" });
 
-/** Descarga autenticada (blob) desde el FastAPI; usado por la exportación a Excel. */
+/** Descarga autenticada (blob) desde el backend .NET; usado por la exportación a Excel. */
 export async function downloadFromApi(path: string, fileName: string, base: string = apiBase()): Promise<void> {
   const headers = new Headers();
   const token = getToken();

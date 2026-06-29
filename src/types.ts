@@ -24,7 +24,7 @@ export interface KqlQuery {
   is_active: boolean;
 }
 
-// ---- Módulo de costos (migración estranguladora: lecturas servidas por el backend .NET) ----
+// ---- Módulo de costos (servido por el backend .NET del stack nuevo) ----
 
 /** Una fila de resultado de costo. Refleja CostResultRow del backend .NET (snake_case). */
 export interface CostResult {
@@ -97,27 +97,27 @@ export interface Scenario {
   breakdown: ScenarioBreakdown[];
 }
 
-/** Cliente (GET /clients, FastAPI). */
+/** Cliente (GET /clients, backend .NET). */
 export interface ClientSummary {
   client_id: number;
   client_name: string;
 }
 
-/** Análisis/evaluación (GET /analysis y POST /analysis/client/{id}/current, FastAPI). */
+/** Análisis/evaluación (GET /analysis y POST /analysis/client/{id}/current, backend .NET). */
 export interface AnalysisSummary {
   analysis_id: number;
   analysis_name: string;
   client_id?: number;
 }
 
-/** Servicio del catálogo activo (GET /service-catalog/active, FastAPI). */
+/** Servicio del catálogo activo (GET /service-catalog/active, backend .NET). */
 export interface ServiceCatalogItem {
   service_key: string;
   service_name?: string | null;
   is_internal?: boolean | null;
 }
 
-// ---- Escrituras de costos (siguen en FastAPI durante el estrangulador) ----
+// ---- Escrituras de costos (backend .NET) ----
 
 export interface CalculateRequest {
   service_keys?: string[];
