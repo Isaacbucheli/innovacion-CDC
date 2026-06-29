@@ -246,3 +246,31 @@ export interface WafAdvisorScore {
   has_connection: boolean;
   pillars: Record<string, number>;
 }
+
+/** Suscripción del cliente (GET /azure/subscriptions?client_id=, backend .NET). */
+export interface ClientSubscription {
+  client_subscription_id: number;
+  subscription_id: string;
+  subscription_name: string | null;
+  is_active: boolean;
+  is_managed: boolean;
+}
+
+/** Request de sync con Azure Advisor (POST /waf/clients/{id}/advisor-sync). */
+export interface WafAdvisorSyncRequest {
+  subscriptions: string[];
+  timeout_seconds_per_subscription?: number;
+}
+
+/** Resultado (síncrono) del sync con Advisor. */
+export interface WafAdvisorSyncResult {
+  run_id: number;
+  status: string;
+  subscriptions_queued: number;
+  subscriptions_processed: number;
+  subscriptions_failed: number;
+  new_recommendations: number;
+  new_findings: number;
+  resolved_findings: number;
+  warnings?: string[];
+}

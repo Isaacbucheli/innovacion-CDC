@@ -108,4 +108,23 @@ describe("WAF api", () => {
     expect(url).toContain("/waf/clients/3/recommendations");
     expect(url).not.toContain("?pillar");
   });
+
+  it("listClientSubscriptions arma la URL con client_id", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("[]", { status: 200 })));
+    const { listClientSubscriptions } = await import("@/lib/api");
+    await listClientSubscriptions(7);
+    const url = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(url).toContain("/azure/subscriptions?client_id=7");
+  });
+
+  it("uploadWafIngestion postea multipart al endpoint de ingestions", async () => {
+    const spy = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", spy);
+    const { uploadWafIngestion } = await import("@/lib/api");
+    await uploadWafIngestion(3, new File(["a,b"], "advisor.csv", { type: "text/csv" }));
+    const calls = (spy as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0]).toContain("/waf/clients/3/ingestions");
+    expect((calls[0][1] as RequestInit).method).toBe("POST");
+    expect((calls[0][1] as RequestInit).body).toBeInstanceOf(FormData);
+  });
 });
