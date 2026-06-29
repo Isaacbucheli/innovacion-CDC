@@ -20,6 +20,7 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
   const avgProgress = waf.recommendations.length
     ? Math.round(waf.recommendations.reduce((s, r) => s + r.completion_pct, 0) / waf.recommendations.length)
     : 0;
+  const highImpact = waf.sections.reduce((s, x) => s + (x.high_recs ?? 0), 0);
 
   function open(canonicalId: number) { setOpenId(canonicalId); setDialogOpen(true); }
 
@@ -29,7 +30,7 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
       <BusyOverlay show={waf.loading || waf.dataLoading} title="Cargando recomendaciones" />
       <div className="space-y-5">
         {waf.clientId != null && <WafActions clientId={waf.clientId} onChanged={waf.reloadData} />}
-        <WafKpis summary={waf.summary} avgProgress={avgProgress} />
+        <WafKpis summary={waf.summary} avgProgress={avgProgress} highImpact={highImpact} />
         <PillarCards sections={waf.sections} activePillar={pillar} onPick={setPillar} scores={waf.scores} />
         {waf.error && <p className="text-sm text-destructive">{waf.error}</p>}
         <WafDataTable recommendations={filtered} pillarNames={waf.pillarNames} minPct={0} maxPct={100} onOpen={open} />
