@@ -38,7 +38,7 @@ export default function ScenarioCards({ scenarios }: { scenarios: Scenario[] }) 
             <div className="mt-4 pt-3 border-t">
               <div className="text-xs text-muted-foreground">Total mensual</div>
               <div className="text-2xl font-bold tabular-nums tracking-tight">{formatMoney(s.total_monthly)}</div>
-              <div className="text-sm font-semibold text-[#5a7016] mt-1">
+              <div className="text-sm font-semibold text-[#5a7016] dark:text-[#a9c46a] mt-1">
                 Ahorro {formatMoney(s.savings_monthly)}
                 {s.savings_pct ? ` · ${formatPct(s.savings_pct)}` : ""}
               </div>

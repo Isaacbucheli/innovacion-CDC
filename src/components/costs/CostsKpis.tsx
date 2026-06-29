@@ -26,7 +26,7 @@ function Card({
         accent ? "bg-[#A3C243]/10 border-transparent" : "bg-background"
       }`}
     >
-      <div className={`w-9 h-9 rounded-lg grid place-items-center mb-3 text-[#5a7016] ${accent ? "bg-white/70" : "bg-secondary"}`}>
+      <div className={`w-9 h-9 rounded-lg grid place-items-center mb-3 text-[#5a7016] dark:text-[#a9c46a] ${accent ? "bg-background/70" : "bg-secondary"}`}>
         {icon}
       </div>
       <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>

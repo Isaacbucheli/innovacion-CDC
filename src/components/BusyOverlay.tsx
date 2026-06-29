@@ -9,7 +9,7 @@ export default function BusyOverlay({ show, title, detail }: { show: boolean; ti
   if (!show) return null;
   return (
     <div
-      className="fixed inset-0 z-[100] grid place-items-center bg-white/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] grid place-items-center bg-background/60 backdrop-blur-sm"
       role="status"
       aria-live="polite"
       aria-busy="true"

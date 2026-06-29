@@ -115,7 +115,7 @@ export default function CostsDataTable({
       enableSorting: false,
       cell: ({ row }) =>
         riConfirmed(row.original) ? (
-          <Pill className="bg-[#A3C243]/15 text-[#5a7016]" title={riTooltip(row.original)}>
+          <Pill className="bg-[#A3C243]/15 text-[#5a7016] dark:text-[#a9c46a]" title={riTooltip(row.original)}>
             Reservado
           </Pill>
         ) : (
