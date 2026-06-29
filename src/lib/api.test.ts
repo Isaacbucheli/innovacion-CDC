@@ -88,3 +88,24 @@ test("login envía 'username' (no 'email') en el body, según el contrato de la 
   expect(body.email).toBeUndefined();
   expect(body.password).toBe("secret");
 });
+
+import { describe, it, beforeEach } from "vitest";
+
+describe("WAF api", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("[]", { status: 200 })));
+  });
+  it("getWafRecommendations agrega el filtro de pilar", async () => {
+    const { getWafRecommendations } = await import("@/lib/api");
+    await getWafRecommendations(3, 5);
+    const url = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(url).toContain("/waf/clients/3/recommendations?pillar=5");
+  });
+  it("getWafRecommendations sin pilar no agrega query", async () => {
+    const { getWafRecommendations } = await import("@/lib/api");
+    await getWafRecommendations(3);
+    const url = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(url).toContain("/waf/clients/3/recommendations");
+    expect(url).not.toContain("?pillar");
+  });
+});

@@ -165,3 +165,78 @@ export interface InventoryRow {
   resource_type: string | null;
   count: number | null;
 }
+
+// ---- WAF (Matriz mejoras Azure) ----
+export interface WafSummary {
+  client_id: number;
+  recommendations: number;
+  active_recommendations: number;
+  cost_recommendations: number;
+  active_findings: number;
+  latest_ingestion: { source_file_name?: string | null; completed_at?: string | null; status?: string | null } | null;
+}
+
+export interface WafSection {
+  section_num: number;
+  section_name: string;
+  total_recs: number;
+  total_resources: number;
+  avg_progress: number;
+  high_recs: number;
+  medium_recs: number;
+}
+
+export interface WafRecommendation {
+  canonical_id: number;
+  matrix_code: string;
+  pillar_number: number;
+  review_scope_es: string | null;
+  business_impact: string | null;
+  resource_count: number;
+  completion_pct: number;
+}
+
+export interface WafRecommendationDetail extends WafRecommendation {
+  benefit_es: string | null;
+  client_action_es: string | null;
+  bit_action_es: string | null;
+  remediation_start_date: string | null;
+  projected_bit_effort: string | null;
+  execution_log: string | null;
+  priority_override: number | null;
+  internal_notes: string | null;
+}
+
+export interface WafResource {
+  finding_id: number;
+  resource_name: string;
+  resource_type: string | null;
+  resource_group: string | null;
+  subscription_name: string | null;
+  status: string;
+}
+
+export interface WafComment {
+  comment_id: number;
+  user_display: string;
+  comment_text: string;
+  created_at: string;
+}
+
+export interface WafHistoryEntry {
+  history_id: number;
+  field_changed: string;
+  old_value: string | null;
+  new_value: string | null;
+  changed_by: string | null;
+  changed_at: string;
+}
+
+export interface WafTrackingUpdate {
+  completion_pct: number;
+  remediation_start_date: string | null;
+  projected_bit_effort: string | null;
+  execution_log: string | null;
+  priority_override: number | null;
+  internal_notes: string | null;
+}
