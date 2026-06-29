@@ -17,6 +17,11 @@ import type {
   WafAdvisorScore,
   WafAdvisorSyncRequest,
   WafAdvisorSyncResult,
+  WafAiBatchResult,
+  WafAiConfig,
+  WafAiSuggestion,
+  WafCanonical,
+  WafCanonicalUpdate,
   WafComment,
   WafConsolidateResult,
   WafCostReference,
@@ -265,6 +270,24 @@ export async function previewWafExcel(clientId: number, file: File, useAi: boole
 }
 export const applyWafExcel = (clientId: number, body: WafExcelApplyRequest) =>
   request<WafExcelApplyResult>(`/waf/clients/${clientId}/excel-import/apply`, jsonOpts("POST", body));
+
+// ---- WAF admin: validación inteligente (curación IA del catálogo) ----
+export const getWafAiConfig = () => request<WafAiConfig>(`/waf/admin/ai/config`);
+export const getWafCatalog = (params?: { review_status?: string; excluded?: boolean }) => {
+  const q = new URLSearchParams();
+  if (params?.review_status) q.set("review_status", params.review_status);
+  if (params?.excluded != null) q.set("excluded", String(params.excluded));
+  const qs = q.toString();
+  return request<WafCanonical[]>(`/waf/admin/catalog${qs ? `?${qs}` : ""}`);
+};
+export const analyzeWafCanonical = (canonicalId: number) =>
+  request<{ canonical_id: number; suggestion: WafAiSuggestion }>(`/waf/admin/ai/recommendations/${canonicalId}/analyze`, { method: "POST" });
+export const analyzeAllWafCanonicals = (body: { limit: number; apply: boolean }) =>
+  request<WafAiBatchResult>(`/waf/admin/ai/recommendations/analyze-all`, jsonOpts("POST", body));
+export const applyWafSuggestion = (canonicalId: number, suggestion: WafAiSuggestion) =>
+  request<{ message: string; canonical_id: number }>(`/waf/admin/ai/recommendations/${canonicalId}/apply`, jsonOpts("PATCH", suggestion));
+export const updateWafCanonical = (canonicalId: number, body: WafCanonicalUpdate) =>
+  request<{ message: string; canonical_id: number }>(`/waf/admin/catalog/${canonicalId}`, jsonOpts("PUT", body));
 
 /** Descarga autenticada (blob) desde el backend .NET; usado por la exportación a Excel. */
 export async function downloadFromApi(path: string, fileName: string, base: string = apiBase()): Promise<void> {

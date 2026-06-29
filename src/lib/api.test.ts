@@ -181,4 +181,23 @@ describe("WAF api", () => {
     const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls[0][0]).toContain("/waf/clients/3/ingestion-runs");
   });
+
+  it("getWafCatalog agrega review_status y excluded a la query", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("[]", { status: 200 })));
+    const { getWafCatalog } = await import("@/lib/api");
+    await getWafCatalog({ review_status: "pending", excluded: false });
+    const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0]).toContain("/waf/admin/catalog?");
+    expect(calls[0][0]).toContain("review_status=pending");
+    expect(calls[0][0]).toContain("excluded=false");
+  });
+  it("analyzeAllWafCanonicals postea limit+apply", async () => {
+    const spy = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", spy);
+    const { analyzeAllWafCanonicals } = await import("@/lib/api");
+    await analyzeAllWafCanonicals({ limit: 50, apply: true });
+    const calls = (spy as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0]).toContain("/waf/admin/ai/recommendations/analyze-all");
+    expect(JSON.parse((calls[0][1] as RequestInit).body as string)).toEqual({ limit: 50, apply: true });
+  });
 });

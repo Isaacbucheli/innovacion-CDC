@@ -401,3 +401,24 @@ export interface WafIngestionRun {
   created_by: string | null;
   error_message: string | null;
 }
+
+// ---- WAF admin: validación inteligente (curación IA del catálogo) ----
+export interface WafAiConfig { configured: boolean; deployment: string | null; api_version: string | null; has_key: boolean; }
+export interface WafCanonical {
+  canonical_id: number; advisor_name: string; advisor_category: string; pillar_number: number;
+  review_scope_es: string; benefit_es: string; client_action_es: string; bit_action_es: string;
+  is_excluded: boolean; exclusion_reason: string | null; consolidates_to_id: number | null;
+  ai_review_status: string; ai_decision: string | null; ai_confidence: number | null;
+  ai_possible_additional_cost: boolean; ai_cost_reason: string | null; ai_exclusion_reason: string | null;
+  ai_duplicate_group_key: string | null; ai_reviewed_at: string | null; created_at: string; updated_at: string;
+}
+export interface WafAiSuggestion {
+  decision: string; possible_additional_cost: boolean; cost_reason: string; duplicate_group_key: string;
+  pillar_number: number; review_scope_es: string; benefit_es: string; client_action_es: string;
+  bit_action_es: string; exclusion_reason: string; confidence: number; raw_model_text: string;
+}
+export interface WafCanonicalUpdate {
+  pillar_number?: number; review_scope_es?: string; benefit_es?: string; client_action_es?: string;
+  bit_action_es?: string; is_excluded?: boolean; exclusion_reason?: string | null; ai_review_status?: string;
+}
+export interface WafAiBatchResult { total: number; processed: number; applied: number; errors: { canonical_id: number; error: string }[]; }
