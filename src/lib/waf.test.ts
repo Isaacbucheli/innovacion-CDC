@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { filterRecommendations, validateTracking, impactMeta, pillarColor, pillarIcon, scoreClass } from "@/lib/waf";
-import type { WafRecommendation } from "@/types";
+import { filterRecommendations, validateTracking, impactMeta, pillarColor, pillarIcon, scoreClass, advisorSyncSummary } from "@/lib/waf";
+import type { WafRecommendation, WafAdvisorSyncResult } from "@/types";
 
 const rec = (over: Partial<WafRecommendation>): WafRecommendation => ({
   canonical_id: 1, matrix_code: "1.1", pillar_number: 1, review_scope_es: "x",
@@ -56,5 +56,18 @@ describe("scoreClass", () => {
   });
   it("scoreClass(30) incluye red", () => {
     expect(scoreClass(30)).toContain("red");
+  });
+});
+
+describe("advisorSyncSummary", () => {
+  it("resume suscripciones procesadas, nuevas y resueltas", () => {
+    const r: WafAdvisorSyncResult = {
+      run_id: 1, status: "completed", subscriptions_queued: 3, subscriptions_processed: 3,
+      subscriptions_failed: 0, new_recommendations: 58, new_findings: 312, resolved_findings: 12,
+    };
+    const s = advisorSyncSummary(r);
+    expect(s).toContain("3");
+    expect(s).toContain("58");
+    expect(s).toContain("12");
   });
 });
