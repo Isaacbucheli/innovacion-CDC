@@ -18,10 +18,12 @@ import type {
   WafAdvisorSyncRequest,
   WafAdvisorSyncResult,
   WafComment,
+  WafConsolidateResult,
   WafHistoryEntry,
   WafRecommendation,
   WafRecommendationDetail,
   WafResource,
+  WafScoreRefreshResult,
   WafSection,
   WafSummary,
   WafTrackingUpdate,
@@ -232,6 +234,11 @@ export async function uploadWafIngestion(clientId: number, file: File, base: str
   }
   return text ? JSON.parse(text) : {};
 }
+
+export const consolidateWafDuplicates = (clientId: number, useAi: boolean) =>
+  request<WafConsolidateResult>(`/waf/clients/${clientId}/consolidate-duplicates?use_ai=${useAi}`, { method: "POST" });
+export const refreshWafAdvisorScore = (clientId: number, includeInReports: boolean) =>
+  request<WafScoreRefreshResult>(`/waf/admin/advisor-score/refresh`, jsonOpts("POST", { client_id: clientId, include_in_reports: includeInReports }));
 
 /** Descarga autenticada (blob) desde el backend .NET; usado por la exportación a Excel. */
 export async function downloadFromApi(path: string, fileName: string, base: string = apiBase()): Promise<void> {

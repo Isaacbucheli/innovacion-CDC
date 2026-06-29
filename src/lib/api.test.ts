@@ -127,4 +127,24 @@ describe("WAF api", () => {
     expect((calls[0][1] as RequestInit).method).toBe("POST");
     expect((calls[0][1] as RequestInit).body).toBeInstanceOf(FormData);
   });
+
+  it("consolidateWafDuplicates POST con use_ai en la query", async () => {
+    const spy = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", spy);
+    const { consolidateWafDuplicates } = await import("@/lib/api");
+    await consolidateWafDuplicates(3, true);
+    const calls = (spy as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0]).toContain("/waf/clients/3/consolidate-duplicates?use_ai=true");
+    expect((calls[0][1] as RequestInit).method).toBe("POST");
+  });
+
+  it("refreshWafAdvisorScore POST con client_id en el body", async () => {
+    const spy = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", spy);
+    const { refreshWafAdvisorScore } = await import("@/lib/api");
+    await refreshWafAdvisorScore(3, false);
+    const calls = (spy as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0]).toContain("/waf/admin/advisor-score/refresh");
+    expect(JSON.parse((calls[0][1] as RequestInit).body as string)).toEqual({ client_id: 3, include_in_reports: false });
+  });
 });
