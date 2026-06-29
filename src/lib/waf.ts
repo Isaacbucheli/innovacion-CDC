@@ -1,4 +1,4 @@
-import type { WafRecommendation } from "@/types";
+import type { WafRecommendation, WafAdvisorSyncResult } from "@/types";
 
 // Color por número de pilar (1–5). Mid-ramp: legible en claro y oscuro.
 // Los NOMBRES de pilar vienen del backend (section_name), no se hardcodean aquí.
@@ -58,4 +58,9 @@ export function validateTracking(form: {
     errors.remediation_start_date = "Fecha inválida.";
   }
   return errors;
+}
+
+export function advisorSyncSummary(r: WafAdvisorSyncResult): string {
+  const subs = `${r.subscriptions_processed} suscripción${r.subscriptions_processed === 1 ? "" : "es"}`;
+  return `${subs} · ${r.new_recommendations} nuevas · ${r.resolved_findings} resueltas`;
 }

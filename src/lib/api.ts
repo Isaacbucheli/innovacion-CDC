@@ -4,6 +4,7 @@ import type {
   CalculateRequest,
   CalculateResponse,
   ClientAdmin,
+  ClientSubscription,
   ClientSummary,
   CostResult,
   InventoryRow,
@@ -14,6 +15,8 @@ import type {
   Scenario,
   ServiceCatalogItem,
   WafAdvisorScore,
+  WafAdvisorSyncRequest,
+  WafAdvisorSyncResult,
   WafComment,
   WafHistoryEntry,
   WafRecommendation,
@@ -201,6 +204,34 @@ export const addWafComment = (clientId: number, canonicalId: number, comment_tex
   request<{ comment_id: number }>(
     `/waf/clients/${clientId}/recommendations/${canonicalId}/comments`, jsonOpts("POST", { comment_text }),
   );
+
+// ---- WAF: acciones (Slice A) ----
+export const listClientSubscriptions = (clientId: number) =>
+  request<ClientSubscription[]>(`/azure/subscriptions?client_id=${clientId}`);
+export const runWafAdvisorSync = (clientId: number, body: WafAdvisorSyncRequest) =>
+  request<WafAdvisorSyncResult>(`/waf/clients/${clientId}/advisor-sync`, jsonOpts("POST", body));
+
+/** Sube un CSV de Advisor (multipart, campo "file"). Igual patrón que uploadClientLogo. */
+export async function uploadWafIngestion(clientId: number, file: File, base: string = apiBase()): Promise<unknown> {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${base}/waf/clients/${clientId}/ingestions`, { method: "POST", headers, body: form });
+  if (res.status === 401) {
+    clearSession();
+    if (typeof location !== "undefined") location.reload();
+    throw new Error("Sesión expirada");
+  }
+  const text = await res.text();
+  if (!res.ok) {
+    let detail = text;
+    try { detail = JSON.parse(text).detail ?? text; } catch { /* texto plano */ }
+    throw new Error(detail || `HTTP ${res.status}`);
+  }
+  return text ? JSON.parse(text) : {};
+}
 
 /** Descarga autenticada (blob) desde el backend .NET; usado por la exportación a Excel. */
 export async function downloadFromApi(path: string, fileName: string, base: string = apiBase()): Promise<void> {

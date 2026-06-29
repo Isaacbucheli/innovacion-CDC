@@ -8,6 +8,7 @@ import WafDataTable from "@/components/waf/WafDataTable";
 import WafDetailDialog from "@/components/waf/WafDetailDialog";
 import { useWaf } from "@/hooks/useWaf";
 import { filterRecommendations } from "@/lib/waf";
+import WafActions from "@/components/waf/WafActions";
 
 export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => void }) {
   const waf = useWaf();
@@ -27,6 +28,7 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
       headerRight={<WafClientHeader clients={waf.clients} clientId={waf.clientId} onSelect={waf.selectClient} />}>
       <BusyOverlay show={waf.loading || waf.dataLoading} title="Cargando recomendaciones" />
       <div className="space-y-5">
+        {waf.clientId != null && <WafActions clientId={waf.clientId} onChanged={waf.reloadData} />}
         <WafKpis summary={waf.summary} avgProgress={avgProgress} />
         <PillarCards sections={waf.sections} activePillar={pillar} onPick={setPillar} scores={waf.scores} />
         {waf.error && <p className="text-sm text-destructive">{waf.error}</p>}
