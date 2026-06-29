@@ -26,7 +26,7 @@ const MENU: Group[] = [
     icon: "/assets/azure-icons/advisor.svg",
     items: [
       { label: "Recomendaciones", section: "waf" },
-      { label: "Validación inteligente", adminOnly: true, soon: true },
+      { label: "Validación inteligente", adminOnly: true, section: "waf-validation" },
       { label: "Historial de ingestas", section: "waf-ingestions" },
       { label: "Costo referencial Azure", section: "waf-cost" },
     ],
