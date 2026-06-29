@@ -110,7 +110,7 @@ export default function ClientLogoDialog({
           {submitError && <p className="text-sm text-destructive">{submitError}</p>}
         </div>
         <DialogFooter className="sm:justify-between">
-          {client.logo_blob_name ? (
+          {client.has_logo ? (
             <Button
               type="button"
               variant="outline"

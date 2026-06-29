@@ -33,7 +33,7 @@ export default function ClientCard({
 
   return (
     <div className="flex items-center gap-3 bg-background border rounded-xl px-3 py-2.5 hover:border-primary/40 transition-colors">
-      <ClientLogo clientId={client.client_id} name={client.client_name} hasLogo={!!client.logo_blob_name} size={44} />
+      <ClientLogo clientId={client.client_id} name={client.client_name} hasLogo={client.has_logo} size={44} />
 
       <span className="text-sm font-medium truncate flex-1 min-w-0" title={client.client_name}>
         {client.client_name}

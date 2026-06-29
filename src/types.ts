@@ -112,7 +112,7 @@ export interface ClientAdmin {
   contact_email: string | null;
   is_active: boolean;
   created_at: string | null;
-  logo_blob_name: string | null;
+  has_logo: boolean;
 }
 
 /** Análisis/evaluación (GET /analysis y POST /analysis/client/{id}/current, backend .NET). */
