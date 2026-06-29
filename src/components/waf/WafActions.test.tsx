@@ -6,8 +6,10 @@ vi.mock("@/lib/api", () => ({
   uploadWafIngestion: vi.fn(async () => ({})),
   listClientSubscriptions: vi.fn(async () => [{ client_subscription_id: 1, subscription_id: "sub-A", subscription_name: "Producción", is_active: true, is_managed: true }]),
   downloadFromApi: vi.fn(async () => {}),
+  consolidateWafDuplicates: vi.fn(async () => ({ message: "ok", client_id: 3, merged: 3, ai_calls: 5 })),
+  refreshWafAdvisorScore: vi.fn(async () => ({ message: "ok", clients_total: 1, clients_refreshed: 1, clients_failed: 0, results: [] })),
 }));
-vi.mock("@/lib/auth", () => ({ canEdit: () => true }));
+vi.mock("@/lib/auth", () => ({ canEdit: () => true, getRole: () => "admin" }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 beforeEach(() => vi.clearAllMocks());
@@ -30,5 +32,20 @@ test("Consultar Advisor: selecciona y llama al sync, luego onChanged", async () 
   await waitFor(() => expect(screen.getByText("Producción")).toBeInTheDocument());
   fireEvent.click(screen.getByRole("button", { name: /^consultar$/i }));
   await waitFor(() => expect(runWafAdvisorSync).toHaveBeenCalledWith(3, { subscriptions: ["sub-A"], timeout_seconds_per_subscription: 600 }));
+  await waitFor(() => expect(onChanged).toHaveBeenCalled());
+});
+
+test("Consolidar duplicados llama a la API y refresca", async () => {
+  const { default: WafActions } = await import("@/components/waf/WafActions");
+  const { consolidateWafDuplicates } = await import("@/lib/api");
+  const onChanged = vi.fn();
+  render(<WafActions clientId={3} onChanged={onChanged} />);
+  const opcionesBtn = screen.getByRole("button", { name: /opciones/i });
+  fireEvent.pointerDown(opcionesBtn, { button: 0, ctrlKey: false });
+  fireEvent.click(opcionesBtn);
+  const consolidarItem = await screen.findByText(/consolidar duplicados/i);
+  fireEvent.click(consolidarItem);
+  fireEvent.click(await screen.findByRole("button", { name: /^consolidar$/i }));
+  await waitFor(() => expect(consolidateWafDuplicates).toHaveBeenCalledWith(3, true));
   await waitFor(() => expect(onChanged).toHaveBeenCalled());
 });
