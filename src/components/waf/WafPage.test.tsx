@@ -13,12 +13,20 @@ vi.mock("@/hooks/useWaf", () => ({
     loading: false, dataLoading: false, error: "", selectClient: vi.fn(), reloadData: vi.fn(),
   }),
 }));
-vi.mock("@/lib/api", () => ({ fetchClientLogoObjectUrl: vi.fn(async () => null) }));
+vi.mock("@/lib/api", () => ({
+  fetchClientLogoObjectUrl: vi.fn(async () => null),
+  runWafAdvisorSync: vi.fn(),
+  uploadWafIngestion: vi.fn(),
+  listClientSubscriptions: vi.fn(async () => []),
+  downloadFromApi: vi.fn(),
+}));
+vi.mock("@/lib/auth", () => ({ canEdit: () => true, getRole: () => "admin", getName: () => "BIT" }));
 
 test("renderiza la vista WAF con KPIs, pilar y tabla", async () => {
   const { default: WafPage } = await import("@/components/waf/WafPage");
   render(<ThemeProvider attribute="class" defaultTheme="light"><WafPage /></ThemeProvider>);
   await waitFor(() => expect(screen.getByText("RI")).toBeInTheDocument());
+  expect(screen.getByRole("button", { name: /consultar advisor/i })).toBeInTheDocument();
   expect(screen.getByText("Recomendaciones activas")).toBeInTheDocument();
   expect(screen.getAllByText("Costos").length).toBeGreaterThan(0);
   expect(screen.getByText("Recursos afectados")).toBeInTheDocument();
