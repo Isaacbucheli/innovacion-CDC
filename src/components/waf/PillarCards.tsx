@@ -1,5 +1,5 @@
 import type { WafSection } from "@/types";
-import { pillarColor, pillarIcon, scoreClass } from "@/lib/waf";
+import { pillarColor, pillarIcon, scoreClass, computePillarAvance, AZURE_BLUE } from "@/lib/waf";
 
 export default function PillarCards({ sections, activePillar, onPick, scores }: {
   sections: WafSection[];
@@ -7,13 +7,15 @@ export default function PillarCards({ sections, activePillar, onPick, scores }: 
   onPick: (pillar: number | null) => void;
   scores: Record<number, number> | null;
 }) {
+  // Si algún pilar tiene recomendaciones, los pilares vacíos significan "todo aplicado".
+  const matrixPopulated = sections.some((x) => x.total_recs > 0);
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
       {sections.map((s) => {
         const active = activePillar === s.section_num;
         const color = pillarColor(s.section_num);
         const score = scores ? scores[s.section_num] : undefined;
-        const avance = Math.round(s.avg_progress);
+        const avance = computePillarAvance(s.total_recs, s.avg_progress, matrixPopulated);
         return (
           <button
             key={s.section_num}
@@ -33,6 +35,9 @@ export default function PillarCards({ sections, activePillar, onPick, scores }: 
               <div className="pl-2 border-l-2" style={{ borderColor: color }}>
                 <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Score</div>
                 <div className={`text-xl font-bold tabular-nums ${scoreClass(score)}`}>{score}%</div>
+                {s.total_recs === 0 && (
+                  <div className="text-[11px] text-green-700 dark:text-green-400 mt-0.5">✓ Estás siguiendo todas las recomendaciones</div>
+                )}
               </div>
             )}
             <div className="text-2xl font-bold tabular-nums">{s.total_recs}</div>
@@ -40,7 +45,7 @@ export default function PillarCards({ sections, activePillar, onPick, scores }: 
               {s.total_recs === 1 ? "recomendación" : "recomendaciones"} · {s.total_resources} {s.total_resources === 1 ? "recurso" : "recursos"}
             </div>
             <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-              <span className="block h-full rounded-full" style={{ width: `${avance}%`, background: color }} />
+              <span className="block h-full rounded-full" style={{ width: `${avance}%`, background: AZURE_BLUE }} />
             </div>
             <div className="text-[11px] text-muted-foreground">avance {avance}%</div>
           </button>

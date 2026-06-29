@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterRecommendations, validateTracking, impactMeta, pillarColor, pillarIcon, scoreClass, advisorSyncSummary } from "@/lib/waf";
+import { filterRecommendations, validateTracking, impactMeta, pillarColor, pillarIcon, scoreClass, advisorSyncSummary, computePillarAvance } from "@/lib/waf";
 import type { WafRecommendation, WafAdvisorSyncResult } from "@/types";
 
 const rec = (over: Partial<WafRecommendation>): WafRecommendation => ({
@@ -69,5 +69,18 @@ describe("advisorSyncSummary", () => {
     expect(s).toContain("3");
     expect(s).toContain("58");
     expect(s).toContain("12");
+  });
+});
+
+describe("computePillarAvance", () => {
+  it("pilar vacío con matriz poblada → 100%", () => {
+    expect(computePillarAvance(0, 0, true)).toBe(100);
+  });
+  it("pilar vacío sin datos en ningún pilar → 0%", () => {
+    expect(computePillarAvance(0, 0, false)).toBe(0);
+  });
+  it("pilar con recomendaciones → avg_progress redondeado y acotado 0–100", () => {
+    expect(computePillarAvance(6, 39.6, true)).toBe(40);
+    expect(computePillarAvance(3, 120, true)).toBe(100);
   });
 });
