@@ -361,3 +361,43 @@ export interface WafExcelApplyResult {
   changed_fields: Record<string, number>;
   errors: { row_number: number; detail: string }[];
 }
+
+export interface WafCostItem {
+  canonical_id: number;
+  matrix_code: string | null;
+  review_scope_es: string | null;
+  business_impact: string | null;
+  resources_total: number;
+  resources_matched: number;
+  resources_priced: number;
+  payg_monthly: number;
+  ri_1y_monthly: number;
+  ri_3y_monthly: number;
+}
+export interface WafCostReference {
+  client_id: number;
+  has_cost_data: boolean;
+  disclaimer: string;
+  message?: string | null;
+  analysis_id?: number | null;
+  analysis_name?: string | null;
+  totals: {
+    payg_monthly: number; ri_1y_monthly: number; ri_3y_monthly: number;
+    resources_total: number; resources_matched: number; resources_priced: number;
+  };
+  items: WafCostItem[];
+}
+export interface WafIngestionRun {
+  run_id: number;
+  source_file_name: string | null;
+  status: string | null;
+  rows_total: number | null;
+  rows_processed: number | null;
+  new_recommendations: number | null;
+  new_findings: number | null;
+  resolved_findings: number | null;
+  started_at: string;
+  completed_at: string | null;
+  created_by: string | null;
+  error_message: string | null;
+}
