@@ -6,7 +6,7 @@ import BusyOverlay from "@/components/BusyOverlay";
 import WafClientHeader from "@/components/waf/WafClientHeader";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import ExecutiveSummary from "@/components/reports/ExecutiveSummary";
+import ReportView from "@/components/reports/ReportView";
 import { listClientsAdmin, listReports, getMonthlyReport, generateReport } from "@/lib/api";
 import { getRole } from "@/lib/auth";
 import type { ClientAdmin, ReportListEntry, MonthlyReport } from "@/types";
@@ -161,8 +161,8 @@ export default function ReportPage({ onNavigate }: { onNavigate?: (key: string) 
           </div>
         ) : loadingReport ? (
           <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">Cargando informe…</div>
-        ) : report ? (
-          <ExecutiveSummary report={report} />
+        ) : report && clientId != null ? (
+          <ReportView report={report} clientId={clientId} year={year} month={month} />
         ) : (
           <div className="rounded-xl border bg-card p-10 text-center">
             <FileText className="w-7 h-7 mx-auto mb-3 text-muted-foreground" />

@@ -61,3 +61,32 @@ export function perfAverages(vms: ReportPerfVm[] | undefined): { cpu: number; ra
   const ram = xs.reduce((s, x) => s + (x.ram_avg ?? 0), 0) / xs.length;
   return { cpu: Math.round(cpu), ram: Math.round(ram) };
 }
+
+// Nombre legible de una regla de alerta cuyo "tipo" suele ser un resource id largo.
+export function shortRuleName(s: string | null | undefined): string {
+  const t = (s ?? "").trim();
+  if (!t || t === "-") return "—";
+  if (t.includes("/")) return t.split("/").filter(Boolean).pop() ?? t;
+  return t;
+}
+
+// Clase de chip (Tailwind) por severidad de alerta.
+export function alertSeverityChip(sev: string | null | undefined): string {
+  const s = (sev ?? "").toLowerCase();
+  if (/crit|error/.test(s)) return "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200";
+  if (/advert|warn/.test(s)) return "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200";
+  return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
+}
+
+// Clase de chip por estado de respaldo/job.
+export function backupStateChip(estado: string | null | undefined): string {
+  const s = (estado ?? "").toLowerCase();
+  if (/complet|exito|success/.test(s)) return "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200";
+  if (/fall|error|fail/.test(s)) return "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200";
+  return "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200";
+}
+
+// Top-N por una métrica numérica (descendente).
+export function topBy<T>(rows: T[], key: (r: T) => number, n: number): T[] {
+  return [...rows].sort((a, b) => key(b) - key(a)).slice(0, n);
+}
