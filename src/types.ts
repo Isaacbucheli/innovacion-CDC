@@ -457,6 +457,50 @@ export interface ReportNarrative {
   disponibilidad_comentario?: string; hallazgos?: string[]; conclusiones?: string[]; recomendaciones?: string[];
 }
 
+// ---- Reservas Azure por vencer (Gestión CDC) ----
+export interface Reservation {
+  reservation_id: string;
+  credential_id: number;
+  name: string;
+  product: string;
+  region: string;
+  quantity: number;
+  term: string;
+  term_label: string;
+  expires_on: string;
+  days_remaining: number;
+  expired: boolean;
+  expiring: boolean;
+  state: string;
+  applied_scope_type?: string;
+  applied_scopes?: string[];
+  utilization_last?: string | null;
+  utilization7d?: string | null;
+}
+export interface ReservationsResponse {
+  client_id: number;
+  alert_days: number;
+  has_credentials: boolean;
+  total: number;
+  expiring_count: number;
+  expired_count: number;
+  reservations: Reservation[];
+  errors: { credential_id?: number; credential_name?: string }[];
+  message?: string;
+  generated_at?: string;
+}
+export interface ReservationConsumer {
+  instance_id?: string;
+  resource_name: string;
+  resource_group?: string | null;
+  subscription_id?: string | null;
+  subscription_name?: string | null;
+  sku_name?: string | null;
+  used_hours?: number | null;
+  last_seen?: string | null;
+  days_seen?: number | null;
+}
+
 // El JSON del informe es amplio; se tipa por secciones a medida que se implementan.
 export interface MonthlyReport {
   schema_version?: number;

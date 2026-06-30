@@ -40,7 +40,7 @@ const MENU: Group[] = [
     label: "Gestión CDC",
     icon: "/assets/azure-icons/subscriptions.svg",
     items: [
-      { label: "Reservas por vencer", soon: true },
+      { label: "Reservas por vencer", section: "reservations" },
       { label: "Catálogo de alertas", section: "alerts" },
     ],
   },

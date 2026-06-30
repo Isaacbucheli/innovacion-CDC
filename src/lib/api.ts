@@ -40,6 +40,8 @@ import type {
   ReportList,
   MonthlyReport,
   GenerateReportResponse,
+  ReservationsResponse,
+  ReservationConsumer,
 } from "@/types";
 import { clearSession, getToken, setSession } from "@/lib/auth";
 
@@ -320,3 +322,13 @@ export const generateReport = (clientId: number, body: { year: number; month: nu
 /** Descarga el informe en Word (.docx) con autenticación. */
 export const downloadReportWord = (clientId: number, year: number, month: number, fileName: string) =>
   downloadFromApi(`/reports/clients/${clientId}/${year}/${month}/export/word`, fileName);
+
+// ---- Reservas Azure por vencer (Gestión CDC) ----
+export const getReservations = (clientId: number, alertDays = 30, includeUtilization = false) =>
+  request<ReservationsResponse>(`/cdc/clients/${clientId}/reservations?alert_days=${alertDays}&include_utilization=${includeUtilization}`);
+export const getReservationUtilization = (clientId: number, credentialId: number, reservationId: string) =>
+  request<{ utilization_last: string; utilization_7d?: string; utilization7d?: string }>(
+    `/cdc/clients/${clientId}/reservation-utilization?credential_id=${credentialId}&reservation_id=${encodeURIComponent(reservationId)}`);
+export const getReservationConsumers = (clientId: number, credentialId: number, reservationId: string, days = 30) =>
+  request<{ consumers: ReservationConsumer[]; source: string; count: number; days: number }>(
+    `/cdc/clients/${clientId}/reservation-consumers?credential_id=${credentialId}&reservation_id=${encodeURIComponent(reservationId)}&days=${days}`);
