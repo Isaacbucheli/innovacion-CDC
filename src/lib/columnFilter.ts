@@ -50,3 +50,27 @@ export function evalColumnFilter(text: string, fv: ColumnFilterValue | undefined
   const mB = matchOne(text, fv.b.op, fv.b.val);
   return fv.conn === "or" ? mA || mB : mA && mB;
 }
+
+// ---- filterFn helpers reutilizables para columnas TanStack ----
+// (FilterFn/Row se tipan por uso; estas firmas son asignables a FilterFn<TData>.)
+import type { Row } from "@tanstack/react-table";
+
+// Filtra por el valor crudo de la celda (tolera null). Sirve para texto y números.
+export function textColumnFilter<TData>(row: Row<TData>, columnId: string, value: ColumnFilterValue): boolean {
+  return evalColumnFilter(String(row.getValue(columnId) ?? ""), value);
+}
+
+// Filtra por una ETIQUETA derivada del valor crudo (ej. impacto/severidad/estado → texto ES).
+export function labelColumnFilter<TData>(toLabel: (raw: unknown) => string) {
+  return (row: Row<TData>, columnId: string, value: ColumnFilterValue): boolean =>
+    evalColumnFilter(toLabel(row.getValue(columnId)), value);
+}
+
+// Búsqueda global: pasa todas las filas cuyo texto (derivado de la fila) contiene el término.
+export function globalTextFilter<TData>(getText: (row: TData) => string) {
+  return (row: Row<TData>, _columnId: string, value: string): boolean => {
+    const s = String(value ?? "").trim().toLowerCase();
+    if (!s) return true;
+    return getText(row.original).toLowerCase().includes(s);
+  };
+}

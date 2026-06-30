@@ -3,13 +3,15 @@ import {
   type ColumnDef,
   type SortingState,
   type VisibilityState,
+  type ColumnFiltersState,
   flexRender,
   getCoreRowModel,
+  getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Columns3, Pencil, Rows3, Rows4, Trash2 } from "lucide-react";
+import { Columns3, Pencil, Rows3, Rows4, Trash2 } from "lucide-react";
 import type { Alert } from "@/types";
 import { SEVERITY_META, severityKey } from "@/lib/severity";
 import {
@@ -29,6 +31,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import DataTablePagination from "@/components/DataTablePagination";
+import DataTableColumnHeader from "@/components/DataTableColumnHeader";
+import { textColumnFilter, labelColumnFilter } from "@/lib/columnFilter";
+
+const textFilter = textColumnFilter<Alert>;
+const severityFilterFn = labelColumnFilter<Alert>((raw) => SEVERITY_META[severityKey(raw as string | null)].label);
 
 const COL_LABELS: Record<string, string> = {
   alert_number: "N°",
@@ -71,29 +78,30 @@ export default function AlertsDataTable({
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [dense, setDense] = useState(false);
 
   const columns: ColumnDef<Alert>[] = [
     {
       accessorKey: "alert_number",
-      header: "N°",
+      header: "N°", filterFn: textFilter,
       cell: (c) => <span className="text-muted-foreground tabular-nums">{c.getValue<number>() ?? ""}</span>,
     },
     {
       accessorKey: "name",
-      header: "Alerta",
+      header: "Alerta", filterFn: textFilter,
       cell: (c) => <span className="font-medium">{c.getValue<string>()}</span>,
     },
-    { accessorKey: "resource", header: "Recurso" },
-    { accessorKey: "alert_type", header: "Tipo" },
+    { accessorKey: "resource", header: "Recurso", filterFn: textFilter },
+    { accessorKey: "alert_type", header: "Tipo", filterFn: textFilter },
     {
       accessorKey: "severity",
-      header: "Severidad",
+      header: "Severidad", filterFn: severityFilterFn,
       cell: (c) => <SevBadge sev={c.getValue<string | null>()} />,
       sortingFn: (a, b) =>
         SEVERITY_RANK[severityKey(a.original.severity)] - SEVERITY_RANK[severityKey(b.original.severity)],
     },
-    { accessorKey: "origin", header: "Origen" },
+    { accessorKey: "origin", header: "Origen", filterFn: textFilter },
   ];
   if (canEdit) {
     columns.push({
@@ -117,11 +125,13 @@ export default function AlertsDataTable({
   const table = useReactTable({
     data: alerts,
     columns,
-    state: { sorting, columnVisibility },
+    state: { sorting, columnVisibility, columnFilters },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
+    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
@@ -167,18 +177,7 @@ export default function AlertsDataTable({
               <TableRow key={hg.id}>
                 {hg.headers.map((h) => (
                   <TableHead key={h.id} className="whitespace-nowrap">
-                    {h.isPlaceholder ? null : h.column.getCanSort() ? (
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 hover:text-foreground"
-                        onClick={h.column.getToggleSortingHandler()}
-                      >
-                        {flexRender(h.column.columnDef.header, h.getContext())}
-                        <ArrowUpDown className="w-3 h-3 opacity-50" />
-                      </button>
-                    ) : (
-                      flexRender(h.column.columnDef.header, h.getContext())
-                    )}
+                    {h.isPlaceholder ? null : <DataTableColumnHeader column={h.column} title={String(h.column.columnDef.header)} />}
                   </TableHead>
                 ))}
               </TableRow>

@@ -1,33 +1,23 @@
 import { useMemo, useState } from "react";
 import {
   createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
-  getSortedRowModel, useReactTable, type SortingState, type ColumnFiltersState, type FilterFn,
+  getSortedRowModel, useReactTable, type SortingState, type ColumnFiltersState,
 } from "@tanstack/react-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import DataTablePagination from "@/components/DataTablePagination";
-import ColumnFilterPopover from "@/components/waf/ColumnFilterPopover";
+import DataTableColumnHeader from "@/components/DataTableColumnHeader";
 import { impactMeta, filterRecommendations } from "@/lib/waf";
-import { evalColumnFilter, type ColumnFilterValue } from "@/lib/columnFilter";
+import { textColumnFilter, labelColumnFilter, globalTextFilter } from "@/lib/columnFilter";
 import type { WafRecommendation } from "@/types";
 
 const col = createColumnHelper<WafRecommendation>();
 
-// Filtro avanzado por columna (operadores + Y/O) sobre el valor crudo (tolera null).
-const textFilter: FilterFn<WafRecommendation> = (row, columnId, value: ColumnFilterValue) =>
-  evalColumnFilter(String(row.getValue(columnId) ?? ""), value);
-
+const textFilter = textColumnFilter<WafRecommendation>;
 // Impacto se filtra contra la etiqueta en español (Alta/Media/Baja), no contra "high/medium/low".
-const impactFilter: FilterFn<WafRecommendation> = (row, columnId, value: ColumnFilterValue) =>
-  evalColumnFilter(impactMeta(row.getValue(columnId)).label, value);
-
-// Búsqueda global sobre código + ámbito (aplica a la fila completa, ignora el columnId).
-const globalSearch: FilterFn<WafRecommendation> = (row, _columnId, value: string) => {
-  const s = String(value ?? "").trim().toLowerCase();
-  if (!s) return true;
-  const r = row.original;
-  return r.matrix_code.toLowerCase().includes(s) || (r.review_scope_es ?? "").toLowerCase().includes(s);
-};
+const impactFilter = labelColumnFilter<WafRecommendation>((raw) => impactMeta(raw as string | null).label);
+// Búsqueda global sobre código + ámbito.
+const globalSearch = globalTextFilter<WafRecommendation>((r) => `${r.matrix_code} ${r.review_scope_es ?? ""}`);
 
 export default function WafDataTable({ recommendations, pillarNames, minPct, maxPct, onOpen }: {
   recommendations: WafRecommendation[];
@@ -43,8 +33,7 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
 
   const columns = useMemo(() => {
     // Pilar se filtra contra el NOMBRE del pilar (lo que ve el usuario), no el número.
-    const pillarFilter: FilterFn<WafRecommendation> = (row, columnId, value: ColumnFilterValue) =>
-      evalColumnFilter(pillarNames[row.getValue(columnId) as number] ?? String(row.getValue(columnId) ?? ""), value);
+    const pillarFilter = labelColumnFilter<WafRecommendation>((raw) => pillarNames[raw as number] ?? String(raw ?? ""));
     return [
     col.accessor("matrix_code", { header: "Código", filterFn: textFilter, cell: (c) => <span className="font-medium">{c.getValue()}</span> }),
     col.accessor("pillar_number", { header: "Pilar", filterFn: pillarFilter, cell: (c) => pillarNames[c.getValue()] ?? c.getValue() }),
@@ -96,16 +85,8 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id}>
                 {hg.headers.map((h) => (
-                  <TableHead key={h.id} className="select-none">
-                    <span className="inline-flex items-center">
-                      <span onClick={h.column.getToggleSortingHandler()} className="cursor-pointer">
-                        {flexRender(h.column.columnDef.header, h.getContext())}
-                        {{ asc: " ↑", desc: " ↓" }[h.column.getIsSorted() as string] ?? ""}
-                      </span>
-                      {h.column.getCanFilter() && (
-                        <ColumnFilterPopover column={h.column} label={String(h.column.columnDef.header)} />
-                      )}
-                    </span>
+                  <TableHead key={h.id}>
+                    {h.isPlaceholder ? null : <DataTableColumnHeader column={h.column} title={String(h.column.columnDef.header)} />}
                   </TableHead>
                 ))}
               </TableRow>

@@ -1,23 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  createColumnHelper, flexRender, getCoreRowModel, getPaginationRowModel,
-  getSortedRowModel, useReactTable, type SortingState,
+  createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
+  getSortedRowModel, useReactTable, type SortingState, type ColumnFiltersState,
 } from "@tanstack/react-table";
 import { Ban, CircleCheck, Clock, Library } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
 import DataTablePagination from "@/components/DataTablePagination";
+import DataTableColumnHeader from "@/components/DataTableColumnHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import CanonicalEditDialog from "@/components/waf/CanonicalEditDialog";
 import { getWafAiConfig, getWafCatalog, analyzeWafCanonical, applyWafSuggestion } from "@/lib/api";
-import { reviewStatusMeta, filterCatalog } from "@/lib/waf";
+import { reviewStatusMeta } from "@/lib/waf";
+import { textColumnFilter, labelColumnFilter, globalTextFilter } from "@/lib/columnFilter";
 import { useCountUp } from "@/lib/useCountUp";
 import { getRole } from "@/lib/auth";
 import type { WafAiConfig, WafCanonical } from "@/types";
+
+const textFilter = textColumnFilter<WafCanonical>;
+const statusFilterFn = labelColumnFilter<WafCanonical>((raw) => reviewStatusMeta(raw as string | null).label);
+const costFilterFn = labelColumnFilter<WafCanonical>((raw) => (raw ? "posible" : ""));
+const globalSearch = globalTextFilter<WafCanonical>((r) => `${r.advisor_name ?? ""} ${r.advisor_category ?? ""}`);
 
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
 
@@ -46,14 +52,13 @@ export default function ValidationPage({ onNavigate }: { onNavigate?: (key: stri
   const isAdmin = getRole() === "admin";
   const [config, setConfig] = useState<WafAiConfig | null>(null);
   const [rows, setRows] = useState<WafCanonical[]>([]);
-  const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [excludedFilter, setExcludedFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [busyMsg, setBusyMsg] = useState("");
   const [editing, setEditing] = useState<WafCanonical | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [globalFilter, setGlobalFilter] = useState("");
 
   function load() {
     setLoading(true);
@@ -90,19 +95,10 @@ export default function ValidationPage({ onNavigate }: { onNavigate?: (key: stri
   const totalApplied = rows.filter((r) => r.ai_review_status === "applied").length;
   const totalExcluded = rows.filter((r) => r.is_excluded === true).length;
 
-  // Client-side filtering: text + status + excluded
-  const filtered = useMemo(() => {
-    let result = filterCatalog(rows, q);
-    if (statusFilter !== "all") result = result.filter((r) => r.ai_review_status === statusFilter);
-    if (excludedFilter === "active") result = result.filter((r) => !r.is_excluded);
-    else if (excludedFilter === "excluded") result = result.filter((r) => r.is_excluded);
-    return result;
-  }, [rows, q, statusFilter, excludedFilter]);
-
   const columns = useMemo(() => [
-    col.accessor("canonical_id", { header: "ID", cell: (c) => <span className="tabular-nums">{c.getValue()}</span> }),
+    col.accessor("canonical_id", { header: "ID", filterFn: textFilter, cell: (c) => <span className="tabular-nums">{c.getValue()}</span> }),
     col.accessor("advisor_name", {
-      header: "Nombre Advisor",
+      header: "Nombre Advisor", filterFn: textFilter,
       cell: (c) => {
         const row = c.row.original;
         return (
@@ -115,14 +111,14 @@ export default function ValidationPage({ onNavigate }: { onNavigate?: (key: stri
         );
       },
     }),
-    col.accessor("advisor_category", { header: "Categoría", cell: (c) => <span className="text-muted-foreground">{c.getValue()}</span> }),
-    col.accessor("pillar_number", { header: "Pilar", cell: (c) => <span className="tabular-nums">{c.getValue()}</span> }),
+    col.accessor("advisor_category", { header: "Categoría", filterFn: textFilter, cell: (c) => <span className="text-muted-foreground">{c.getValue()}</span> }),
+    col.accessor("pillar_number", { header: "Pilar", filterFn: textFilter, cell: (c) => <span className="tabular-nums">{c.getValue()}</span> }),
     col.accessor("ai_review_status", {
-      header: "Estado",
+      header: "Estado", filterFn: statusFilterFn,
       cell: (c) => { const m = reviewStatusMeta(c.getValue()); return <span className={`text-xs px-2.5 py-0.5 rounded-full ${m.chip}`}>{m.label}</span>; },
     }),
     col.accessor("ai_possible_additional_cost", {
-      header: "Costo",
+      header: "Costo", filterFn: costFilterFn,
       cell: (c) => c.getValue()
         ? <span className="text-[11px] text-amber-600 dark:text-amber-400">posible</span>
         : <span className="text-muted-foreground">—</span>,
@@ -140,12 +136,16 @@ export default function ValidationPage({ onNavigate }: { onNavigate?: (key: stri
   ], []);
 
   const table = useReactTable({
-    data: filtered,
+    data: rows,
     columns,
-    state: { sorting },
+    state: { sorting, columnFilters, globalFilter },
     onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: globalSearch,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
@@ -183,41 +183,23 @@ export default function ValidationPage({ onNavigate }: { onNavigate?: (key: stri
           {config?.api_version && <span>API: <span className="text-foreground">{config.api_version}</span></span>}
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2 items-center">
-          <Input placeholder="Buscar…" value={q} onChange={(e) => setQ(e.target.value)} className="w-[220px]" />
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los estados</SelectItem>
-              <SelectItem value="pending">Pendiente</SelectItem>
-              <SelectItem value="reviewed">Revisada</SelectItem>
-              <SelectItem value="applied">Aplicada</SelectItem>
-              <SelectItem value="requires_review">Requiere revisión</SelectItem>
-              <SelectItem value="excluded">Excluida</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={excludedFilter} onValueChange={setExcludedFilter}>
-            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Activas + excluidas</SelectItem>
-              <SelectItem value="active">Solo activas</SelectItem>
-              <SelectItem value="excluded">Solo excluidas</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         {/* TanStack table + pagination */}
-        <div>
+        <div className="space-y-3">
+          <Input
+            placeholder="Buscar nombre o categoría…"
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="h-9 w-[260px] max-w-full"
+            aria-label="Buscar canónicas"
+          />
           <div className="rounded-xl border bg-card overflow-hidden">
             <Table>
               <TableHeader>
                 {table.getHeaderGroups().map((hg) => (
                   <TableRow key={hg.id}>
                     {hg.headers.map((h) => (
-                      <TableHead key={h.id} onClick={h.column.getToggleSortingHandler()} className="cursor-pointer select-none">
-                        {flexRender(h.column.columnDef.header, h.getContext())}
-                        {{ asc: " ↑", desc: " ↓" }[h.column.getIsSorted() as string] ?? ""}
+                      <TableHead key={h.id}>
+                        {h.isPlaceholder ? null : <DataTableColumnHeader column={h.column} title={String(h.column.columnDef.header)} />}
                       </TableHead>
                     ))}
                   </TableRow>
