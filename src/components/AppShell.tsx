@@ -34,7 +34,7 @@ const MENU: Group[] = [
   {
     label: "Informes",
     icon: "/assets/azure-icons/waf-performance.svg",
-    items: [{ label: "Informe de gestión mensual", soon: true }],
+    items: [{ label: "Informe de gestión mensual", section: "report" }],
   },
   {
     label: "Gestión CDC",

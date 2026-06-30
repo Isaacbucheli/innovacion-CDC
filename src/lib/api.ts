@@ -37,6 +37,9 @@ import type {
   WafSection,
   WafSummary,
   WafTrackingUpdate,
+  ReportList,
+  MonthlyReport,
+  GenerateReportResponse,
 } from "@/types";
 import { clearSession, getToken, setSession } from "@/lib/auth";
 
@@ -306,3 +309,14 @@ export async function downloadFromApi(path: string, fileName: string, base: stri
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+// ---- Informe de gestión mensual ----
+export const listReports = (clientId: number) =>
+  request<ReportList>(`/reports/clients/${clientId}`);
+export const getMonthlyReport = (clientId: number, year: number, month: number) =>
+  request<MonthlyReport>(`/reports/clients/${clientId}/${year}/${month}`);
+export const generateReport = (clientId: number, body: { year: number; month: number; include_narrative?: boolean }) =>
+  request<GenerateReportResponse>(`/reports/clients/${clientId}/generate`, jsonOpts("POST", body));
+/** Descarga el informe en Word (.docx) con autenticación. */
+export const downloadReportWord = (clientId: number, year: number, month: number, fileName: string) =>
+  downloadFromApi(`/reports/clients/${clientId}/${year}/${month}/export/word`, fileName);

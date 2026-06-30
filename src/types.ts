@@ -422,3 +422,30 @@ export interface WafCanonicalUpdate {
   bit_action_es?: string; is_excluded?: boolean; exclusion_reason?: string | null; ai_review_status?: string;
 }
 export interface WafAiBatchResult { total: number; processed: number; applied: number; errors: { canonical_id: number; error: string }[]; }
+
+// ---- Informe de gestión mensual ----
+export interface ReportListEntry {
+  report_id: number;
+  year: number;
+  month: number;
+  status: string; // completed | generating | failed | pending
+  is_partial: boolean;
+  generated_by: string | null;
+  generated_at: string | null;
+}
+export interface ReportList { client_id: number; reports: ReportListEntry[]; }
+
+export interface GenerateReportResponse {
+  client_id: number; year: number; month: number; status: string; message?: string;
+}
+
+// El JSON del informe es amplio; se tipa por secciones a medida que se implementan.
+export interface MonthlyReport {
+  client?: { name?: string | null };
+  period?: { label?: string; year?: number; month?: number; partial?: boolean };
+  generated_at?: string;
+  inventario?: unknown[];
+  performance?: { virtual_machines?: unknown[]; app_service_plans?: unknown[] };
+  backups?: { items?: unknown[]; vaults?: unknown[]; jobs_mes?: Record<string, number> };
+  [key: string]: unknown;
+}
