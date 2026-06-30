@@ -439,13 +439,37 @@ export interface GenerateReportResponse {
   client_id: number; year: number; month: number; status: string; message?: string;
 }
 
+export interface ReportPeriod { label?: string; year?: number; month?: number; partial?: boolean; start?: string; end?: string; }
+export interface ReportMeta { regiones?: string[]; suscripciones?: string[]; }
+export interface ReportVmInventory {
+  name: string; ip: string | null; status: string; os: string; size: string;
+  vcpu: number; ram_gb: number; disks: number; has_backup: boolean; health?: string;
+  subscription?: string; location?: string; resource_group?: string;
+}
+export interface ReportPerfVm {
+  resource_name: string; cpu_avg: number; cpu_max: number; ram_avg: number; ram_max: number;
+  subscription_name?: string; daily?: { days?: string[]; cpu_avg?: number[]; ram_avg?: number[] };
+}
+export interface ReportEstadoRecurso { tipo: string; total: number; disponibles: number; con_alerta: number; obs?: string; }
+export interface ReportSla { servicio: string; acordado_h: number; caidas_h: number; disponibilidad: string; }
+export interface ReportNarrative {
+  resumen_ejecutivo?: string; performance_comentario?: string; backups_comentario?: string;
+  disponibilidad_comentario?: string; hallazgos?: string[]; conclusiones?: string[]; recomendaciones?: string[];
+}
+
 // El JSON del informe es amplio; se tipa por secciones a medida que se implementan.
 export interface MonthlyReport {
+  schema_version?: number;
   client?: { name?: string | null };
-  period?: { label?: string; year?: number; month?: number; partial?: boolean };
+  period?: ReportPeriod;
   generated_at?: string;
-  inventario?: unknown[];
-  performance?: { virtual_machines?: unknown[]; app_service_plans?: unknown[] };
+  meta?: ReportMeta;
+  inventario?: ReportVmInventory[];
+  performance?: { virtual_machines?: ReportPerfVm[]; app_service_plans?: unknown[] };
+  estado_recursos?: ReportEstadoRecurso[];
   backups?: { items?: unknown[]; vaults?: unknown[]; jobs_mes?: Record<string, number> };
+  sla?: ReportSla[];
+  narrative?: ReportNarrative;
+  sections?: Record<string, boolean>;
   [key: string]: unknown;
 }

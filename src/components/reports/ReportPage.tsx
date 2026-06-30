@@ -6,6 +6,7 @@ import BusyOverlay from "@/components/BusyOverlay";
 import WafClientHeader from "@/components/waf/WafClientHeader";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import ExecutiveSummary from "@/components/reports/ExecutiveSummary";
 import { listClientsAdmin, listReports, getMonthlyReport, generateReport } from "@/lib/api";
 import { getRole } from "@/lib/auth";
 import type { ClientAdmin, ReportListEntry, MonthlyReport } from "@/types";
@@ -14,15 +15,6 @@ const KEY = "innovacion_cdc_waf_client";
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
-
-function StatCard({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="rounded-xl border bg-background p-5">
-      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="text-2xl font-bold tabular-nums tracking-tight mt-1">{value}</div>
-    </div>
-  );
-}
 
 export default function ReportPage({ onNavigate }: { onNavigate?: (key: string) => void }) {
   const canEdit = getRole() === "admin" || getRole() === "consultor";
@@ -170,21 +162,7 @@ export default function ReportPage({ onNavigate }: { onNavigate?: (key: string) 
         ) : loadingReport ? (
           <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">Cargando informe…</div>
         ) : report ? (
-          <div className="space-y-4">
-            <div className="flex items-baseline gap-2">
-              <h2 className="text-lg font-semibold">{report.period?.label ?? periodLabel}</h2>
-              {report.generated_at && <span className="text-xs text-muted-foreground">generado {report.generated_at}</span>}
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <StatCard label="Servidores (VMs)" value={report.inventario?.length ?? 0} />
-              <StatCard label="VMs con métricas" value={report.performance?.virtual_machines?.length ?? 0} />
-              <StatCard label="Elementos con backup" value={report.backups?.items?.length ?? 0} />
-              <StatCard label="Vaults" value={report.backups?.vaults?.length ?? 0} />
-            </div>
-            <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">
-              Las secciones del informe (resumen ejecutivo, inventario, performance, respaldos, etc.) se irán habilitando por fases.
-            </p>
-          </div>
+          <ExecutiveSummary report={report} />
         ) : (
           <div className="rounded-xl border bg-card p-10 text-center">
             <FileText className="w-7 h-7 mx-auto mb-3 text-muted-foreground" />
