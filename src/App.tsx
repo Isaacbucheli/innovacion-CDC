@@ -12,6 +12,7 @@ import ReportPage from "@/components/reports/ReportPage";
 import ReservationsPage from "@/components/reservations/ReservationsPage";
 import CredentialsPage from "@/components/credentials/CredentialsPage";
 import UsersPage from "@/components/users/UsersPage";
+import ServiceCatalogPage from "@/components/services/ServiceCatalogPage";
 import { Toaster } from "@/components/ui/sonner";
 
 const SECTION_KEY = "innovacion_cdc_section";
@@ -61,6 +62,8 @@ export default function App() {
           <CredentialsPage onNavigate={navigate} />
         ) : section === "usuarios" ? (
           <UsersPage onNavigate={navigate} />
+        ) : section === "service-catalog" ? (
+          <ServiceCatalogPage onNavigate={navigate} />
         ) : section === "alerts" ? (
           <CatalogPage onNavigate={navigate} />
         ) : (

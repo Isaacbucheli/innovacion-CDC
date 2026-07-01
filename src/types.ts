@@ -125,9 +125,48 @@ export interface AnalysisSummary {
 /** Servicio del catálogo activo (GET /service-catalog/active, backend .NET). */
 export interface ServiceCatalogItem {
   service_key: string;
-  service_name?: string | null;
-  is_internal?: boolean | null;
+  display_name: string;
+  azure_resource_type: string;
+  service_category: string;
+  detail_table_name: string | null;
+  inserter_key: string;
+  calculator_key: string;
+  kql_query: string;
+  ri_applicable: boolean;
+  ri_filter_field: string | null;
+  ri_filter_values: string | null;
+  ri_exclude_values: string | null;
+  ahb_applicable: boolean;
+  requires_manual_cost: boolean;
+  excel_sheet_name: string | null;
+  display_order: number;
+  is_active: boolean;
+  notes: string | null;
+  is_internal: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
+export interface ServiceCreateBody {
+  service_key: string;
+  display_name: string;
+  azure_resource_type: string;
+  service_category: string;
+  inserter_key: string;
+  calculator_key: string;
+  kql_query: string;
+  detail_table_name?: string | null;
+  ri_applicable?: boolean;
+  ri_filter_field?: string | null;
+  ri_filter_values?: string | null;
+  ri_exclude_values?: string | null;
+  ahb_applicable?: boolean;
+  requires_manual_cost?: boolean;
+  excel_sheet_name?: string | null;
+  display_order?: number;
+  is_active?: boolean;
+  notes?: string | null;
+}
+export type ServiceUpdateBody = Partial<Omit<ServiceCreateBody, "service_key">>;
 
 // ---- Escrituras de costos (backend .NET) ----
 

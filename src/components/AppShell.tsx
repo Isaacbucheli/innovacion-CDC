@@ -18,7 +18,7 @@ const MENU: Group[] = [
     icon: "/assets/azure-icons/cost-management.svg",
     items: [
       { label: "Optimización de costos", section: "costos" },
-      { label: "Catálogo de servicios", soon: true },
+      { label: "Catálogo de servicios", section: "service-catalog" },
     ],
   },
   {

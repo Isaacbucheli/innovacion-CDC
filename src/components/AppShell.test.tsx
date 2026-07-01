@@ -35,11 +35,12 @@ test("marca como activo el ítem de la sección actual (verde de marca)", () => 
   expect(navItem).toHaveClass("bg-primary");
 });
 
-test("muestra placeholders 'pronto' para vistas aún no migradas", () => {
+test("el menú ya no tiene placeholders 'pronto' (todo migrado)", () => {
   renderShell();
-  // Se expande "Matriz costos Azure": "Catálogo de servicios" sigue como placeholder ('pronto').
+  // Se expande "Matriz costos Azure": "Catálogo de servicios" ya es navegable, sin 'pronto'.
   fireEvent.click(screen.getByRole("button", { name: /Matriz costos Azure/i }));
-  expect(screen.getAllByText(/pronto/i).length).toBeGreaterThan(0);
+  expect(screen.getByRole("button", { name: /^Catálogo de servicios$/i })).toBeInTheDocument();
+  expect(screen.queryByText(/pronto/i)).not.toBeInTheDocument();
 });
 
 test("incluye el conmutador de modo claro/oscuro", () => {

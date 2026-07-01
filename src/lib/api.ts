@@ -14,6 +14,8 @@ import type {
   Role,
   Scenario,
   ServiceCatalogItem,
+  ServiceCreateBody,
+  ServiceUpdateBody,
   WafAdvisorScore,
   WafAdvisorSyncRequest,
   WafAdvisorSyncResult,
@@ -166,6 +168,16 @@ export const listAnalyses = () => request<AnalysisSummary[]>("/analysis");
 export const ensureCurrentAnalysis = (clientId: number) =>
   request<AnalysisSummary>(`/analysis/client/${clientId}/current`, { method: "POST" });
 export const listActiveServices = () => request<ServiceCatalogItem[]>("/service-catalog/active");
+
+// ---- Catálogo de servicios (Administración, mutaciones solo admin) ----
+export const listAllServices = () => request<ServiceCatalogItem[]>("/service-catalog");
+export const listInserterKeys = () => request<string[]>("/service-catalog/inserter-keys");
+export const createService = (body: ServiceCreateBody) =>
+  request<{ message: string; service_key: string }>("/service-catalog", jsonOpts("POST", body));
+export const updateService = (serviceKey: string, body: ServiceUpdateBody) =>
+  request<{ message: string; service_key: string }>(`/service-catalog/${encodeURIComponent(serviceKey)}`, jsonOpts("PUT", body));
+export const deleteService = (serviceKey: string) =>
+  request<{ message: string; service_key: string }>(`/service-catalog/${encodeURIComponent(serviceKey)}`, { method: "DELETE" });
 
 // ---- Costos: lecturas ----
 export const getCostResults = (analysisId: number, serviceKey?: string) =>
