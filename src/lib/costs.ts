@@ -1,4 +1,5 @@
 import type { CostResult, Scenario } from "@/types";
+import { azIcon } from "@/lib/azureIcons";
 
 // Etiquetas e iconos de servicio (portados del front vanilla de bitcost).
 export const SERVICE_LABELS: Record<string, string> = {
@@ -17,18 +18,18 @@ export const SERVICE_LABELS: Record<string, string> = {
 };
 
 export const SERVICE_ICONS: Record<string, string> = {
-  vms: "/assets/azure-icons/virtual-machine.svg",
-  sql_vm: "/assets/azure-icons/virtual-machine.svg",
-  sql_managed_instance: "/assets/azure-icons/sql-managed-instance.svg",
-  disks: "/assets/azure-icons/managed-disks.svg",
-  sql: "/assets/azure-icons/sql-database.svg",
-  synapse_dw: "/assets/azure-icons/synapse-analytics.svg",
-  appservice: "/assets/azure-icons/app-service.svg",
-  mysql: "/assets/azure-icons/mysql.svg",
-  cosmos: "/assets/azure-icons/cosmos-db.svg",
-  redis: "/assets/azure-icons/redis.svg",
-  public_ip: "/assets/azure-icons/public-ip.svg",
-  storage: "/assets/azure-icons/storage-account.svg",
+  vms: azIcon("virtual-machine"),
+  sql_vm: azIcon("virtual-machine"),
+  sql_managed_instance: azIcon("sql-managed-instance"),
+  disks: azIcon("managed-disks"),
+  sql: azIcon("sql-database"),
+  synapse_dw: azIcon("synapse-analytics"),
+  appservice: azIcon("app-service"),
+  mysql: azIcon("mysql"),
+  cosmos: azIcon("cosmos-db"),
+  redis: azIcon("redis"),
+  public_ip: azIcon("public-ip"),
+  storage: azIcon("storage-account"),
 };
 
 /** sql_vm es interno: se muestra agrupado bajo "vms". */
@@ -42,7 +43,7 @@ export function serviceName(key: string | null | undefined): string {
 }
 
 export function serviceIcon(key: string | null | undefined): string {
-  return SERVICE_ICONS[key ?? ""] || "/assets/azure-icons/resources.svg";
+  return SERVICE_ICONS[key ?? ""] || azIcon("resources");
 }
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {

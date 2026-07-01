@@ -1,4 +1,5 @@
 import type { WafRecommendation, WafAdvisorSyncResult, WafExcelPreviewRow, WafExcelApplyItem, WafExcelApplyResult, WafCanonical } from "@/types";
+import { azIcon } from "@/lib/azureIcons";
 
 // Color por número de pilar (1–5). Mid-ramp: legible en claro y oscuro.
 // Los NOMBRES de pilar vienen del backend (section_name), no se hardcodean aquí.
@@ -11,11 +12,11 @@ export function pillarColor(n: number): string {
 
 // Icono Azure por número de pilar (1–5), igual que la matriz de PRD (sectionIcons).
 export const PILLAR_ICON: Record<number, string> = {
-  1: "waf-performance.svg", 2: "waf-operational.svg", 3: "waf-security.svg",
-  4: "waf-reliability.svg", 5: "waf-cost.svg",
+  1: "waf-performance", 2: "waf-operational", 3: "waf-security",
+  4: "waf-reliability", 5: "waf-cost",
 };
 export function pillarIcon(n: number): string {
-  return `/assets/azure-icons/${PILLAR_ICON[n] ?? "advisor.svg"}`;
+  return azIcon(PILLAR_ICON[n] ?? "advisor");
 }
 
 // Azul de marca de Azure: un solo color para todas las barras de avance (elegante,

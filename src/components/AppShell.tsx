@@ -3,6 +3,7 @@ import { ChevronDown, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
 import { clearSession, getName, getRole } from "@/lib/auth";
+import { azIcon } from "@/lib/azureIcons";
 
 // Menú espejo del sidebar de PRD (sidebar.js): mismos grupos, orden, etiquetas
 // e iconos. Los ítems con `section` ya existen como vista React y navegan; los
@@ -15,7 +16,7 @@ type Group = { label: string; icon: string; items: Item[] };
 const MENU: Group[] = [
   {
     label: "Matriz costos Azure",
-    icon: "/assets/azure-icons/cost-management.svg",
+    icon: azIcon("cost-management"),
     items: [
       { label: "Optimización de costos", section: "costos" },
       { label: "Catálogo de servicios", section: "service-catalog" },
@@ -23,7 +24,7 @@ const MENU: Group[] = [
   },
   {
     label: "Matriz mejoras Azure",
-    icon: "/assets/azure-icons/advisor.svg",
+    icon: azIcon("advisor"),
     items: [
       { label: "Recomendaciones", section: "waf" },
       { label: "Validación inteligente", adminOnly: true, section: "waf-validation" },
@@ -33,12 +34,12 @@ const MENU: Group[] = [
   },
   {
     label: "Informes",
-    icon: "/assets/azure-icons/waf-performance.svg",
+    icon: azIcon("waf-performance"),
     items: [{ label: "Informe de gestión mensual", section: "report" }],
   },
   {
     label: "Gestión CDC",
-    icon: "/assets/azure-icons/subscriptions.svg",
+    icon: azIcon("subscriptions"),
     items: [
       { label: "Reservas por vencer", section: "reservations" },
       { label: "Catálogo de alertas", section: "alerts" },
@@ -46,7 +47,7 @@ const MENU: Group[] = [
   },
   {
     label: "Administración",
-    icon: "/assets/azure-icons/resource-groups.svg",
+    icon: azIcon("resource-groups"),
     items: [
       { label: "Clientes", section: "clientes", adminOnly: true },
       { label: "Usuarios y perfiles", adminOnly: true, section: "usuarios" },

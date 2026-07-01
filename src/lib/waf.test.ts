@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { filterRecommendations, validateTracking, impactMeta, pillarColor, pillarIcon, scoreColor, advisorSyncSummary, computePillarAvance, excelRowAction, defaultApproved, buildApplyItem, excelSummary, reviewStatusMeta, filterCatalog } from "@/lib/waf";
+import { azIcon } from "@/lib/azureIcons";
 import type { WafRecommendation, WafAdvisorSyncResult, WafExcelPreviewRow, WafExcelApplyResult, WafCanonical } from "@/types";
 
 const rec = (over: Partial<WafRecommendation>): WafRecommendation => ({
@@ -39,11 +40,12 @@ describe("meta", () => {
 });
 
 describe("pillarIcon", () => {
-  it("pillarIcon(1) contiene waf-performance.svg", () => {
-    expect(pillarIcon(1)).toContain("waf-performance.svg");
+  it("pillarIcon(1) devuelve el icono de performance incrustado", () => {
+    expect(pillarIcon(1)).toBe(azIcon("waf-performance"));
+    expect(pillarIcon(1)).toMatch(/^data:image\/svg\+xml/);
   });
-  it("pillarIcon(99) contiene advisor.svg (fallback)", () => {
-    expect(pillarIcon(99)).toContain("advisor.svg");
+  it("pillarIcon(99) cae al fallback (advisor)", () => {
+    expect(pillarIcon(99)).toBe(azIcon("advisor"));
   });
 });
 

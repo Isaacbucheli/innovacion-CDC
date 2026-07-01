@@ -3,16 +3,18 @@ import {
   Building2, Users, Boxes, type LucideIcon,
 } from "lucide-react";
 
+import { azIcon } from "@/lib/azureIcons";
+
 export interface ModuleItem {
   key: string;
   label: string;
   desc: string;
   icon: LucideIcon;
-  /** Icono oficial de Azure (ruta a /assets/azure-icons/*.svg). Si falta, se usa `icon` (lucide). */
+  /** Icono oficial de Azure incrustado (data URI, ver lib/azureIcons). Si falta, se usa `icon` (lucide). */
   azureIcon?: string;
   adminOnly?: boolean;
 }
-const AZ = (n: string) => `/assets/azure-icons/${n}.svg`;
+const AZ = (n: string) => azIcon(n);
 export interface ModuleGroup { group: string; items: ModuleItem[] }
 
 // Catálogo de módulos navegables del piloto (espejo del menú), usado por la
