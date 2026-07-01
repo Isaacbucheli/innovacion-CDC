@@ -29,7 +29,7 @@ export default function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
       <Card className="w-full max-w-sm p-6">
         <img src="/business-it-logo.webp" alt="Business IT" className="h-10 w-auto mb-4 dark:hidden" />
         <img src="/business-it-logo-white-green.webp" alt="" aria-hidden className="h-10 w-auto mb-4 hidden dark:block" />
-        <p className="text-sm text-muted-foreground mb-5">Catálogo de alertas — ingresa con tu cuenta.</p>
+        <p className="text-sm text-muted-foreground mb-5">Plataforma de optimización Azure — ingresa con tu cuenta.</p>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="email">Correo</Label>
