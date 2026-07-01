@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   createColumnHelper, flexRender, getCoreRowModel, getPaginationRowModel,
-  getSortedRowModel, useReactTable, type SortingState,
+  getSortedRowModel, useReactTable, type SortingState, type VisibilityState,
 } from "@tanstack/react-table";
-import { CalendarClock, CalendarX, Layers, Gauge, Download, RefreshCw, MoreHorizontal } from "lucide-react";
+import { CalendarClock, CalendarX, Columns3, Layers, Gauge, Download, RefreshCw, MoreHorizontal, Rows3, Rows4 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
 import WafClientHeader from "@/components/waf/WafClientHeader";
@@ -16,7 +16,9 @@ import { Input } from "@/components/ui/input";
 import SearchInput from "@/components/SearchInput";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { listClientsAdmin, getReservations, getReservationUtilization } from "@/lib/api";
 import {
   situacion, isInactive, RES_INACTIVE_STATES, utilChip, utilBucket, daysChip, daysLabel, stateChip, utilNum,
@@ -56,6 +58,8 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
   const [detail, setDetail] = useState<Reservation | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([{ id: "days_remaining", desc: false }]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [dense, setDense] = useState(false);
   // Filtros de negocio (client-side), espejo del módulo original.
   const [q, setQ] = useState("");
   const [fVigencia, setFVigencia] = useState("all");
@@ -174,11 +178,12 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
 
   const table = useReactTable({
     data: filtered, columns,
-    state: { sorting }, onSortingChange: setSorting,
+    state: { sorting, columnVisibility }, onSortingChange: setSorting, onColumnVisibilityChange: setColumnVisibility,
     enableColumnFilters: false, // el filtrado va en la barra de negocio, no por columna
     getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
+  const pad = dense ? "py-1.5" : "py-3";
 
   function exportCsv() {
     const out = table.getSortedRowModel().rows.map((r) => r.original);
@@ -262,6 +267,23 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
               <Button variant="ghost" size="sm" className="h-9" onClick={() => { setQ(""); setFVigencia("all"); setFEstado("all"); setFU1("all"); setFU7("all"); }}>Limpiar</Button>
             )}
             <div className="ml-auto flex items-center gap-2">
+              <Button variant="outline" size="sm" className="h-9" aria-label="Cambiar densidad de la tabla" onClick={() => setDense((d) => !d)}>
+                {dense ? <Rows4 className="w-4 h-4 mr-1" /> : <Rows3 className="w-4 h-4 mr-1" />}
+                {dense ? "Cómoda" : "Compacta"}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9"><Columns3 className="w-4 h-4 mr-1" />Columnas</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
+                  <DropdownMenuLabel>Columnas visibles</DropdownMenuLabel>
+                  {table.getAllColumns().filter((c) => c.getCanHide()).map((c) => (
+                    <DropdownMenuCheckboxItem key={c.id} checked={c.getIsVisible()} onCheckedChange={(v) => c.toggleVisibility(!!v)}>
+                      {String(c.columnDef.header)}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="h-9"><MoreHorizontal className="w-4 h-4 mr-1" />Acciones</Button>
@@ -293,7 +315,7 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
               </TableHeader>
               <TableBody>
                 {table.getRowModel().rows.length === 0 ? (
-                  <TableRow><TableCell colSpan={columns.length} className="text-center text-muted-foreground py-8">
+                  <TableRow><TableCell colSpan={table.getAllColumns().length} className="text-center text-muted-foreground py-8">
                     {rows.length ? "Sin reservas que coincidan con los filtros." : "Este cliente no tiene reservas registradas en Azure."}
                   </TableCell></TableRow>
                 ) : table.getRowModel().rows.map((row) => {
@@ -302,7 +324,7 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
                     <TableRow key={row.id} onClick={() => openDetail(row.original)}
                       className={`cursor-pointer ${porVencer ? "bg-amber-50 dark:bg-amber-950/30" : ""}`}>
                       {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                        <TableCell key={cell.id} className={pad}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
                       ))}
                     </TableRow>
                   );

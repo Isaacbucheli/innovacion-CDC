@@ -1,9 +1,14 @@
 import { useMemo, useState } from "react";
 import {
   createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
-  getSortedRowModel, useReactTable, type SortingState, type ColumnFiltersState,
+  getSortedRowModel, useReactTable, type SortingState, type ColumnFiltersState, type VisibilityState,
 } from "@tanstack/react-table";
+import { Columns3, Rows3, Rows4 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import SearchInput from "@/components/SearchInput";
 import DataTablePagination from "@/components/DataTablePagination";
 import DataTableColumnHeader from "@/components/DataTableColumnHeader";
@@ -28,6 +33,8 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [dense, setDense] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
   const data = useMemo(() => filterRecommendations(recommendations, { minPct, maxPct }), [recommendations, minPct, maxPct]);
 
@@ -59,9 +66,10 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
 
   const table = useReactTable({
     data, columns,
-    state: { sorting, columnFilters, globalFilter },
+    state: { sorting, columnFilters, columnVisibility, globalFilter },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: globalSearch,
     getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(),
@@ -69,17 +77,39 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
+  const pad = dense ? "py-1.5" : "py-3";
 
   return (
     <div className="space-y-3">
-      <SearchInput
-        placeholder="Buscar ámbito o código…"
-        value={globalFilter}
-        onChange={setGlobalFilter}
-        className="w-[260px] max-w-full"
-        inputClassName="h-9"
-        aria-label="Buscar recomendaciones"
-      />
+      <div className="flex flex-wrap gap-2 items-center">
+        <SearchInput
+          placeholder="Buscar ámbito o código…"
+          value={globalFilter}
+          onChange={setGlobalFilter}
+          className="w-[260px] max-w-full"
+          inputClassName="h-9"
+          aria-label="Buscar recomendaciones"
+        />
+        <div className="flex gap-2 ml-auto">
+          <Button variant="outline" size="sm" aria-label="Cambiar densidad de la tabla" onClick={() => setDense((d) => !d)}>
+            {dense ? <Rows4 className="w-4 h-4 mr-1" /> : <Rows3 className="w-4 h-4 mr-1" />}
+            {dense ? "Cómoda" : "Compacta"}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm"><Columns3 className="w-4 h-4 mr-1" />Columnas</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
+              <DropdownMenuLabel>Columnas visibles</DropdownMenuLabel>
+              {table.getAllColumns().filter((c) => c.getCanHide()).map((c) => (
+                <DropdownMenuCheckboxItem key={c.id} checked={c.getIsVisible()} onCheckedChange={(v) => c.toggleVisibility(!!v)}>
+                  {String(c.columnDef.header)}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
       <div className="rounded-xl border bg-card overflow-hidden">
         <Table>
           <TableHeader>
@@ -95,11 +125,11 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Sin recomendaciones.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={table.getAllColumns().length} className="text-center text-muted-foreground py-8">Sin recomendaciones.</TableCell></TableRow>
             ) : table.getRowModel().rows.map((row) => (
               <TableRow key={row.id} onClick={() => onOpen(row.original.canonical_id)} className="cursor-pointer">
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                  <TableCell key={cell.id} className={pad}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
                 ))}
               </TableRow>
             ))}

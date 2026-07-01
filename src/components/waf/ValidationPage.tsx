@@ -2,14 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
-  getSortedRowModel, useReactTable, type SortingState, type ColumnFiltersState,
+  getSortedRowModel, useReactTable, type SortingState, type ColumnFiltersState, type VisibilityState,
 } from "@tanstack/react-table";
-import { Ban, CircleCheck, Clock, Library } from "lucide-react";
+import { Ban, CircleCheck, Clock, Columns3, Library, Rows3, Rows4 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
 import DataTablePagination from "@/components/DataTablePagination";
 import DataTableColumnHeader from "@/components/DataTableColumnHeader";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import SearchInput from "@/components/SearchInput";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import CanonicalEditDialog from "@/components/waf/CanonicalEditDialog";
@@ -58,6 +61,8 @@ export default function ValidationPage({ onNavigate }: { onNavigate?: (key: stri
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [dense, setDense] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
 
   function load() {
@@ -126,6 +131,7 @@ export default function ValidationPage({ onNavigate }: { onNavigate?: (key: stri
     col.display({
       id: "actions",
       header: "",
+      enableHiding: false,
       cell: (c) => (
         <div className="text-right">
           <Button variant="outline" size="sm" onClick={() => openEditor(c.row.original)}>Revisar</Button>
@@ -138,9 +144,10 @@ export default function ValidationPage({ onNavigate }: { onNavigate?: (key: stri
   const table = useReactTable({
     data: rows,
     columns,
-    state: { sorting, columnFilters, globalFilter },
+    state: { sorting, columnFilters, columnVisibility, globalFilter },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: globalSearch,
     getCoreRowModel: getCoreRowModel(),
@@ -149,6 +156,7 @@ export default function ValidationPage({ onNavigate }: { onNavigate?: (key: stri
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
+  const pad = dense ? "py-1.5" : "py-3";
 
   if (!isAdmin) {
     return (
@@ -185,14 +193,35 @@ export default function ValidationPage({ onNavigate }: { onNavigate?: (key: stri
 
         {/* TanStack table + pagination */}
         <div className="space-y-3">
-          <SearchInput
-            placeholder="Buscar nombre o categoría…"
-            value={globalFilter}
-            onChange={setGlobalFilter}
-            className="w-[260px] max-w-full"
-            inputClassName="h-9"
-            aria-label="Buscar canónicas"
-          />
+          <div className="flex flex-wrap gap-2 items-center">
+            <SearchInput
+              placeholder="Buscar nombre o categoría…"
+              value={globalFilter}
+              onChange={setGlobalFilter}
+              className="w-[260px] max-w-full"
+              inputClassName="h-9"
+              aria-label="Buscar canónicas"
+            />
+            <div className="flex gap-2 ml-auto">
+              <Button variant="outline" size="sm" aria-label="Cambiar densidad de la tabla" onClick={() => setDense((d) => !d)}>
+                {dense ? <Rows4 className="w-4 h-4 mr-1" /> : <Rows3 className="w-4 h-4 mr-1" />}
+                {dense ? "Cómoda" : "Compacta"}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm"><Columns3 className="w-4 h-4 mr-1" />Columnas</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
+                  <DropdownMenuLabel>Columnas visibles</DropdownMenuLabel>
+                  {table.getAllColumns().filter((c) => c.getCanHide()).map((c) => (
+                    <DropdownMenuCheckboxItem key={c.id} checked={c.getIsVisible()} onCheckedChange={(v) => c.toggleVisibility(!!v)}>
+                      {String(c.columnDef.header)}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
           <div className="rounded-xl border bg-card overflow-hidden">
             <Table>
               <TableHeader>
@@ -208,11 +237,11 @@ export default function ValidationPage({ onNavigate }: { onNavigate?: (key: stri
               </TableHeader>
               <TableBody>
                 {table.getRowModel().rows.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Sin canónicas.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={table.getAllColumns().length} className="text-center text-muted-foreground py-8">Sin canónicas.</TableCell></TableRow>
                 ) : table.getRowModel().rows.map((row) => (
                   <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                      <TableCell key={cell.id} className={pad}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
                     ))}
                   </TableRow>
                 ))}
