@@ -1,6 +1,6 @@
 import {
   Coins, Award, Sparkles, History, Wallet, FileText, CalendarClock, Bell,
-  Building2, KeyRound, Users, Boxes, type LucideIcon,
+  Building2, Users, Boxes, type LucideIcon,
 } from "lucide-react";
 
 export interface ModuleItem {
@@ -37,8 +37,7 @@ export const MODULE_GROUPS: ModuleGroup[] = [
     { key: "alerts", label: "Catálogo de alertas", desc: "Alertas Azure Monitor y biblioteca KQL.", icon: Bell, azureIcon: AZ("monitor") },
   ] },
   { group: "Administración", items: [
-    { key: "clientes", label: "Clientes", desc: "Alta y datos de clientes.", icon: Building2, adminOnly: true },
-    { key: "credenciales", label: "Credenciales Azure", desc: "App Registrations y suscripciones.", icon: KeyRound, adminOnly: true, azureIcon: AZ("app-registrations") },
+    { key: "clientes", label: "Clientes", desc: "Alta, credenciales Azure y datos de clientes.", icon: Building2, adminOnly: true },
     { key: "usuarios", label: "Usuarios y perfiles", desc: "Accesos internos de la plataforma.", icon: Users, adminOnly: true, azureIcon: AZ("users") },
   ] },
 ];

@@ -15,6 +15,7 @@ import ClientCard from "@/components/clients/ClientCard";
 import ClientFormDialog from "@/components/clients/ClientFormDialog";
 import ClientDangerDialog, { type DangerMode } from "@/components/clients/ClientDangerDialog";
 import ClientLogoDialog from "@/components/clients/ClientLogoDialog";
+import ClientCredentialsSheet from "@/components/clients/ClientCredentialsSheet";
 import DataTablePagination from "@/components/DataTablePagination";
 import { useClients } from "@/hooks/useClients";
 import { canEdit, getRole } from "@/lib/auth";
@@ -29,6 +30,7 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
   // undefined = diálogo cerrado, null = crear, objeto = renombrar
   const [formClient, setFormClient] = useState<ClientAdmin | null | undefined>(undefined);
   const [logoClient, setLogoClient] = useState<ClientAdmin | null>(null);
+  const [credClient, setCredClient] = useState<ClientAdmin | null>(null);
   const [danger, setDanger] = useState<{ mode: DangerMode; client: ClientAdmin } | null>(null);
 
   const filtered = useMemo(() => {
@@ -113,6 +115,7 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
                   isAdmin={isAdmin}
                   onRename={(c) => setFormClient(c)}
                   onLogo={(c) => setLogoClient(c)}
+                  onCredentials={(c) => setCredClient(c)}
                   onPurge={(c) => setDanger({ mode: "purge", client: c })}
                   onDelete={(c) => setDanger({ mode: "delete", client: c })}
                 />
@@ -136,6 +139,12 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
         client={logoClient}
         onOpenChange={(o) => !o && setLogoClient(null)}
         onSaved={() => done("Logo actualizado correctamente.")}
+      />
+
+      <ClientCredentialsSheet
+        open={credClient !== null}
+        client={credClient}
+        onOpenChange={(o) => !o && setCredClient(null)}
       />
 
       <ClientDangerDialog

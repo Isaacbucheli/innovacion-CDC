@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { MoreHorizontal, Plus, RefreshCw } from "lucide-react";
-import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
-import WafClientHeader from "@/components/waf/WafClientHeader";
 import SimpleTable, { type SimpleCol } from "@/components/reports/SimpleTable";
 import CredentialFormDialog from "@/components/credentials/CredentialFormDialog";
 import RotateSecretDialog from "@/components/credentials/RotateSecretDialog";
@@ -11,23 +9,25 @@ import CredentialAuditSheet from "@/components/credentials/CredentialAuditSheet"
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
-  listClientsAdmin, listCredentials, listClientSubscriptions, testCredential, updateCredential,
+  listCredentials, listClientSubscriptions, testCredential, updateCredential,
   updateSubscription, syncSubscriptions,
 } from "@/lib/api";
 import { getRole } from "@/lib/auth";
-import type { ClientAdmin, Credential, ClientSubscription } from "@/types";
+import type { Credential, ClientSubscription } from "@/types";
 
-const KEY = "innovacion_cdc_waf_client";
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
 const chip = (cls: string, text: React.ReactNode) => <span className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{text}</span>;
 const OK = "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200";
 const BAD = "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200";
 const NEUTRAL = "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
 
-export default function CredentialsPage({ onNavigate }: { onNavigate?: (key: string) => void }) {
+/**
+ * Gestor de credenciales + suscripciones para un cliente fijo. Reúne todo lo que
+ * antes vivía en la página "Credenciales Azure", pero sin AppShell ni selector de
+ * cliente: se monta dentro del detalle del cliente (ver ClientCredentialsSheet).
+ */
+export default function CredentialsManager({ clientId }: { clientId: number }) {
   const isAdmin = getRole() === "admin";
-  const [clients, setClients] = useState<ClientAdmin[]>([]);
-  const [clientId, setClientId] = useState<number | null>(null);
   const [creds, setCreds] = useState<Credential[]>([]);
   const [subs, setSubs] = useState<ClientSubscription[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,24 +38,14 @@ export default function CredentialsPage({ onNavigate }: { onNavigate?: (key: str
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
-  const reload = useCallback((cid: number) => {
+  const reload = useCallback(() => {
     setLoading(true);
-    Promise.all([listCredentials(cid), listClientSubscriptions(cid)])
+    Promise.all([listCredentials(clientId), listClientSubscriptions(clientId)])
       .then(([c, s]) => { if (mounted.current) { setCreds(c); setSubs(s); } })
       .catch((e) => toast.error(msg(e)))
       .finally(() => { if (mounted.current) setLoading(false); });
-  }, []);
-
-  useEffect(() => {
-    listClientsAdmin().then((cs) => {
-      setClients(cs);
-      const stored = Number(localStorage.getItem(KEY));
-      setClientId(cs.some((c) => c.client_id === stored) ? stored : cs[0]?.client_id ?? null);
-    }).catch((e) => toast.error(msg(e))).finally(() => setLoading(false));
-  }, []);
-  useEffect(() => { if (clientId != null) reload(clientId); }, [clientId, reload]);
-
-  function selectClient(id: number) { localStorage.setItem(KEY, String(id)); setClientId(id); }
+  }, [clientId]);
+  useEffect(() => { reload(); }, [reload]);
 
   async function testCred(c: Credential) {
     setBusy(`test-${c.credential_id}`);
@@ -63,7 +53,7 @@ export default function CredentialsPage({ onNavigate }: { onNavigate?: (key: str
       const r = await testCredential(c.credential_id);
       if (r.success) toast.success(`${c.credential_name}: autenticación correcta.`);
       else toast.error(`${c.credential_name}: ${r.error ?? "falló la autenticación"}`);
-      if (clientId != null) reload(clientId);
+      reload();
     } catch (e) { toast.error(msg(e)); } finally { setBusy(""); }
   }
   async function toggleCred(c: Credential) {
@@ -71,7 +61,7 @@ export default function CredentialsPage({ onNavigate }: { onNavigate?: (key: str
     try {
       await updateCredential(c.credential_id, { is_active: !c.is_active });
       toast.success(c.is_active ? "Credencial desactivada." : "Credencial activada.");
-      if (clientId != null) reload(clientId);
+      reload();
     } catch (e) { toast.error(msg(e)); } finally { setBusy(""); }
   }
   async function toggleSub(s: ClientSubscription) {
@@ -79,17 +69,16 @@ export default function CredentialsPage({ onNavigate }: { onNavigate?: (key: str
     try {
       await updateSubscription(s.client_subscription_id, { is_managed: !s.is_managed });
       toast.success(s.is_managed ? "Suscripción excluida." : "Suscripción marcada como administrada.");
-      if (clientId != null) reload(clientId);
+      reload();
     } catch (e) { toast.error(msg(e)); } finally { setBusy(""); }
   }
   async function sync() {
-    if (clientId == null) return;
     setBusy("sync");
     try {
       const r = await syncSubscriptions(clientId);
       toast.success(`Sincronizado — nuevas: ${r.created}, actualizadas: ${r.updated}, inactivas: ${r.deactivated}.`);
       if (r.errors?.length) toast.error(`${r.errors.length} credencial(es) con error al sincronizar.`);
-      reload(clientId);
+      reload();
     } catch (e) { toast.error(msg(e)); } finally { setBusy(""); }
   }
 
@@ -135,9 +124,7 @@ export default function CredentialsPage({ onNavigate }: { onNavigate?: (key: str
   ];
 
   return (
-    <AppShell title="Credenciales Azure" subtitle="Administración · App Registrations y suscripciones por cliente"
-      active="credenciales" onNavigate={onNavigate}
-      headerRight={<WafClientHeader clients={clients} clientId={clientId} onSelect={selectClient} />}>
+    <>
       <BusyOverlay
         show={loading || busy !== ""}
         title={
@@ -148,34 +135,30 @@ export default function CredentialsPage({ onNavigate }: { onNavigate?: (key: str
           : "Cargando"
         }
       />
-      {!isAdmin ? (
-        <p className="text-sm text-muted-foreground">Esta sección es solo para administradores.</p>
-      ) : (
-        <div className="space-y-8">
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold">Credenciales</h2>
-              <Button size="sm" disabled={clientId == null} onClick={() => setFormOpen(true)}><Plus className="w-4 h-4 mr-1" />Nueva credencial</Button>
-            </div>
-            <SimpleTable cols={credCols} rows={creds} empty="Este cliente no tiene credenciales registradas." />
-            <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">El secreto (client secret) se guarda cifrado en Key Vault y nunca se muestra. Toda alta o rotación se valida contra Azure.</p>
-          </section>
+      <div className="space-y-8">
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-base font-semibold">Credenciales</h3>
+            <Button size="sm" onClick={() => setFormOpen(true)}><Plus className="w-4 h-4 mr-1" />Nueva credencial</Button>
+          </div>
+          <SimpleTable cols={credCols} rows={creds} empty="Este cliente no tiene credenciales registradas." />
+          <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">El secreto (client secret) se guarda cifrado en Key Vault y nunca se muestra. Toda alta o rotación se valida contra Azure.</p>
+        </section>
 
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold">Suscripciones</h2>
-              <Button size="sm" variant="outline" disabled={clientId == null || busy === "sync"} onClick={sync}>
-                <RefreshCw className={`w-4 h-4 mr-1 ${busy === "sync" ? "animate-spin" : ""}`} />Sincronizar
-              </Button>
-            </div>
-            <SimpleTable cols={subCols} rows={subs} empty="Sin suscripciones. Usa Sincronizar para importarlas desde Azure." />
-            <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">Las suscripciones no administradas se excluyen de importaciones de inventario, costos e informes.</p>
-          </section>
-        </div>
-      )}
-      {clientId != null && <CredentialFormDialog clientId={clientId} open={formOpen} onOpenChange={setFormOpen} onSaved={() => reload(clientId)} />}
-      <RotateSecretDialog credential={rotate} open={rotate != null} onOpenChange={(o) => !o && setRotate(null)} onSaved={() => clientId != null && reload(clientId)} />
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-base font-semibold">Suscripciones</h3>
+            <Button size="sm" variant="outline" disabled={busy === "sync"} onClick={sync}>
+              <RefreshCw className={`w-4 h-4 mr-1 ${busy === "sync" ? "animate-spin" : ""}`} />Sincronizar
+            </Button>
+          </div>
+          <SimpleTable cols={subCols} rows={subs} empty="Sin suscripciones. Usa Sincronizar para importarlas desde Azure." />
+          <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">Las suscripciones no administradas se excluyen de importaciones de inventario, costos e informes.</p>
+        </section>
+      </div>
+      <CredentialFormDialog clientId={clientId} open={formOpen} onOpenChange={setFormOpen} onSaved={reload} />
+      <RotateSecretDialog credential={rotate} open={rotate != null} onOpenChange={(o) => !o && setRotate(null)} onSaved={reload} />
       <CredentialAuditSheet credential={audit} open={audit != null} onOpenChange={(o) => !o && setAudit(null)} />
-    </AppShell>
+    </>
   );
 }
