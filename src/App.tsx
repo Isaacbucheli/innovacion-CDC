@@ -1,18 +1,24 @@
-import { useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useState } from "react";
 import AuthGate from "@/components/AuthGate";
 import HomePage from "@/components/HomePage";
-import CatalogPage from "@/components/CatalogPage";
-import CostsPage from "@/components/costs/CostsPage";
-import ClientsPage from "@/components/clients/ClientsPage";
-import WafPage from "@/components/waf/WafPage";
-import CostReferencePage from "@/components/waf/CostReferencePage";
-import IngestionsPage from "@/components/waf/IngestionsPage";
-import ValidationPage from "@/components/waf/ValidationPage";
-import ReportPage from "@/components/reports/ReportPage";
-import ReservationsPage from "@/components/reservations/ReservationsPage";
-import UsersPage from "@/components/users/UsersPage";
-import ServiceCatalogPage from "@/components/services/ServiceCatalogPage";
+import BusyOverlay from "@/components/BusyOverlay";
 import { Toaster } from "@/components/ui/sonner";
+
+// Vistas por sección con carga diferida (code-splitting): cada una es un chunk
+// aparte que se descarga solo al abrir esa sección. Así el bundle inicial (shell +
+// home + login) no arrastra librerías pesadas como Recharts (informes) o cmdk
+// (paleta del catálogo) hasta que hacen falta. HomePage queda eager (es el landing).
+const CostsPage = lazy(() => import("@/components/costs/CostsPage"));
+const ClientsPage = lazy(() => import("@/components/clients/ClientsPage"));
+const WafPage = lazy(() => import("@/components/waf/WafPage"));
+const CostReferencePage = lazy(() => import("@/components/waf/CostReferencePage"));
+const IngestionsPage = lazy(() => import("@/components/waf/IngestionsPage"));
+const ValidationPage = lazy(() => import("@/components/waf/ValidationPage"));
+const ReportPage = lazy(() => import("@/components/reports/ReportPage"));
+const ReservationsPage = lazy(() => import("@/components/reservations/ReservationsPage"));
+const UsersPage = lazy(() => import("@/components/users/UsersPage"));
+const ServiceCatalogPage = lazy(() => import("@/components/services/ServiceCatalogPage"));
+const CatalogPage = lazy(() => import("@/components/CatalogPage"));
 
 const SECTION_KEY = "innovacion_cdc_section";
 const RECENT_KEY = "innovacion_cdc_recent";
@@ -41,31 +47,33 @@ export default function App() {
   return (
     <>
       <AuthGate>
-        {section === "costos" ? (
-          <CostsPage onNavigate={navigate} />
-        ) : section === "clientes" ? (
-          <ClientsPage onNavigate={navigate} />
-        ) : section === "waf" ? (
-          <WafPage onNavigate={navigate} />
-        ) : section === "waf-cost" ? (
-          <CostReferencePage onNavigate={navigate} />
-        ) : section === "waf-ingestions" ? (
-          <IngestionsPage onNavigate={navigate} />
-        ) : section === "waf-validation" ? (
-          <ValidationPage onNavigate={navigate} />
-        ) : section === "report" ? (
-          <ReportPage onNavigate={navigate} />
-        ) : section === "reservations" ? (
-          <ReservationsPage onNavigate={navigate} />
-        ) : section === "usuarios" ? (
-          <UsersPage onNavigate={navigate} />
-        ) : section === "service-catalog" ? (
-          <ServiceCatalogPage onNavigate={navigate} />
-        ) : section === "alerts" ? (
-          <CatalogPage onNavigate={navigate} />
-        ) : (
-          <HomePage recent={recent} onNavigate={navigate} />
-        )}
+        <Suspense fallback={<BusyOverlay show title="Cargando…" />}>
+          {section === "costos" ? (
+            <CostsPage onNavigate={navigate} />
+          ) : section === "clientes" ? (
+            <ClientsPage onNavigate={navigate} />
+          ) : section === "waf" ? (
+            <WafPage onNavigate={navigate} />
+          ) : section === "waf-cost" ? (
+            <CostReferencePage onNavigate={navigate} />
+          ) : section === "waf-ingestions" ? (
+            <IngestionsPage onNavigate={navigate} />
+          ) : section === "waf-validation" ? (
+            <ValidationPage onNavigate={navigate} />
+          ) : section === "report" ? (
+            <ReportPage onNavigate={navigate} />
+          ) : section === "reservations" ? (
+            <ReservationsPage onNavigate={navigate} />
+          ) : section === "usuarios" ? (
+            <UsersPage onNavigate={navigate} />
+          ) : section === "service-catalog" ? (
+            <ServiceCatalogPage onNavigate={navigate} />
+          ) : section === "alerts" ? (
+            <CatalogPage onNavigate={navigate} />
+          ) : (
+            <HomePage recent={recent} onNavigate={navigate} />
+          )}
+        </Suspense>
       </AuthGate>
       <Toaster position="top-right" />
     </>
