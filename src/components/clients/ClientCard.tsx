@@ -1,4 +1,4 @@
-import { Eraser, Image, KeyRound, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Eraser, Image, KeyRound, MoreHorizontal, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import type { ClientAdmin } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ export default function ClientCard({
   onRename,
   onLogo,
   onCredentials,
+  onAdvisorScore,
   onPurge,
   onDelete,
 }: {
@@ -27,6 +28,7 @@ export default function ClientCard({
   onRename: (c: ClientAdmin) => void;
   onLogo: (c: ClientAdmin) => void;
   onCredentials: (c: ClientAdmin) => void;
+  onAdvisorScore: (c: ClientAdmin) => void;
   onPurge: (c: ClientAdmin) => void;
   onDelete: (c: ClientAdmin) => void;
 }) {
@@ -80,6 +82,11 @@ export default function ClientCard({
             {isAdmin && (
               <DropdownMenuItem onClick={() => onCredentials(client)}>
                 <KeyRound className="w-4 h-4" /> Credenciales Azure
+              </DropdownMenuItem>
+            )}
+            {isAdmin && (
+              <DropdownMenuItem onClick={() => onAdvisorScore(client)}>
+                <RefreshCw className="w-4 h-4" /> Actualizar Advisor Score
               </DropdownMenuItem>
             )}
             {isAdmin && (

@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { MoreHorizontal, Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import AppShell from "@/components/AppShell";
+import BusyOverlay from "@/components/BusyOverlay";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import SearchInput from "@/components/SearchInput";
 import { Skeleton } from "@/components/ui/skeleton";
 import ClientCard from "@/components/clients/ClientCard";
@@ -10,11 +12,15 @@ import ClientFormDialog from "@/components/clients/ClientFormDialog";
 import ClientDangerDialog, { type DangerMode } from "@/components/clients/ClientDangerDialog";
 import ClientLogoDialog from "@/components/clients/ClientLogoDialog";
 import ClientCredentialsDialog from "@/components/clients/ClientCredentialsDialog";
+import AdvisorScoreDialog from "@/components/waf/AdvisorScoreDialog";
 import DataTablePagination from "@/components/DataTablePagination";
 import { useClients } from "@/hooks/useClients";
 import { usePagedRows } from "@/hooks/usePagedRows";
+import { refreshWafAdvisorScore, refreshWafAdvisorScoreAll } from "@/lib/api";
 import { canEdit, getRole } from "@/lib/auth";
 import type { ClientAdmin } from "@/types";
+
+function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
 
 export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) => void }) {
   const { clients, loading, error, reload } = useClients();
@@ -26,6 +32,9 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
   const [formClient, setFormClient] = useState<ClientAdmin | null | undefined>(undefined);
   const [logoClient, setLogoClient] = useState<ClientAdmin | null>(null);
   const [credClient, setCredClient] = useState<ClientAdmin | null>(null);
+  const [scoreClient, setScoreClient] = useState<ClientAdmin | null>(null);
+  const [scoreAllOpen, setScoreAllOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [danger, setDanger] = useState<{ mode: DangerMode; client: ClientAdmin } | null>(null);
 
   const filtered = useMemo(() => {
@@ -43,6 +52,27 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
     reload();
   }
 
+  async function doScoreRefresh(includeInReports: boolean) {
+    if (!scoreClient) return;
+    setBusy(true);
+    try {
+      await refreshWafAdvisorScore(scoreClient.client_id, includeInReports);
+      toast.success(`Advisor Score actualizado · ${scoreClient.client_name}.`);
+      setScoreClient(null);
+    } catch (e) { toast.error(msg(e)); }
+    finally { setBusy(false); }
+  }
+
+  async function doScoreRefreshAll(includeInReports: boolean) {
+    setBusy(true);
+    try {
+      const r = await refreshWafAdvisorScoreAll(includeInReports);
+      toast.success(`Advisor Score actualizado · ${r.clients_refreshed} de ${r.clients_total} clientes${r.clients_failed ? ` · ${r.clients_failed} con error` : ""}.`);
+      setScoreAllOpen(false);
+    } catch (e) { toast.error(msg(e)); }
+    finally { setBusy(false); }
+  }
+
   return (
     <AppShell
       title="Clientes"
@@ -50,6 +80,7 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
       active="clientes"
       onNavigate={onNavigate}
     >
+      <BusyOverlay show={busy} title="Actualizando Advisor Score" />
       {loading ? (
         <div className="flex flex-col gap-2">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -84,6 +115,20 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
                 <Plus className="w-4 h-4 mr-1" /> Nuevo cliente
               </Button>
             )}
+            {isAdmin && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <MoreHorizontal className="w-4 h-4 mr-1" /> Opciones
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setScoreAllOpen(true)}>
+                    <RefreshCw className="w-4 h-4 mr-2" /> Sincronizar Advisor Score (todos)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
 
           {pageRows.length === 0 ? (
@@ -99,6 +144,7 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
                   onRename={(c) => setFormClient(c)}
                   onLogo={(c) => setLogoClient(c)}
                   onCredentials={(c) => setCredClient(c)}
+                  onAdvisorScore={(c) => setScoreClient(c)}
                   onPurge={(c) => setDanger({ mode: "purge", client: c })}
                   onDelete={(c) => setDanger({ mode: "delete", client: c })}
                 />
@@ -128,6 +174,21 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
         open={credClient !== null}
         client={credClient}
         onOpenChange={(o) => !o && setCredClient(null)}
+      />
+
+      <AdvisorScoreDialog
+        open={scoreClient !== null}
+        busy={busy}
+        onOpenChange={(o) => !o && setScoreClient(null)}
+        onConfirm={doScoreRefresh}
+      />
+
+      <AdvisorScoreDialog
+        open={scoreAllOpen}
+        busy={busy}
+        allClients
+        onOpenChange={setScoreAllOpen}
+        onConfirm={doScoreRefreshAll}
       />
 
       <ClientDangerDialog

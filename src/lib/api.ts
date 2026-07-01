@@ -306,6 +306,9 @@ export const consolidateWafDuplicates = (clientId: number, useAi: boolean) =>
   request<WafConsolidateResult>(`/waf/clients/${clientId}/consolidate-duplicates?use_ai=${useAi}`, { method: "POST" });
 export const refreshWafAdvisorScore = (clientId: number, includeInReports: boolean) =>
   request<WafScoreRefreshResult>(`/waf/admin/advisor-score/refresh`, jsonOpts("POST", { client_id: clientId, include_in_reports: includeInReports }));
+/** Refresca el Advisor Score de TODOS los clientes activos (sin client_id). */
+export const refreshWafAdvisorScoreAll = (includeInReports: boolean) =>
+  request<WafScoreRefreshResult>(`/waf/admin/advisor-score/refresh`, jsonOpts("POST", { include_in_reports: includeInReports }));
 
 // ---- WAF: acciones (Slice B) — Import Excel ----
 /** Preview de la matriz Excel (multipart "file", ?use_ai). */
