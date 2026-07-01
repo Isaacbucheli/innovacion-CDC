@@ -46,6 +46,7 @@ import type {
   CredentialAuthResult,
   CredentialAudit,
   SubscriptionSyncSummary,
+  PublicUser,
 } from "@/types";
 import { clearSession, getToken, setSession } from "@/lib/auth";
 
@@ -251,6 +252,19 @@ export const updateSubscription = (clientSubscriptionId: number, body: { is_mana
   request<{ message: string }>(`/azure/subscriptions/${clientSubscriptionId}`, jsonOpts("PUT", body));
 export const syncSubscriptions = (clientId: number) =>
   request<SubscriptionSyncSummary>(`/azure/subscriptions/sync-client/${clientId}`, { method: "POST" });
+
+// ---- Usuarios y perfiles (Administración, solo admin) ----
+export const listUsers = () => request<PublicUser[]>(`/auth/users`);
+export const createUser = (body: { email: string; full_name: string; role: string; password: string; client_ids?: number[] }) =>
+  request<PublicUser>(`/auth/users`, jsonOpts("POST", body));
+export const updateUser = (userId: number, body: { email?: string; full_name?: string; role?: string; password?: string; is_active?: boolean }) =>
+  request<PublicUser>(`/auth/users/${userId}`, jsonOpts("PUT", body));
+export const deleteUser = (userId: number) =>
+  request<{ deleted: boolean; user_id: number; email: string }>(`/auth/users/${userId}`, { method: "DELETE" });
+export const getUserClients = (userId: number) =>
+  request<{ user_id: number; client_ids: number[] }>(`/auth/users/${userId}/clients`);
+export const setUserClients = (userId: number, clientIds: number[]) =>
+  request<{ user_id: number; client_ids: number[] }>(`/auth/users/${userId}/clients`, jsonOpts("PUT", { client_ids: clientIds }));
 export const runWafAdvisorSync = (clientId: number, body: WafAdvisorSyncRequest) =>
   request<WafAdvisorSyncResult>(`/waf/clients/${clientId}/advisor-sync`, jsonOpts("POST", body));
 

@@ -50,7 +50,7 @@ const MENU: Group[] = [
     items: [
       { label: "Clientes", section: "clientes", adminOnly: true },
       { label: "Credenciales Azure", section: "credenciales", adminOnly: true },
-      { label: "Usuarios y perfiles", adminOnly: true, soon: true },
+      { label: "Usuarios y perfiles", adminOnly: true, section: "usuarios" },
     ],
   },
 ];

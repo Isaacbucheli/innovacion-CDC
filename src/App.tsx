@@ -10,6 +10,7 @@ import ValidationPage from "@/components/waf/ValidationPage";
 import ReportPage from "@/components/reports/ReportPage";
 import ReservationsPage from "@/components/reservations/ReservationsPage";
 import CredentialsPage from "@/components/credentials/CredentialsPage";
+import UsersPage from "@/components/users/UsersPage";
 import { Toaster } from "@/components/ui/sonner";
 
 export default function App() {
@@ -35,6 +36,8 @@ export default function App() {
           <ReservationsPage onNavigate={setSection} />
         ) : section === "credenciales" ? (
           <CredentialsPage onNavigate={setSection} />
+        ) : section === "usuarios" ? (
+          <UsersPage onNavigate={setSection} />
         ) : (
           <CatalogPage onNavigate={setSection} />
         )}

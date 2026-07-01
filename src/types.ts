@@ -259,6 +259,16 @@ export interface ClientSubscription {
   last_synced_at?: string | null;
 }
 
+// ---- Usuarios y perfiles (Administración) ----
+export interface PublicUser {
+  user_id: number;
+  email: string;
+  full_name: string;
+  role: string; // admin | consultor | lector
+  is_active: boolean;
+  created_at?: string | null;
+}
+
 // ---- Credenciales Azure (Administración) ----
 export interface Credential {
   credential_id: number;
