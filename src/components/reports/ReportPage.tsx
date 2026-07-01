@@ -9,9 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ReportView from "@/components/reports/ReportView";
 import { listClientsAdmin, listReports, getMonthlyReport, generateReport } from "@/lib/api";
 import { getRole } from "@/lib/auth";
+import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
 import type { ClientAdmin, ReportListEntry, MonthlyReport } from "@/types";
 
-const KEY = "innovacion_cdc_waf_client";
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
@@ -41,8 +41,7 @@ export default function ReportPage({ onNavigate }: { onNavigate?: (key: string) 
   useEffect(() => {
     listClientsAdmin().then((cs) => {
       setClients(cs);
-      const stored = Number(localStorage.getItem(KEY));
-      setClientId(cs.some((c) => c.client_id === stored) ? stored : cs[0]?.client_id ?? null);
+      setClientId(resolveInitialClient(cs));
     }).catch((e) => toast.error(msg(e))).finally(() => setLoading(false));
   }, []);
 
@@ -68,7 +67,7 @@ export default function ReportPage({ onNavigate }: { onNavigate?: (key: string) 
       .finally(() => mounted.current && setLoadingReport(false));
   }, [clientId, year, month, entry?.status]);
 
-  function selectClient(id: number) { localStorage.setItem(KEY, String(id)); setClientId(id); setReport(null); }
+  function selectClient(id: number) { writeActiveClient(id); setClientId(id); setReport(null); }
 
   async function generate() {
     if (clientId == null) return;

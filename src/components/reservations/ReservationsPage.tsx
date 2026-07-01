@@ -23,9 +23,9 @@ import { listClientsAdmin, getReservations, getReservationUtilization } from "@/
 import {
   situacion, isInactive, RES_INACTIVE_STATES, utilChip, utilBucket, daysChip, daysLabel, stateChip, utilNum,
 } from "@/lib/reservations";
+import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
 import type { ClientAdmin, Reservation } from "@/types";
 
-const KEY = "innovacion_cdc_waf_client";
 type Util = { last?: string | null; d7?: string | null; pending?: boolean };
 const col = createColumnHelper<Reservation>();
 
@@ -114,15 +114,14 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
   useEffect(() => {
     listClientsAdmin().then((cs) => {
       setClients(cs);
-      const stored = Number(localStorage.getItem(KEY));
-      setClientId(cs.some((c) => c.client_id === stored) ? stored : cs[0]?.client_id ?? null);
+      setClientId(resolveInitialClient(cs));
     }).catch((e) => toast.error(e instanceof Error ? e.message : String(e))).finally(() => setLoading(false));
   }, []);
 
   // Recarga sólo al cambiar de cliente (alertDays es client-side).
   useEffect(() => { if (clientId != null) reload(clientId, alertDays); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [clientId, reload]);
 
-  function selectClient(id: number) { localStorage.setItem(KEY, String(id)); setClientId(id); }
+  function selectClient(id: number) { writeActiveClient(id); setClientId(id); }
   function openDetail(r: Reservation) { setDetail(r); setDetailOpen(true); }
 
   // Estados de Azure presentes (para el filtro dinámico).

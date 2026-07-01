@@ -6,9 +6,8 @@ import DataTablePagination from "@/components/DataTablePagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePagedRows } from "@/hooks/usePagedRows";
 import { listClientsAdmin, getWafIngestionRuns } from "@/lib/api";
+import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
 import type { ClientAdmin, WafIngestionRun } from "@/types";
-
-const KEY = "innovacion_cdc_waf_client";
 
 function statusChip(status: string | null): string {
   const s = (status ?? "").toLowerCase();
@@ -28,8 +27,7 @@ export default function IngestionsPage({ onNavigate }: { onNavigate?: (key: stri
   useEffect(() => {
     listClientsAdmin().then((cs) => {
       setClients(cs);
-      const stored = Number(localStorage.getItem(KEY));
-      setClientId(cs.some((c) => c.client_id === stored) ? stored : cs[0]?.client_id ?? null);
+      setClientId(resolveInitialClient(cs));
     }).finally(() => setLoading(false));
   }, []);
 
@@ -39,7 +37,7 @@ export default function IngestionsPage({ onNavigate }: { onNavigate?: (key: stri
     getWafIngestionRuns(clientId).then(setRuns).catch(() => setRuns([])).finally(() => setLoading(false));
   }, [clientId]);
 
-  function selectClient(id: number) { localStorage.setItem(KEY, String(id)); setClientId(id); }
+  function selectClient(id: number) { writeActiveClient(id); setClientId(id); }
   const { table, pageRows } = usePagedRows(runs);
 
   return (

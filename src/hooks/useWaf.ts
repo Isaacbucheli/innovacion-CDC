@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getWafAdvisorScore, getWafRecommendations, getWafSections, getWafSummary, listClientsAdmin } from "@/lib/api";
+import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
 import type { ClientAdmin, WafRecommendation, WafSection, WafSummary } from "@/types";
-
-const SELECTED_CLIENT_KEY = "innovacion_cdc_waf_client";
-
-function readSelectedClient(): number | null {
-  const raw = localStorage.getItem(SELECTED_CLIENT_KEY);
-  const n = raw ? Number(raw) : NaN;
-  return Number.isFinite(n) ? n : null;
-}
 
 export function useWaf() {
   const [clients, setClients] = useState<ClientAdmin[]>([]);
@@ -31,9 +24,7 @@ export function useWaf() {
         const cs = await listClientsAdmin();
         if (!mountedRef.current) return;
         setClients(cs);
-        const stored = readSelectedClient();
-        const initial = stored && cs.some((c) => c.client_id === stored) ? stored : cs[0]?.client_id ?? null;
-        setClientId(initial);
+        setClientId(resolveInitialClient(cs));
       } catch (e) {
         if (mountedRef.current) setError(e instanceof Error ? e.message : "Error al cargar clientes");
       } finally {
@@ -81,7 +72,7 @@ export function useWaf() {
   }, [sections]);
 
   const selectClient = useCallback((id: number) => {
-    localStorage.setItem(SELECTED_CLIENT_KEY, String(id));
+    writeActiveClient(id);
     setClientId(id);
   }, []);
 

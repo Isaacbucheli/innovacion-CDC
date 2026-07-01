@@ -19,6 +19,7 @@ import { listClientsAdmin, getWafCostReference } from "@/lib/api";
 import { formatMoney } from "@/lib/costs";
 import { impactMeta } from "@/lib/waf";
 import { textColumnFilter, labelColumnFilter, globalTextFilter } from "@/lib/columnFilter";
+import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
 import { useCountUp } from "@/lib/useCountUp";
 import type { ClientAdmin, WafCostReference, WafCostItem } from "@/types";
 
@@ -26,8 +27,6 @@ const textFilter = textColumnFilter<WafCostItem>;
 const impactFilter = labelColumnFilter<WafCostItem>((raw) => impactMeta(raw as string | null).label);
 const globalSearch = globalTextFilter<WafCostItem>((r) => `${r.matrix_code} ${r.review_scope_es ?? ""}`);
 type ColMeta = { align?: "right" };
-
-const KEY = "innovacion_cdc_waf_client";
 
 function Chip({ children }: { children: React.ReactNode }) {
   return (
@@ -74,8 +73,7 @@ export default function CostReferencePage({ onNavigate }: { onNavigate?: (key: s
   useEffect(() => {
     listClientsAdmin().then((cs) => {
       setClients(cs);
-      const stored = Number(localStorage.getItem(KEY));
-      setClientId(cs.some((c) => c.client_id === stored) ? stored : cs[0]?.client_id ?? null);
+      setClientId(resolveInitialClient(cs));
     }).finally(() => setLoading(false));
   }, []);
 
@@ -85,7 +83,7 @@ export default function CostReferencePage({ onNavigate }: { onNavigate?: (key: s
     getWafCostReference(clientId).then(setData).catch(() => setData(null)).finally(() => setLoading(false));
   }, [clientId]);
 
-  function selectClient(id: number) { localStorage.setItem(KEY, String(id)); setClientId(id); }
+  function selectClient(id: number) { writeActiveClient(id); setClientId(id); }
 
   const items = useMemo(() => data?.items ?? [], [data]);
 

@@ -15,14 +15,7 @@ import type {
   Scenario,
   ServiceCatalogItem,
 } from "@/types";
-
-const SELECTED_CLIENT_KEY = "innovacion_cdc_cost_client";
-
-function readSelectedClient(): number | null {
-  const raw = localStorage.getItem(SELECTED_CLIENT_KEY);
-  const n = raw ? Number(raw) : NaN;
-  return Number.isFinite(n) ? n : null;
-}
+import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
 
 function isNotFound(e: unknown): boolean {
   return /404|not found/i.test(e instanceof Error ? e.message : "");
@@ -79,9 +72,7 @@ export function useCosts(): UseCosts {
         if (!mountedRef.current) return;
         setClients(cs);
         setServices(sv.filter((s) => !s.is_internal && s.service_key !== "sql_vm"));
-        const stored = readSelectedClient();
-        const initial = stored && cs.some((c) => c.client_id === stored) ? stored : cs[0]?.client_id ?? null;
-        setClientId(initial);
+        setClientId(resolveInitialClient(cs));
       } catch (e) {
         if (mountedRef.current) setError(e instanceof Error ? e.message : "Error al cargar");
       } finally {
@@ -143,7 +134,7 @@ export function useCosts(): UseCosts {
   }, [clientId, loadFor]);
 
   const selectClient = useCallback((id: number) => {
-    localStorage.setItem(SELECTED_CLIENT_KEY, String(id));
+    writeActiveClient(id);
     setClientId(id);
   }, []);
 
