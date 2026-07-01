@@ -33,9 +33,8 @@ export const MODULE_GROUPS: ModuleGroup[] = [
     { key: "report", label: "Informe de gestión mensual", desc: "Resumen mensual de la plataforma.", icon: FileText },
   ] },
   { group: "Gestión CDC", items: [
-    // TODO: iconos oficiales de Azure Reservations / Azure Monitor (no están en el repo aún).
-    { key: "reservations", label: "Reservas por vencer", desc: "Reservas de capacidad Azure.", icon: CalendarClock },
-    { key: "alerts", label: "Catálogo de alertas", desc: "Alertas Azure Monitor y biblioteca KQL.", icon: Bell },
+    { key: "reservations", label: "Reservas por vencer", desc: "Reservas de capacidad Azure.", icon: CalendarClock, azureIcon: AZ("reservations") },
+    { key: "alerts", label: "Catálogo de alertas", desc: "Alertas Azure Monitor y biblioteca KQL.", icon: Bell, azureIcon: AZ("monitor") },
   ] },
   { group: "Administración", items: [
     { key: "clientes", label: "Clientes", desc: "Alta y datos de clientes.", icon: Building2, adminOnly: true },

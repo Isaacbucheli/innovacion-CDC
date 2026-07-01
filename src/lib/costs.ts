@@ -22,7 +22,7 @@ export const SERVICE_ICONS: Record<string, string> = {
   sql_managed_instance: "/assets/azure-icons/sql-managed-instance.svg",
   disks: "/assets/azure-icons/managed-disks.svg",
   sql: "/assets/azure-icons/sql-database.svg",
-  synapse_dw: "/assets/azure-icons/sql-database.svg",
+  synapse_dw: "/assets/azure-icons/synapse-analytics.svg",
   appservice: "/assets/azure-icons/app-service.svg",
   mysql: "/assets/azure-icons/mysql.svg",
   cosmos: "/assets/azure-icons/cosmos-db.svg",
