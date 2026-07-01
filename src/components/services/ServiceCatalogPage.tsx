@@ -6,9 +6,11 @@ import BusyOverlay from "@/components/BusyOverlay";
 import SimpleTable, { type SimpleCol } from "@/components/reports/SimpleTable";
 import ServiceFormDialog from "@/components/services/ServiceFormDialog";
 import ConfirmDelete from "@/components/ConfirmDelete";
+import DataTablePagination from "@/components/DataTablePagination";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { listAllServices, listInserterKeys, updateService, deleteService } from "@/lib/api";
+import { usePagedRows } from "@/hooks/usePagedRows";
 import { serviceIcon } from "@/lib/costs";
 import { getRole } from "@/lib/auth";
 import type { ServiceCatalogItem } from "@/types";
@@ -89,13 +91,16 @@ export default function ServiceCatalogPage({ onNavigate }: { onNavigate?: (key: 
     ) }] : []),
   ];
 
+  const { table, pageRows } = usePagedRows(rows);
+
   return (
     <AppShell title="Catálogo de servicios" subtitle="Matriz costos Azure · servicios que alimentan el motor de costos"
       active="service-catalog" onNavigate={onNavigate}
       headerRight={isAdmin ? <Button size="sm" onClick={() => setFormItem(null)}><Plus className="w-4 h-4 mr-1" />Nuevo servicio</Button> : undefined}>
       <BusyOverlay show={loading || busy} title={busy ? "Actualizando servicio" : "Cargando catálogo"} />
       <div className="space-y-3">
-        <SimpleTable cols={cols} rows={rows} empty="No hay servicios registrados." />
+        <SimpleTable cols={cols} rows={pageRows} empty="No hay servicios registrados." />
+        <DataTablePagination table={table} />
         <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">
           Este catálogo define qué recursos de Azure se importan y cómo se costean. Cambiarlo afecta el costeo de todos los clientes; solo los administradores pueden editarlo.
         </p>

@@ -5,7 +5,9 @@ import BusyOverlay from "@/components/BusyOverlay";
 import CredentialFormDialog from "@/components/credentials/CredentialFormDialog";
 import RotateSecretDialog from "@/components/credentials/RotateSecretDialog";
 import CredentialAuditSheet from "@/components/credentials/CredentialAuditSheet";
+import DataTablePagination from "@/components/DataTablePagination";
 import { Button } from "@/components/ui/button";
+import { usePagedRows } from "@/hooks/usePagedRows";
 import {
   listCredentials, listClientSubscriptions, testCredential, updateCredential,
   updateSubscription, syncSubscriptions,
@@ -82,6 +84,9 @@ export default function CredentialsManager({ clientId }: { clientId: number }) {
     } catch (e) { toast.error(msg(e)); } finally { setBusy(""); }
   }
 
+  const credPages = usePagedRows(creds);
+  const subPages = usePagedRows(subs);
+
   const field = (label: string, value: string) => (
     <div className="min-w-0">
       <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
@@ -112,7 +117,7 @@ export default function CredentialsManager({ clientId }: { clientId: number }) {
             <p className="text-sm text-muted-foreground border rounded-xl px-4 py-6 text-center">Este cliente no tiene credenciales registradas.</p>
           ) : (
             <div className="space-y-3">
-              {creds.map((c) => (
+              {credPages.pageRows.map((c) => (
                 <div key={c.credential_id} className="rounded-xl border p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -140,6 +145,7 @@ export default function CredentialsManager({ clientId }: { clientId: number }) {
               ))}
             </div>
           )}
+          {creds.length > 0 && <DataTablePagination table={credPages.table} />}
           <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">El secreto (client secret) se guarda cifrado en Key Vault y nunca se muestra. Toda alta o rotación se valida contra Azure.</p>
         </section>
 
@@ -155,7 +161,7 @@ export default function CredentialsManager({ clientId }: { clientId: number }) {
             <p className="text-sm text-muted-foreground border rounded-xl px-4 py-6 text-center">Sin suscripciones. Usa Sincronizar para importarlas desde Azure.</p>
           ) : (
             <div className="rounded-xl border divide-y">
-              {subs.map((s) => (
+              {subPages.pageRows.map((s) => (
                 <div key={s.client_subscription_id} className="flex items-center gap-3 px-4 py-3">
                   <div className="min-w-0 flex-1">
                     <div className="font-medium truncate" title={s.subscription_name ?? undefined}>{s.subscription_name || "—"}</div>
@@ -178,6 +184,7 @@ export default function CredentialsManager({ clientId }: { clientId: number }) {
               ))}
             </div>
           )}
+          {subs.length > 0 && <DataTablePagination table={subPages.table} />}
           <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">Las suscripciones no administradas se excluyen de importaciones de inventario, costos e informes.</p>
         </section>
       </div>

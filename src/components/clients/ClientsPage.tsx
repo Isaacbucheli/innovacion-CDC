@@ -1,12 +1,6 @@
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
-import {
-  type ColumnDef,
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
 import AppShell from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import SearchInput from "@/components/SearchInput";
@@ -18,6 +12,7 @@ import ClientLogoDialog from "@/components/clients/ClientLogoDialog";
 import ClientCredentialsDialog from "@/components/clients/ClientCredentialsDialog";
 import DataTablePagination from "@/components/DataTablePagination";
 import { useClients } from "@/hooks/useClients";
+import { usePagedRows } from "@/hooks/usePagedRows";
 import { canEdit, getRole } from "@/lib/auth";
 import type { ClientAdmin } from "@/types";
 
@@ -41,16 +36,7 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
 
   const activeCount = useMemo(() => clients.filter((c) => c.is_active).length, [clients]);
 
-  // Tabla "headless" (sin columnas visibles) solo para reusar la paginación del repo.
-  const columns = useMemo<ColumnDef<ClientAdmin>[]>(() => [], []);
-  const table = useReactTable({
-    data: filtered,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
-  });
-  const pageRows = table.getRowModel().rows;
+  const { table, pageRows } = usePagedRows(filtered);
 
   function done(message: string) {
     toast.success(message);
@@ -104,10 +90,10 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
             <p className="text-sm text-muted-foreground py-8 text-center">Sin clientes que coincidan.</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {pageRows.map((row) => (
+              {pageRows.map((client) => (
                 <ClientCard
-                  key={row.original.client_id}
-                  client={row.original}
+                  key={client.client_id}
+                  client={client}
                   canEdit={editable}
                   isAdmin={isAdmin}
                   onRename={(c) => setFormClient(c)}

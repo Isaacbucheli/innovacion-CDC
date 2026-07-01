@@ -6,6 +6,7 @@ import BusyOverlay from "@/components/BusyOverlay";
 import SimpleTable, { type SimpleCol } from "@/components/reports/SimpleTable";
 import UserFormDialog, { roleLabel } from "@/components/users/UserFormDialog";
 import UserClientsDialog from "@/components/users/UserClientsDialog";
+import DataTablePagination from "@/components/DataTablePagination";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
@@ -13,6 +14,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { listUsers, updateUser, deleteUser } from "@/lib/api";
+import { usePagedRows } from "@/hooks/usePagedRows";
 import { getName, getRole } from "@/lib/auth";
 import type { PublicUser } from "@/types";
 
@@ -91,6 +93,8 @@ export default function UsersPage({ onNavigate }: { onNavigate?: (key: string) =
     } },
   ];
 
+  const { table, pageRows } = usePagedRows(rows);
+
   return (
     <AppShell title="Usuarios y perfiles" subtitle="Administración · accesos internos de la plataforma"
       active="usuarios" onNavigate={onNavigate}
@@ -99,7 +103,10 @@ export default function UsersPage({ onNavigate }: { onNavigate?: (key: string) =
       {!isAdmin ? (
         <p className="text-sm text-muted-foreground">Esta sección es solo para administradores.</p>
       ) : (
-        <SimpleTable cols={cols} rows={rows} empty="No hay usuarios registrados." />
+        <>
+          <SimpleTable cols={cols} rows={pageRows} empty="No hay usuarios registrados." />
+          <DataTablePagination table={table} />
+        </>
       )}
       <UserFormDialog user={formUser} open={formOpen} onOpenChange={setFormOpen} onSaved={reload} />
       <UserClientsDialog user={clientsUser} open={clientsUser != null} onOpenChange={(o) => !o && setClientsUser(null)} />

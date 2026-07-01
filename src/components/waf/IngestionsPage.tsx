@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
 import WafClientHeader from "@/components/waf/WafClientHeader";
+import DataTablePagination from "@/components/DataTablePagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { usePagedRows } from "@/hooks/usePagedRows";
 import { listClientsAdmin, getWafIngestionRuns } from "@/lib/api";
 import type { ClientAdmin, WafIngestionRun } from "@/types";
 
@@ -38,6 +40,7 @@ export default function IngestionsPage({ onNavigate }: { onNavigate?: (key: stri
   }, [clientId]);
 
   function selectClient(id: number) { localStorage.setItem(KEY, String(id)); setClientId(id); }
+  const { table, pageRows } = usePagedRows(runs);
 
   return (
     <AppShell title="Historial de ingestas" subtitle="Matriz mejoras Azure · cargas de Advisor/Excel"
@@ -52,9 +55,9 @@ export default function IngestionsPage({ onNavigate }: { onNavigate?: (key: stri
             <TableHead>Inicio</TableHead><TableHead>Fin</TableHead><TableHead>Usuario</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {runs.length === 0 ? (
+            {pageRows.length === 0 ? (
               <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Sin ingestas registradas.</TableCell></TableRow>
-            ) : runs.map((r) => (
+            ) : pageRows.map((r) => (
               <TableRow key={r.run_id}>
                 <TableCell className="max-w-[220px] truncate">{r.source_file_name ?? "—"}</TableCell>
                 <TableCell>
@@ -72,6 +75,7 @@ export default function IngestionsPage({ onNavigate }: { onNavigate?: (key: stri
           </TableBody>
         </Table>
       </div>
+      <DataTablePagination table={table} />
     </AppShell>
   );
 }
