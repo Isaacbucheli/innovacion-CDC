@@ -15,7 +15,7 @@ import ClientCard from "@/components/clients/ClientCard";
 import ClientFormDialog from "@/components/clients/ClientFormDialog";
 import ClientDangerDialog, { type DangerMode } from "@/components/clients/ClientDangerDialog";
 import ClientLogoDialog from "@/components/clients/ClientLogoDialog";
-import ClientCredentialsSheet from "@/components/clients/ClientCredentialsSheet";
+import ClientCredentialsDialog from "@/components/clients/ClientCredentialsDialog";
 import DataTablePagination from "@/components/DataTablePagination";
 import { useClients } from "@/hooks/useClients";
 import { canEdit, getRole } from "@/lib/auth";
@@ -141,7 +141,7 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
         onSaved={() => done("Logo actualizado correctamente.")}
       />
 
-      <ClientCredentialsSheet
+      <ClientCredentialsDialog
         open={credClient !== null}
         client={credClient}
         onOpenChange={(o) => !o && setCredClient(null)}

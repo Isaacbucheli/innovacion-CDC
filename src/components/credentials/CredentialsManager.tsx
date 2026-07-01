@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { MoreHorizontal, Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import BusyOverlay from "@/components/BusyOverlay";
-import SimpleTable, { type SimpleCol } from "@/components/reports/SimpleTable";
 import CredentialFormDialog from "@/components/credentials/CredentialFormDialog";
 import RotateSecretDialog from "@/components/credentials/RotateSecretDialog";
 import CredentialAuditSheet from "@/components/credentials/CredentialAuditSheet";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   listCredentials, listClientSubscriptions, testCredential, updateCredential,
   updateSubscription, syncSubscriptions,
@@ -16,7 +14,7 @@ import { getRole } from "@/lib/auth";
 import type { Credential, ClientSubscription } from "@/types";
 
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
-const chip = (cls: string, text: React.ReactNode) => <span className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{text}</span>;
+const chip = (cls: string, text: React.ReactNode) => <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${cls}`}>{text}</span>;
 const OK = "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200";
 const BAD = "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200";
 const NEUTRAL = "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
@@ -24,7 +22,9 @@ const NEUTRAL = "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-2
 /**
  * Gestor de credenciales + suscripciones para un cliente fijo. Reúne todo lo que
  * antes vivía en la página "Credenciales Azure", pero sin AppShell ni selector de
- * cliente: se monta dentro del detalle del cliente (ver ClientCredentialsSheet).
+ * cliente: se monta dentro del detalle del cliente (ver ClientCredentialsDialog).
+ * Layout en tarjetas/filas (no tabla ancha) para que quepa sin scroll horizontal;
+ * acciones en botones en línea (no dropdown), evitando que el menú se salga del panel.
  */
 export default function CredentialsManager({ clientId }: { clientId: number }) {
   const isAdmin = getRole() === "admin";
@@ -82,46 +82,12 @@ export default function CredentialsManager({ clientId }: { clientId: number }) {
     } catch (e) { toast.error(msg(e)); } finally { setBusy(""); }
   }
 
-  const credCols: SimpleCol<Credential>[] = [
-    { key: "credential_id", label: "ID", render: (c) => <span className="tabular-nums text-muted-foreground">{c.credential_id}</span> },
-    { key: "credential_name", label: "Nombre", render: (c) => <span className="font-medium">{c.credential_name}</span> },
-    { key: "tenant_id", label: "Tenant", render: (c) => <span className="font-mono text-xs">{c.tenant_id}</span> },
-    { key: "app_client_id", label: "App Client", render: (c) => <span className="font-mono text-xs">{c.app_client_id}</span> },
-    { key: "val", label: "Validación", render: (c) => chip(c.last_validation_status === "success" ? OK : c.last_validation_status ? BAD : NEUTRAL, c.last_validation_status ?? "sin validar") },
-    { key: "act", label: "Estado", render: (c) => chip(c.is_active ? OK : NEUTRAL, c.is_active ? "Activa" : "Inactiva") },
-    { key: "acc", label: "", render: (c) => (
-      <div className="text-right">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Acciones" disabled={!isAdmin}><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => testCred(c)}>Probar conexión</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setRotate(c)}>Rotar secreto</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => toggleCred(c)}>{c.is_active ? "Desactivar" : "Activar"}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setAudit(c)}>Ver historial</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    ) },
-  ];
-
-  const subCols: SimpleCol<ClientSubscription>[] = [
-    { key: "credential_name", label: "Credencial", render: (s) => s.credential_name || (s.credential_id ? `#${s.credential_id}` : "—") },
-    { key: "subscription_id", label: "Subscription ID", render: (s) => <span className="font-mono text-xs">{s.subscription_id}</span> },
-    { key: "subscription_name", label: "Nombre", render: (s) => s.subscription_name || "—" },
-    { key: "is_active", label: "Estado", render: (s) => chip(s.is_active ? OK : NEUTRAL, s.is_active ? "Activa" : "Inactiva") },
-    { key: "is_managed", label: "Administrada", render: (s) => chip(s.is_managed ? OK : NEUTRAL, s.is_managed ? "Sí" : "No") },
-    { key: "last_synced_at", label: "Última sync", render: (s) => (s.last_synced_at || "").slice(0, 16) || "—" },
-    { key: "acc", label: "", render: (s) => (
-      <div className="text-right">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Acciones" disabled={!isAdmin}><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => toggleSub(s)}>{s.is_managed ? "Excluir (no administrar)" : "Marcar administrada"}</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    ) },
-  ];
+  const field = (label: string, value: string) => (
+    <div className="min-w-0">
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="font-mono text-xs truncate" title={value}>{value}</div>
+    </div>
+  );
 
   return (
     <>
@@ -136,15 +102,48 @@ export default function CredentialsManager({ clientId }: { clientId: number }) {
         }
       />
       <div className="space-y-8">
+        {/* Credenciales */}
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-base font-semibold">Credenciales</h3>
             <Button size="sm" onClick={() => setFormOpen(true)}><Plus className="w-4 h-4 mr-1" />Nueva credencial</Button>
           </div>
-          <SimpleTable cols={credCols} rows={creds} empty="Este cliente no tiene credenciales registradas." />
+          {creds.length === 0 ? (
+            <p className="text-sm text-muted-foreground border rounded-xl px-4 py-6 text-center">Este cliente no tiene credenciales registradas.</p>
+          ) : (
+            <div className="space-y-3">
+              {creds.map((c) => (
+                <div key={c.credential_id} className="rounded-xl border p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate" title={c.credential_name}>{c.credential_name}</div>
+                      <div className="text-[11px] text-muted-foreground">ID {c.credential_id}</div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {chip(c.is_active ? OK : NEUTRAL, c.is_active ? "Activa" : "Inactiva")}
+                      {chip(c.last_validation_status === "success" ? OK : c.last_validation_status ? BAD : NEUTRAL, c.last_validation_status ?? "sin validar")}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                    {field("Tenant ID", c.tenant_id)}
+                    {field("App Client ID", c.app_client_id)}
+                  </div>
+                  {isAdmin && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Button size="sm" variant="outline" onClick={() => testCred(c)}>Probar conexión</Button>
+                      <Button size="sm" variant="outline" onClick={() => setRotate(c)}>Rotar secreto</Button>
+                      <Button size="sm" variant="outline" onClick={() => toggleCred(c)}>{c.is_active ? "Desactivar" : "Activar"}</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setAudit(c)}>Historial</Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">El secreto (client secret) se guarda cifrado en Key Vault y nunca se muestra. Toda alta o rotación se valida contra Azure.</p>
         </section>
 
+        {/* Suscripciones */}
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-base font-semibold">Suscripciones</h3>
@@ -152,7 +151,33 @@ export default function CredentialsManager({ clientId }: { clientId: number }) {
               <RefreshCw className={`w-4 h-4 mr-1 ${busy === "sync" ? "animate-spin" : ""}`} />Sincronizar
             </Button>
           </div>
-          <SimpleTable cols={subCols} rows={subs} empty="Sin suscripciones. Usa Sincronizar para importarlas desde Azure." />
+          {subs.length === 0 ? (
+            <p className="text-sm text-muted-foreground border rounded-xl px-4 py-6 text-center">Sin suscripciones. Usa Sincronizar para importarlas desde Azure.</p>
+          ) : (
+            <div className="rounded-xl border divide-y">
+              {subs.map((s) => (
+                <div key={s.client_subscription_id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium truncate" title={s.subscription_name ?? undefined}>{s.subscription_name || "—"}</div>
+                    <div className="font-mono text-[11px] text-muted-foreground truncate" title={s.subscription_id}>{s.subscription_id}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {s.credential_name || (s.credential_id ? `#${s.credential_id}` : "—")}
+                      {s.last_synced_at ? ` · sync ${s.last_synced_at.slice(0, 10)}` : ""}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {chip(s.is_active ? OK : NEUTRAL, s.is_active ? "Activa" : "Inactiva")}
+                    {chip(s.is_managed ? OK : NEUTRAL, s.is_managed ? "Administrada" : "No adm.")}
+                  </div>
+                  {isAdmin && (
+                    <Button size="sm" variant="outline" className="shrink-0" onClick={() => toggleSub(s)}>
+                      {s.is_managed ? "Excluir" : "Administrar"}
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">Las suscripciones no administradas se excluyen de importaciones de inventario, costos e informes.</p>
         </section>
       </div>
