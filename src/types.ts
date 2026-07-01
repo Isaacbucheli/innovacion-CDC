@@ -254,6 +254,30 @@ export interface ClientSubscription {
   subscription_name: string | null;
   is_active: boolean;
   is_managed: boolean;
+  credential_id?: number;
+  credential_name?: string | null;
+  last_synced_at?: string | null;
+}
+
+// ---- Credenciales Azure (Administración) ----
+export interface Credential {
+  credential_id: number;
+  client_id: number;
+  credential_name: string;
+  tenant_id: string;
+  app_client_id: string;
+  is_active: boolean;
+  last_validation_status: string | null;
+  last_validated_at: string | null;
+  secret_expires_at: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+export interface CredentialAuthResult { success: boolean; expires_on?: string | null; error?: string | null; }
+export interface CredentialAudit { audit_id: number; action: string; actor?: string | null; details?: string | null; occurred_at: string; }
+export interface SubscriptionSyncSummary {
+  created: number; updated: number; deactivated: number; active_total?: number;
+  errors?: { credential_id?: number; credential_name?: string; error?: string }[];
 }
 
 /** Request de sync con Azure Advisor (POST /waf/clients/{id}/advisor-sync). */

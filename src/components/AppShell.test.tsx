@@ -37,9 +37,8 @@ test("marca como activo el ítem de la sección actual (verde de marca)", () => 
 
 test("muestra placeholders 'pronto' para vistas aún no migradas", () => {
   renderShell();
-  // El grupo activo por defecto ya no tiene placeholders; se expande "Administración"
-  // (Credenciales Azure / Usuarios y perfiles siguen como 'pronto').
-  fireEvent.click(screen.getByRole("button", { name: /Administración/i }));
+  // Se expande "Matriz costos Azure": "Catálogo de servicios" sigue como placeholder ('pronto').
+  fireEvent.click(screen.getByRole("button", { name: /Matriz costos Azure/i }));
   expect(screen.getAllByText(/pronto/i).length).toBeGreaterThan(0);
 });
 

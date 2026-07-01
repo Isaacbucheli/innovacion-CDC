@@ -49,7 +49,7 @@ const MENU: Group[] = [
     icon: "/assets/azure-icons/subscriptions.svg",
     items: [
       { label: "Clientes", section: "clientes", adminOnly: true },
-      { label: "Credenciales Azure", soon: true },
+      { label: "Credenciales Azure", section: "credenciales", adminOnly: true },
       { label: "Usuarios y perfiles", adminOnly: true, soon: true },
     ],
   },

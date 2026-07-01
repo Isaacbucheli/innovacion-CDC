@@ -42,6 +42,10 @@ import type {
   GenerateReportResponse,
   ReservationsResponse,
   ReservationConsumer,
+  Credential,
+  CredentialAuthResult,
+  CredentialAudit,
+  SubscriptionSyncSummary,
 } from "@/types";
 import { clearSession, getToken, setSession } from "@/lib/auth";
 
@@ -229,6 +233,24 @@ export const addWafComment = (clientId: number, canonicalId: number, comment_tex
 // ---- WAF: acciones (Slice A) ----
 export const listClientSubscriptions = (clientId: number) =>
   request<ClientSubscription[]>(`/azure/subscriptions?client_id=${clientId}`);
+
+// ---- Credenciales Azure (Administración) ----
+export const listCredentials = (clientId: number) =>
+  request<Credential[]>(`/azure/credentials?client_id=${clientId}`);
+export const createCredential = (body: { client_id: number; credential_name: string; tenant_id: string; app_client_id: string; client_secret: string; secret_expires_at?: string | null }) =>
+  request<{ message: string; credential_id: number; validation: CredentialAuthResult }>(`/azure/credentials`, jsonOpts("POST", body));
+export const rotateCredentialSecret = (credentialId: number, body: { client_secret: string; secret_expires_at?: string | null }) =>
+  request<{ message: string; validation: CredentialAuthResult }>(`/azure/credentials/${credentialId}/secret`, jsonOpts("PUT", body));
+export const updateCredential = (credentialId: number, body: { credential_name?: string; is_active?: boolean }) =>
+  request<{ message: string }>(`/azure/credentials/${credentialId}`, jsonOpts("PUT", body));
+export const testCredential = (credentialId: number) =>
+  request<CredentialAuthResult>(`/azure/credentials/${credentialId}/test`, { method: "POST" });
+export const getCredentialAudit = (credentialId: number, limit = 50) =>
+  request<CredentialAudit[]>(`/azure/credentials/${credentialId}/audit?limit=${limit}`);
+export const updateSubscription = (clientSubscriptionId: number, body: { is_managed?: boolean; is_active?: boolean }) =>
+  request<{ message: string }>(`/azure/subscriptions/${clientSubscriptionId}`, jsonOpts("PUT", body));
+export const syncSubscriptions = (clientId: number) =>
+  request<SubscriptionSyncSummary>(`/azure/subscriptions/sync-client/${clientId}`, { method: "POST" });
 export const runWafAdvisorSync = (clientId: number, body: WafAdvisorSyncRequest) =>
   request<WafAdvisorSyncResult>(`/waf/clients/${clientId}/advisor-sync`, jsonOpts("POST", body));
 
