@@ -88,7 +88,7 @@ export default function ClientLogoDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" busy={busy}>
         <DialogHeader>
           <DialogTitle>Logo de {client.client_name}</DialogTitle>
           <DialogDescription>PNG, JPG o SVG. Tamaño máximo 2 MB.</DialogDescription>
@@ -128,7 +128,7 @@ export default function ClientLogoDialog({
               Cancelar
             </Button>
             <Button type="button" disabled={!file || busy} onClick={onUpload}>
-              <Upload className="w-4 h-4 mr-1" /> Subir logo
+              <Upload className="w-4 h-4 mr-1" /> {busy ? "Subiendo…" : "Subir logo"}
             </Button>
           </div>
         </DialogFooter>

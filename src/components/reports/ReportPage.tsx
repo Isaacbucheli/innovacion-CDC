@@ -70,24 +70,21 @@ export default function ReportPage({ onNavigate }: { onNavigate?: (key: string) 
 
   function selectClient(id: number) { localStorage.setItem(KEY, String(id)); setClientId(id); setReport(null); }
 
-  async function refreshEntries(): Promise<ReportListEntry[]> {
-    if (clientId == null) return [];
-    const r = await listReports(clientId);
-    if (mounted.current) setEntries(r.reports ?? []);
-    return r.reports ?? [];
-  }
-
   async function generate() {
     if (clientId == null) return;
+    // Capturamos el periodo/cliente al iniciar: el overlay bloquea cambiarlos, pero el
+    // polling usa estas variables locales (no el estado actual) para no cruzar resultados.
+    const cid = clientId, yr = year, mo = month;
     setGenMsg("Iniciando generación del informe…");
     try {
-      await generateReport(clientId, { year, month, include_narrative: true });
+      await generateReport(cid, { year: yr, month: mo, include_narrative: true });
       // Polling: hasta 12 min (120 × 6s) consultando el índice de informes.
       for (let i = 0; i < 120; i++) {
         await new Promise((r) => setTimeout(r, 6000));
         if (!mounted.current) return;
-        const list = await refreshEntries();
-        const e = list.find((x) => x.year === year && x.month === month);
+        const list = (await listReports(cid)).reports ?? [];
+        if (mounted.current) setEntries(list);
+        const e = list.find((x) => x.year === yr && x.month === mo);
         if (e?.status === "completed") { setGenMsg(""); toast.success("Informe generado."); return; }
         if (e?.status === "failed") { setGenMsg(""); toast.error("La generación del informe falló."); return; }
         setGenMsg(`Generando informe… (${i + 1})`);
@@ -101,13 +98,18 @@ export default function ReportPage({ onNavigate }: { onNavigate?: (key: string) 
   }
 
   const periodLabel = `${MESES[month - 1]} ${year}`;
+  // `generating` (incluye estado del backend) controla el cuerpo/botón; `activelyGenerating`
+  // (solo esta sesión) controla el overlay bloqueante, para no atrapar al usuario si un
+  // periodo quedó marcado "generating" en el backend de una sesión anterior.
   const generating = !!genMsg || entry?.status === "generating";
+  const activelyGenerating = !!genMsg;
 
   return (
     <AppShell title="Informe de gestión mensual" subtitle="Informes · resumen mensual de la plataforma"
       active="report" onNavigate={onNavigate}
       headerRight={<WafClientHeader clients={clients} clientId={clientId} onSelect={selectClient} />}>
       <BusyOverlay show={loading} title="Cargando" />
+      <BusyOverlay show={activelyGenerating} title="Generando informe" detail={genMsg || "Puede tardar varios minutos; no cierres la ventana."} />
       <div className="space-y-5">
         {/* Selector de periodo + acciones */}
         <div className="flex flex-wrap items-center gap-2">

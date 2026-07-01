@@ -138,7 +138,16 @@ export default function CredentialsPage({ onNavigate }: { onNavigate?: (key: str
     <AppShell title="Credenciales Azure" subtitle="Administración · App Registrations y suscripciones por cliente"
       active="credenciales" onNavigate={onNavigate}
       headerRight={<WafClientHeader clients={clients} clientId={clientId} onSelect={selectClient} />}>
-      <BusyOverlay show={loading || busy === "sync"} title={busy === "sync" ? "Sincronizando suscripciones" : "Cargando"} />
+      <BusyOverlay
+        show={loading || busy !== ""}
+        title={
+          busy === "sync" ? "Sincronizando suscripciones"
+          : busy.startsWith("test-") ? "Probando conexión"
+          : busy.startsWith("upd-") ? "Actualizando credencial"
+          : busy.startsWith("sub-") ? "Actualizando suscripción"
+          : "Cargando"
+        }
+      />
       {!isAdmin ? (
         <p className="text-sm text-muted-foreground">Esta sección es solo para administradores.</p>
       ) : (

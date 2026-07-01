@@ -25,7 +25,8 @@ export default function CanonicalEditDialog({ open, canonical, onOpenChange, onS
   const [excluded, setExcluded] = useState(false);
   const [reason, setReason] = useState("");
   const [suggestion, setSuggestion] = useState<WafAiSuggestion | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busyOp, setBusyOp] = useState<"" | "analyze" | "apply" | "save">("");
+  const busy = busyOp !== "";
 
   useEffect(() => {
     if (!open || !canonical) return;
@@ -43,23 +44,23 @@ export default function CanonicalEditDialog({ open, canonical, onOpenChange, onS
   if (!canonical) return null;
 
   async function doAnalyze() {
-    setBusy(true);
+    setBusyOp("analyze");
     try {
       const r = await analyzeWafCanonical(canonical!.canonical_id);
       setSuggestion(r.suggestion);
       toast.success("Análisis IA listo");
     } catch (e) { toast.error(`Error al analizar: ${msg(e)}`); }
-    finally { setBusy(false); }
+    finally { setBusyOp(""); }
   }
   async function doApply() {
     if (!suggestion) return;
-    setBusy(true);
+    setBusyOp("apply");
     try {
       await applyWafSuggestion(canonical!.canonical_id, suggestion);
       toast.success("Sugerencia IA aplicada");
       onSaved(); onOpenChange(false);
     } catch (e) { toast.error(`Error al aplicar: ${msg(e)}`); }
-    finally { setBusy(false); }
+    finally { setBusyOp(""); }
   }
   async function doSave() {
     const body: WafCanonicalUpdate = {
@@ -67,13 +68,13 @@ export default function CanonicalEditDialog({ open, canonical, onOpenChange, onS
       client_action_es: clientAction, bit_action_es: bitAction, is_excluded: excluded,
       exclusion_reason: excluded ? reason : null, ai_review_status: status,
     };
-    setBusy(true);
+    setBusyOp("save");
     try {
       await updateWafCanonical(canonical!.canonical_id, body);
       toast.success("Catálogo actualizado");
       onSaved(); onOpenChange(false);
     } catch (e) { toast.error(`Error al guardar: ${msg(e)}`); }
-    finally { setBusy(false); }
+    finally { setBusyOp(""); }
   }
 
   const field = (label: string, value: string, set: (v: string) => void) => (
@@ -85,7 +86,7 @@ export default function CanonicalEditDialog({ open, canonical, onOpenChange, onS
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto" busy={busy}>
         <DialogHeader><DialogTitle>{canonical.advisor_name}</DialogTitle></DialogHeader>
         <p className="text-xs text-muted-foreground">{canonical.advisor_category}</p>
         <div className="grid grid-cols-2 gap-3">
@@ -122,9 +123,9 @@ export default function CanonicalEditDialog({ open, canonical, onOpenChange, onS
         )}
 
         <DialogFooter className="flex-wrap gap-2">
-          <Button type="button" variant="outline" disabled={busy} onClick={doAnalyze}>Analizar con IA</Button>
-          {suggestion && <Button type="button" variant="outline" disabled={busy} onClick={doApply}>Aplicar sugerencia</Button>}
-          <Button type="button" disabled={busy} onClick={doSave}>Guardar cambios</Button>
+          <Button type="button" variant="outline" disabled={busy} onClick={doAnalyze}>{busyOp === "analyze" ? "Analizando…" : "Analizar con IA"}</Button>
+          {suggestion && <Button type="button" variant="outline" disabled={busy} onClick={doApply}>{busyOp === "apply" ? "Aplicando…" : "Aplicar sugerencia"}</Button>}
+          <Button type="button" disabled={busy} onClick={doSave}>{busyOp === "save" ? "Guardando…" : "Guardar cambios"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

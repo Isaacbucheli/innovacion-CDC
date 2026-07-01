@@ -58,7 +58,7 @@ export default function AlertFormDialog({ open, alert, onOpenChange, onSaved }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" busy={isSubmitting}>
         <DialogHeader><DialogTitle>{alert ? "Editar alerta" : "Nueva alerta"}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           <div className="space-y-1.5">
@@ -78,8 +78,8 @@ export default function AlertFormDialog({ open, alert, onOpenChange, onSaved }: 
           {field("kql_code", "Código KQL", true)}
           {submitError && <p className="text-sm text-destructive">{submitError}</p>}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>Guardar</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancelar</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Guardando…" : "Guardar"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

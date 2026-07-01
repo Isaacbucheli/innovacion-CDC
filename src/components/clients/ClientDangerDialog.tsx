@@ -59,7 +59,7 @@ export default function ClientDangerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" busy={busy}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
@@ -94,7 +94,7 @@ export default function ClientDangerDialog({
             disabled={!matches || busy}
             onClick={onConfirm}
           >
-            {isDelete ? "Eliminar cliente" : "Purgar datos"}
+            {busy ? (isDelete ? "Eliminando…" : "Purgando…") : (isDelete ? "Eliminar cliente" : "Purgar datos")}
           </Button>
         </DialogFooter>
       </DialogContent>

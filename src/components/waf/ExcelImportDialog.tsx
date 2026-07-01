@@ -61,7 +61,7 @@ export default function ExcelImportDialog({ open, clientId, onOpenChange, onChan
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto" busy={busy}>
         <DialogHeader><DialogTitle>Importar matriz Excel</DialogTitle></DialogHeader>
         {!preview ? (
           <div className="space-y-3">
@@ -74,7 +74,7 @@ export default function ExcelImportDialog({ open, clientId, onOpenChange, onChan
               <input type="checkbox" checked={useAi} onChange={(e) => setUseAi(e.target.checked)} /> Usar IA para el matching (Azure OpenAI)
             </label>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancelar</Button>
               <Button type="button" disabled={!file || busy} onClick={doPreview}>{busy ? "Generando…" : "Generar preview"}</Button>
             </DialogFooter>
           </div>
@@ -113,7 +113,7 @@ export default function ExcelImportDialog({ open, clientId, onOpenChange, onChan
               </table>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setPreview(null)}>Atrás</Button>
+              <Button type="button" variant="outline" onClick={() => setPreview(null)} disabled={busy}>Atrás</Button>
               <Button type="button" disabled={busy || selectedCount === 0} onClick={doApply}>{busy ? "Aplicando…" : `Aplicar ${selectedCount} seleccionadas`}</Button>
             </DialogFooter>
           </div>

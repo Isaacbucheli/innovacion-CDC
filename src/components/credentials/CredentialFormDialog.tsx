@@ -46,7 +46,7 @@ export default function CredentialFormDialog({ clientId, open, onOpenChange, onS
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" busy={saving}>
         <DialogHeader><DialogTitle>Nueva credencial Azure</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1"><Label htmlFor="cn">Nombre</Label>

@@ -50,7 +50,7 @@ export default function ManualCostDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" busy={busy}>
         <DialogHeader>
           <DialogTitle>Costo manual</DialogTitle>
         </DialogHeader>

@@ -37,7 +37,7 @@ export default function RotateSecretDialog({ credential, open, onOpenChange, onS
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) { setSecret(""); setExpires(""); } onOpenChange(o); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" busy={saving}>
         <DialogHeader><DialogTitle>Rotar secreto{credential ? ` · ${credential.credential_name}` : ""}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1"><Label htmlFor="rs">Nuevo Client Secret</Label>

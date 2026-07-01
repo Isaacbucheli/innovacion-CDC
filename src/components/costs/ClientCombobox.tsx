@@ -12,15 +12,21 @@ export default function ClientCombobox({
   clients,
   value,
   onChange,
+  disabled,
 }: {
   clients: ClientSummary[];
   value: number | null;
   onChange: (id: number) => void;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const selected = clients.find((c) => c.client_id === value);
+
+  // Si se deshabilita mientras el popover está abierto (p. ej. arranca una operación async),
+  // cerrarlo: si no, su contenido seguiría montado y permitiría re-disparar la selección.
+  useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
 
   useEffect(() => {
     if (!open) return;
@@ -46,9 +52,10 @@ export default function ClientCombobox({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-secondary/40 focus:outline-none focus:ring-2 focus:ring-ring"
+        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-secondary/40 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:pointer-events-none"
       >
         <span className={`truncate ${selected ? "" : "text-muted-foreground"}`}>
           {selected ? selected.client_name : "Seleccione cliente"}

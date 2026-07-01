@@ -35,7 +35,7 @@ export default function KqlFormDialog({ open, item, onOpenChange, onSaved }: {
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg" busy={isSubmitting}>
         <DialogHeader><DialogTitle>{item ? "Editar consulta KQL" : "Nueva consulta KQL"}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           <div className="space-y-1.5"><Label htmlFor="kname">Nombre</Label><Input id="kname" {...register("name")} /></div>
@@ -44,8 +44,8 @@ export default function KqlFormDialog({ open, item, onOpenChange, onSaved }: {
           <div className="space-y-1.5"><Label htmlFor="kq">Consulta KQL</Label><Textarea id="kq" rows={4} {...register("kql_query")} /></div>
           {submitError && <p className="text-sm text-destructive">{submitError}</p>}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>Guardar</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancelar</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Guardando…" : "Guardar"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

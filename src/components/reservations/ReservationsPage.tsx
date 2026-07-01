@@ -26,6 +26,13 @@ const KEY = "innovacion_cdc_waf_client";
 type Util = { last?: string | null; d7?: string | null; pending?: boolean };
 const col = createColumnHelper<Reservation>();
 
+// Timeout por petición de utilización: si una llamada se cuelga (fetch sin AbortController),
+// rechaza tras N ms para que el worker la marque "n/d" y utilPending siempre llegue a 0
+// (si no, el selector de cliente y "Actualizar" quedarían deshabilitados para siempre).
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))]);
+}
+
 function Kpi({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent: string }) {
   return (
     <div className="rounded-xl border bg-background p-4">
@@ -66,7 +73,7 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
         const r = pending[i++];
         if (myRun !== runId.current) return;
         try {
-          const u = await getReservationUtilization(cid, r.credential_id, r.reservation_id);
+          const u = await withTimeout(getReservationUtilization(cid, r.credential_id, r.reservation_id), 45000);
           if (myRun !== runId.current) return;
           setUtil((prev) => ({ ...prev, [r.reservation_id]: { last: u.utilization_last, d7: u.utilization_7d ?? u.utilization7d, pending: false } }));
         } catch {
@@ -195,7 +202,7 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
   return (
     <AppShell title="Reservas por vencer" subtitle="Gestión CDC · reservas de capacidad Azure"
       active="reservations" onNavigate={onNavigate}
-      headerRight={<WafClientHeader clients={clients} clientId={clientId} onSelect={selectClient} />}>
+      headerRight={<WafClientHeader clients={clients} clientId={clientId} onSelect={selectClient} disabled={loading || utilPending > 0} />}>
       <BusyOverlay show={loading} title="Cargando reservas" />
       <div className="space-y-5">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -260,7 +267,7 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={exportCsv} disabled={!filtered.length}><Download className="w-4 h-4 mr-2" />Exportar CSV</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => clientId != null && reload(clientId, alertDays)}><RefreshCw className="w-4 h-4 mr-2" />Actualizar</DropdownMenuItem>
+                  <DropdownMenuItem disabled={loading || utilPending > 0} onClick={() => clientId != null && reload(clientId, alertDays)}><RefreshCw className="w-4 h-4 mr-2" />Actualizar</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

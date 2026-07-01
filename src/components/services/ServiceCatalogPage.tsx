@@ -24,6 +24,7 @@ export default function ServiceCatalogPage({ onNavigate }: { onNavigate?: (key: 
   const [rows, setRows] = useState<ServiceCatalogItem[]>([]);
   const [inserterKeys, setInserterKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [formItem, setFormItem] = useState<ServiceCatalogItem | null | undefined>(undefined); // undefined=cerrado, null=crear
   const [toDelete, setToDelete] = useState<ServiceCatalogItem | null>(null);
   const mounted = useRef(true);
@@ -39,8 +40,10 @@ export default function ServiceCatalogPage({ onNavigate }: { onNavigate?: (key: 
   useEffect(() => { reload(); }, [reload]);
 
   async function toggleActive(s: ServiceCatalogItem) {
+    setBusy(true);
     try { await updateService(s.service_key, { is_active: !s.is_active }); toast.success(s.is_active ? "Servicio desactivado." : "Servicio activado."); reload(); }
     catch (e) { toast.error(msg(e)); }
+    finally { setBusy(false); }
   }
   async function confirmDelete() {
     if (!toDelete) return;
@@ -90,7 +93,7 @@ export default function ServiceCatalogPage({ onNavigate }: { onNavigate?: (key: 
     <AppShell title="Catálogo de servicios" subtitle="Matriz costos Azure · servicios que alimentan el motor de costos"
       active="service-catalog" onNavigate={onNavigate}
       headerRight={isAdmin ? <Button size="sm" onClick={() => setFormItem(null)}><Plus className="w-4 h-4 mr-1" />Nuevo servicio</Button> : undefined}>
-      <BusyOverlay show={loading} title="Cargando catálogo" />
+      <BusyOverlay show={loading || busy} title={busy ? "Actualizando servicio" : "Cargando catálogo"} />
       <div className="space-y-3">
         <SimpleTable cols={cols} rows={rows} empty="No hay servicios registrados." />
         <p className="text-xs text-muted-foreground border-l-2 border-border pl-3">

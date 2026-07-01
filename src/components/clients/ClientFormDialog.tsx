@@ -49,7 +49,7 @@ export default function ClientFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" busy={isSubmitting}>
         <DialogHeader>
           <DialogTitle>{client ? "Renombrar cliente" : "Nuevo cliente"}</DialogTitle>
         </DialogHeader>
@@ -61,8 +61,8 @@ export default function ClientFormDialog({
           </div>
           {submitError && <p className="text-sm text-destructive">{submitError}</p>}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>Guardar</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancelar</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Guardando…" : "Guardar"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

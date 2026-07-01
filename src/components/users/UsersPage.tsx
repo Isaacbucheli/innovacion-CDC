@@ -33,6 +33,7 @@ export default function UsersPage({ onNavigate }: { onNavigate?: (key: string) =
   const [formOpen, setFormOpen] = useState(false);
   const [clientsUser, setClientsUser] = useState<PublicUser | null>(null);
   const [toDelete, setToDelete] = useState<PublicUser | null>(null);
+  const [busy, setBusy] = useState(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
@@ -48,19 +49,21 @@ export default function UsersPage({ onNavigate }: { onNavigate?: (key: string) =
   function openEdit(u: PublicUser) { setFormUser(u); setFormOpen(true); }
 
   async function toggleActive(u: PublicUser) {
+    setBusy(true);
     try {
       await updateUser(u.user_id, { is_active: !u.is_active });
       toast.success(u.is_active ? "Usuario desactivado." : "Usuario activado.");
       reload();
-    } catch (e) { toast.error(msg(e)); }
+    } catch (e) { toast.error(msg(e)); } finally { setBusy(false); }
   }
   async function confirmDelete() {
     if (!toDelete) return;
+    setBusy(true);
     try {
       await deleteUser(toDelete.user_id);
       toast.success(`Usuario ${toDelete.email} eliminado.`);
       setToDelete(null); reload();
-    } catch (e) { toast.error(msg(e)); setToDelete(null); }
+    } catch (e) { toast.error(msg(e)); setToDelete(null); } finally { setBusy(false); }
   }
 
   const cols: SimpleCol<PublicUser>[] = [
@@ -92,7 +95,7 @@ export default function UsersPage({ onNavigate }: { onNavigate?: (key: string) =
     <AppShell title="Usuarios y perfiles" subtitle="Administración · accesos internos de la plataforma"
       active="usuarios" onNavigate={onNavigate}
       headerRight={isAdmin ? <Button size="sm" onClick={openNew}><Plus className="w-4 h-4 mr-1" />Nuevo usuario</Button> : undefined}>
-      <BusyOverlay show={loading} title="Cargando usuarios" />
+      <BusyOverlay show={loading || busy} title={busy ? "Procesando…" : "Cargando usuarios"} />
       {!isAdmin ? (
         <p className="text-sm text-muted-foreground">Esta sección es solo para administradores.</p>
       ) : (
@@ -100,8 +103,8 @@ export default function UsersPage({ onNavigate }: { onNavigate?: (key: string) =
       )}
       <UserFormDialog user={formUser} open={formOpen} onOpenChange={setFormOpen} onSaved={reload} />
       <UserClientsDialog user={clientsUser} open={clientsUser != null} onOpenChange={(o) => !o && setClientsUser(null)} />
-      <AlertDialog open={toDelete != null} onOpenChange={(o) => !o && setToDelete(null)}>
-        <AlertDialogContent>
+      <AlertDialog open={toDelete != null} onOpenChange={(o) => { if (!busy && !o) setToDelete(null); }}>
+        <AlertDialogContent onEscapeKeyDown={(e) => { if (busy) e.preventDefault(); }}>
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar usuario</AlertDialogTitle>
             <AlertDialogDescription>
@@ -109,8 +112,8 @@ export default function UsersPage({ onNavigate }: { onNavigate?: (key: string) =
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Eliminar</AlertDialogAction>
+            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction disabled={busy} onClick={(e) => { e.preventDefault(); confirmDelete(); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{busy ? "Eliminando…" : "Eliminar"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
