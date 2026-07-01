@@ -61,7 +61,8 @@ export default function HomePage({ recent, onNavigate }: {
               {recentItems.map((it) => (
                 <button key={it.key} type="button" onClick={() => onNavigate(it.key)}
                   className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-sm hover:border-primary/50 hover:bg-accent/40 transition-colors">
-                  <it.icon className="w-4 h-4 text-primary" />{it.label}
+                  {it.azureIcon ? <img src={it.azureIcon} alt="" aria-hidden className="w-4 h-4 object-contain" /> : <it.icon className="w-4 h-4 text-primary" />}
+                  {it.label}
                 </button>
               ))}
             </div>
@@ -81,7 +82,9 @@ export default function HomePage({ recent, onNavigate }: {
               style={it.featured ? { background: `${it.color}14`, borderColor: `${it.color}55` } : undefined}
             >
               <div className="w-10 h-10 rounded-lg grid place-items-center" style={{ background: `${it.color}22`, color: it.color }}>
-                <it.icon className={it.featured ? "w-6 h-6" : "w-5 h-5"} />
+                {it.azureIcon
+                  ? <img src={it.azureIcon} alt="" aria-hidden className={`object-contain ${it.featured ? "w-6 h-6" : "w-5 h-5"}`} />
+                  : <it.icon className={it.featured ? "w-6 h-6" : "w-5 h-5"} />}
               </div>
               <div>
                 <div className="flex items-center gap-1 font-medium leading-tight">

@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import type { WafSection } from "@/types";
 import { pillarIcon, scoreColor, computePillarAvance, AZURE_BLUE } from "@/lib/waf";
 
@@ -38,7 +39,7 @@ export default function PillarCards({ sections, activePillar, onPick, scores }: 
                   <div className="text-xl font-bold tabular-nums leading-tight">{score}%</div>
                 </div>
                 {s.total_recs === 0 && (
-                  <div className="text-[11px] text-[#5a7016] dark:text-[#a9c46a]">✓ Estás siguiendo todas las recomendaciones</div>
+                  <div className="text-[11px] text-[#5a7016] dark:text-[#a9c46a] inline-flex items-center gap-1"><Check className="w-3 h-3" />Estás siguiendo todas las recomendaciones</div>
                 )}
               </>
             )}

@@ -13,6 +13,7 @@ export const SERVICE_LABELS: Record<string, string> = {
   cosmos: "Cosmos DB",
   redis: "Azure Cache for Redis",
   public_ip: "IPs públicas",
+  storage: "Storage Account",
 };
 
 export const SERVICE_ICONS: Record<string, string> = {
@@ -27,6 +28,7 @@ export const SERVICE_ICONS: Record<string, string> = {
   cosmos: "/assets/azure-icons/cosmos-db.svg",
   redis: "/assets/azure-icons/redis.svg",
   public_ip: "/assets/azure-icons/public-ip.svg",
+  storage: "/assets/azure-icons/storage-account.svg",
 };
 
 /** sql_vm es interno: se muestra agrupado bajo "vms". */

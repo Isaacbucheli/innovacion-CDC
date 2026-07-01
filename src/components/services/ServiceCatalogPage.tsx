@@ -9,6 +9,7 @@ import ConfirmDelete from "@/components/ConfirmDelete";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { listAllServices, listInserterKeys, updateService, deleteService } from "@/lib/api";
+import { serviceIcon } from "@/lib/costs";
 import { getRole } from "@/lib/auth";
 import type { ServiceCatalogItem } from "@/types";
 
@@ -49,7 +50,12 @@ export default function ServiceCatalogPage({ onNavigate }: { onNavigate?: (key: 
 
   const cols: SimpleCol<ServiceCatalogItem>[] = [
     { key: "service_key", label: "Key", render: (s) => <span className="font-mono text-xs">{s.service_key}</span> },
-    { key: "display_name", label: "Nombre", render: (s) => <span className="font-medium">{s.display_name}</span> },
+    { key: "display_name", label: "Nombre", render: (s) => (
+      <span className="inline-flex items-center gap-2 font-medium">
+        <img src={serviceIcon(s.service_key)} alt="" aria-hidden className="w-5 h-5 object-contain shrink-0" />
+        {s.display_name}
+      </span>
+    ) },
     { key: "service_category", label: "Categoría" },
     { key: "inserter_key", label: "Inserter", render: (s) => <span className="font-mono text-xs">{s.inserter_key}</span> },
     { key: "calculator_key", label: "Calculadora", render: (s) => <span className="font-mono text-xs">{s.calculator_key}</span> },
