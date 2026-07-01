@@ -119,6 +119,8 @@ export default function CanonicalEditDialog({ open, canonical, onOpenChange, onS
             <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Sugerencia IA · decisión: {suggestion.decision} · confianza {Math.round((suggestion.confidence ?? 0) * 100)}%</div>
             <div><span className="text-muted-foreground text-xs">Ámbito: </span>{suggestion.review_scope_es}</div>
             <div><span className="text-muted-foreground text-xs">Beneficio: </span>{suggestion.benefit_es}</div>
+            <div><span className="text-muted-foreground text-xs">Acción del cliente: </span>{suggestion.client_action_es}</div>
+            <div><span className="text-muted-foreground text-xs">Acción Business IT: </span>{suggestion.bit_action_es}</div>
           </div>
         )}
 
