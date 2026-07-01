@@ -6,11 +6,10 @@ import { clearSession, getName, getRole } from "@/lib/auth";
 import { azIcon } from "@/lib/azureIcons";
 
 // Menú espejo del sidebar de PRD (sidebar.js): mismos grupos, orden, etiquetas
-// e iconos. Los ítems con `section` ya existen como vista React y navegan; los
-// `soon` son placeholders ("pronto") aún no migrados. `adminOnly` replica el
-// data-admin-only de PRD. El grupo gated "Optimización Azure" se omite (igual
-// que en PRD, solo aparece con la feature habilitada).
-type Item = { label: string; section?: string; adminOnly?: boolean; soon?: boolean };
+// e iconos. Todos los ítems ya existen como vista React y navegan. `adminOnly`
+// replica el data-admin-only de PRD. El grupo gated "Optimización Azure" se omite
+// (igual que en PRD, solo aparece con la feature habilitada).
+type Item = { label: string; section: string; adminOnly?: boolean };
 type Group = { label: string; icon: string; items: Item[] };
 
 const MENU: Group[] = [
@@ -123,24 +122,12 @@ export default function AppShell({
                 {isOpen && (
                   <div className="grid gap-1 my-1.5 ml-9">
                     {items.map((it) => {
-                      const isActive = !!it.section && it.section === active;
-                      if (it.soon || !it.section) {
-                        return (
-                          <span
-                            key={it.label}
-                            aria-disabled
-                            className="flex items-center gap-2 min-h-9 px-2.5 rounded-[10px] text-[13px] text-muted-foreground/70 cursor-not-allowed select-none"
-                          >
-                            <span className="flex-1">{it.label}</span>
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted rounded px-1.5 py-0.5">pronto</span>
-                          </span>
-                        );
-                      }
+                      const isActive = it.section === active;
                       return (
                         <button
                           key={it.label}
                           type="button"
-                          onClick={() => onNavigate?.(it.section!)}
+                          onClick={() => onNavigate?.(it.section)}
                           className={`flex items-center gap-2 min-h-9 px-2.5 rounded-[10px] text-[13px] text-left transition-colors ${
                             isActive
                               ? "bg-primary text-primary-foreground font-medium"

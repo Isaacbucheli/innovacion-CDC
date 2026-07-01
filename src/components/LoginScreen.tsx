@@ -57,7 +57,8 @@ export default function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
             <Button type="submit" className="w-full h-11" disabled={busy}>{busy ? "Ingresando…" : "Ingresar"}</Button>
           </form>
 
-          <p className="mt-6 text-center text-[11px] text-muted-foreground">© Business IT · Uso interno</p>
+          <p className="mt-4 text-center text-xs text-muted-foreground">¿Olvidaste tu contraseña? Contacta a tu administrador.</p>
+          <p className="mt-4 text-center text-[11px] text-muted-foreground">© Business IT · Uso interno</p>
         </div>
       </Card>
     </div>
