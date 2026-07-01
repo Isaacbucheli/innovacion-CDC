@@ -1,16 +1,18 @@
 import { useState } from "react";
 import {
   type ColumnDef,
+  type ColumnFiltersState,
   type SortingFn,
   type SortingState,
   type VisibilityState,
   flexRender,
   getCoreRowModel,
+  getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Columns3, Pencil, Rows3, Rows4 } from "lucide-react";
+import { Columns3, Pencil, Rows3, Rows4 } from "lucide-react";
 import type { CostResult } from "@/types";
 import {
   PRICING_META,
@@ -27,6 +29,7 @@ import {
   translateNote,
   visibleServiceKey,
 } from "@/lib/costs";
+import { textColumnFilter, labelColumnFilter } from "@/lib/columnFilter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +39,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import DataTableColumnHeader from "@/components/DataTableColumnHeader";
 import DataTablePagination from "@/components/DataTablePagination";
 
 const COL_LABELS: Record<string, string> = {
@@ -74,6 +78,10 @@ const numSort: SortingFn<CostResult> = (rowA, rowB, columnId) => {
   return a - b;
 };
 
+const textFilter = textColumnFilter<CostResult>;
+// Estado filtra contra la etiqueta en español (Calculado/Precio variable/...), no el código interno.
+const statusFilter = labelColumnFilter<CostResult>((raw) => statusMeta(raw as string).label);
+
 export default function CostsDataTable({
   rows,
   canEdit,
@@ -84,6 +92,7 @@ export default function CostsDataTable({
   onEditManual?: (row: CostResult) => void;
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [dense, setDense] = useState(false);
 
@@ -92,6 +101,7 @@ export default function CostsDataTable({
       id: "service",
       accessorFn: (r) => serviceName(visibleServiceKey(r.service_key)),
       header: "Servicio",
+      filterFn: textFilter,
       cell: ({ row }) => {
         const key = visibleServiceKey(row.original.service_key);
         return (
@@ -105,14 +115,17 @@ export default function CostsDataTable({
     {
       accessorKey: "resource_name",
       header: "Recurso",
+      filterFn: textFilter,
       cell: (c) => <span className="font-medium">{c.getValue<string>() ?? "-"}</span>,
     },
-    { accessorKey: "resource_group", header: "Grupo", cell: (c) => c.getValue<string>() ?? "-" },
-    { accessorKey: "location", header: "Región", cell: (c) => c.getValue<string>() ?? "-" },
+    { accessorKey: "resource_group", header: "Grupo", filterFn: textFilter, cell: (c) => c.getValue<string>() ?? "-" },
+    { accessorKey: "location", header: "Región", filterFn: textFilter, cell: (c) => c.getValue<string>() ?? "-" },
     {
       id: "reserved",
+      accessorFn: (r) => (riConfirmed(r) ? "Reservado" : ""),
       header: "Reservado",
       enableSorting: false,
+      filterFn: textFilter,
       cell: ({ row }) =>
         riConfirmed(row.original) ? (
           <Pill className="bg-[#A3C243]/15 text-[#5a7016] dark:text-[#a9c46a]" title={riTooltip(row.original)}>
@@ -122,26 +135,29 @@ export default function CostsDataTable({
           <span className="text-muted-foreground">-</span>
         ),
     },
-    { accessorKey: "payg_monthly", header: "PAYG mes", sortingFn: numSort, cell: (c) => money(c.getValue<number | null>()) },
-    { accessorKey: "ri_1y_monthly", header: "RI 1A", sortingFn: numSort, cell: (c) => money(c.getValue<number | null>()) },
-    { accessorKey: "ri_3y_monthly", header: "RI 3A", sortingFn: numSort, cell: (c) => money(c.getValue<number | null>()) },
-    { accessorKey: "savings_1y_pct", header: "Ahorro 1A", sortingFn: numSort, cell: (c) => pct(c.getValue<number | null>()) },
-    { accessorKey: "savings_3y_pct", header: "Ahorro 3A", sortingFn: numSort, cell: (c) => pct(c.getValue<number | null>()) },
+    { accessorKey: "payg_monthly", header: "PAYG mes", sortingFn: numSort, filterFn: textFilter, cell: (c) => money(c.getValue<number | null>()) },
+    { accessorKey: "ri_1y_monthly", header: "RI 1A", sortingFn: numSort, filterFn: textFilter, cell: (c) => money(c.getValue<number | null>()) },
+    { accessorKey: "ri_3y_monthly", header: "RI 3A", sortingFn: numSort, filterFn: textFilter, cell: (c) => money(c.getValue<number | null>()) },
+    { accessorKey: "savings_1y_pct", header: "Ahorro 1A", sortingFn: numSort, filterFn: textFilter, cell: (c) => pct(c.getValue<number | null>()) },
+    { accessorKey: "savings_3y_pct", header: "Ahorro 3A", sortingFn: numSort, filterFn: textFilter, cell: (c) => pct(c.getValue<number | null>()) },
     {
       id: "power_running_hours",
       accessorFn: (r) => r.power_running_hours ?? -1,
       header: "Horas ON",
+      enableColumnFilter: false,
       cell: ({ row }) => <span className="tabular-nums">{powerHoursLabel(row.original)}</span>,
     },
     {
       id: "power_uptime_pct",
       accessorFn: (r) => r.power_uptime_pct ?? -1,
       header: "% Uptime",
+      enableColumnFilter: false,
       cell: ({ row }) => <span className="tabular-nums">{powerUptimeLabel(row.original)}</span>,
     },
     {
       accessorKey: "calculation_status",
       header: "Estado",
+      filterFn: statusFilter,
       cell: (c) => {
         const m = statusMeta(c.getValue<string>());
         return <Pill className={m.badge}>{m.label}</Pill>;
@@ -149,8 +165,10 @@ export default function CostsDataTable({
     },
     {
       id: "pricing",
+      accessorFn: (r) => PRICING_META[pricingKind(r)].label,
       header: "Precio",
       enableSorting: false,
+      filterFn: textFilter,
       cell: ({ row }) => {
         const m = PRICING_META[pricingKind(row.original)];
         return (
@@ -162,8 +180,10 @@ export default function CostsDataTable({
     },
     {
       id: "note",
+      accessorFn: (r) => translateNote(r),
       header: "Nota",
       enableSorting: false,
+      filterFn: textFilter,
       cell: ({ row }) => {
         const t = translateNote(row.original);
         return (
@@ -180,6 +200,7 @@ export default function CostsDataTable({
       id: "actions",
       enableHiding: false,
       enableSorting: false,
+      enableColumnFilter: false,
       header: "",
       cell: ({ row }) => (
         <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
@@ -200,11 +221,13 @@ export default function CostsDataTable({
   const table = useReactTable({
     data: rows,
     columns,
-    state: { sorting, columnVisibility },
+    state: { sorting, columnVisibility, columnFilters },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
+    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
@@ -255,17 +278,8 @@ export default function CostsDataTable({
               <TableRow key={hg.id}>
                 {hg.headers.map((h) => (
                   <TableHead key={h.id} className="whitespace-nowrap">
-                    {h.isPlaceholder ? null : h.column.getCanSort() ? (
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 hover:text-foreground"
-                        onClick={h.column.getToggleSortingHandler()}
-                      >
-                        {flexRender(h.column.columnDef.header, h.getContext())}
-                        <ArrowUpDown className="w-3 h-3 opacity-50" />
-                      </button>
-                    ) : (
-                      flexRender(h.column.columnDef.header, h.getContext())
+                    {h.isPlaceholder ? null : (
+                      <DataTableColumnHeader column={h.column} title={String(h.column.columnDef.header)} />
                     )}
                   </TableHead>
                 ))}
