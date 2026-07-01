@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -78,6 +78,8 @@ export default function AppShell({
   children: React.ReactNode;
 }) {
   const isAdmin = getRole() === "admin";
+  // Título de la pestaña según la vista activa.
+  useEffect(() => { document.title = `Business IT · ${title}`; }, [title]);
   const [open, setOpen] = useState<Set<number>>(() => new Set([groupOfSection(active)]));
   const toggle = (i: number) =>
     setOpen((prev) => {
@@ -92,9 +94,12 @@ export default function AppShell({
       <aside className="sticky top-0 h-screen flex flex-col gap-4 bg-card text-card-foreground border-r border-border px-4 py-6">
         <div>
           {/* Logo que conmuta con el tema: oscuro sobre claro / blanco-verde sobre oscuro.
-              Tamaño por ALTURA (ambos assets recortados al contenido) → mismo tamaño en los dos modos. */}
-          <img src="/business-it-logo.webp" alt="Business IT" className="h-10 w-auto max-w-full object-contain dark:hidden" />
-          <img src="/business-it-logo-white-green.webp" alt="" aria-hidden className="h-10 w-auto max-w-full object-contain hidden dark:block" />
+              Tamaño por ALTURA (ambos assets recortados al contenido) → mismo tamaño en los dos modos.
+              Clic en el logo → inicio. */}
+          <button type="button" onClick={() => onNavigate?.("home")} className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Ir al inicio">
+            <img src="/business-it-logo.webp" alt="Business IT" className="h-10 w-auto max-w-full object-contain dark:hidden" />
+            <img src="/business-it-logo-white-green.webp" alt="" aria-hidden className="h-10 w-auto max-w-full object-contain hidden dark:block" />
+          </button>
           <p className="mt-3 text-sm text-muted-foreground">Plataforma de optimización Azure</p>
         </div>
 

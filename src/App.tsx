@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import AuthGate from "@/components/AuthGate";
+import HomePage from "@/components/HomePage";
 import CatalogPage from "@/components/CatalogPage";
 import CostsPage from "@/components/costs/CostsPage";
 import ClientsPage from "@/components/clients/ClientsPage";
@@ -13,33 +14,57 @@ import CredentialsPage from "@/components/credentials/CredentialsPage";
 import UsersPage from "@/components/users/UsersPage";
 import { Toaster } from "@/components/ui/sonner";
 
+const SECTION_KEY = "innovacion_cdc_section";
+const RECENT_KEY = "innovacion_cdc_recent";
+function loadRecent(): string[] {
+  try { const v = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); return Array.isArray(v) ? v : []; }
+  catch { return []; }
+}
+
 export default function App() {
-  const [section, setSection] = useState<string>("alerts");
+  // Recuerda la última sección visitada; primer uso → inicio (home).
+  const [section, setSection] = useState<string>(() => localStorage.getItem(SECTION_KEY) || "home");
+  const [recent, setRecent] = useState<string[]>(loadRecent);
+
+  const navigate = useCallback((key: string) => {
+    setSection(key);
+    localStorage.setItem(SECTION_KEY, key);
+    if (key !== "home") {
+      setRecent((prev) => {
+        const next = [key, ...prev.filter((k) => k !== key)].slice(0, 5);
+        localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+        return next;
+      });
+    }
+  }, []);
+
   return (
     <>
       <AuthGate>
         {section === "costos" ? (
-          <CostsPage onNavigate={setSection} />
+          <CostsPage onNavigate={navigate} />
         ) : section === "clientes" ? (
-          <ClientsPage onNavigate={setSection} />
+          <ClientsPage onNavigate={navigate} />
         ) : section === "waf" ? (
-          <WafPage onNavigate={setSection} />
+          <WafPage onNavigate={navigate} />
         ) : section === "waf-cost" ? (
-          <CostReferencePage onNavigate={setSection} />
+          <CostReferencePage onNavigate={navigate} />
         ) : section === "waf-ingestions" ? (
-          <IngestionsPage onNavigate={setSection} />
+          <IngestionsPage onNavigate={navigate} />
         ) : section === "waf-validation" ? (
-          <ValidationPage onNavigate={setSection} />
+          <ValidationPage onNavigate={navigate} />
         ) : section === "report" ? (
-          <ReportPage onNavigate={setSection} />
+          <ReportPage onNavigate={navigate} />
         ) : section === "reservations" ? (
-          <ReservationsPage onNavigate={setSection} />
+          <ReservationsPage onNavigate={navigate} />
         ) : section === "credenciales" ? (
-          <CredentialsPage onNavigate={setSection} />
+          <CredentialsPage onNavigate={navigate} />
         ) : section === "usuarios" ? (
-          <UsersPage onNavigate={setSection} />
+          <UsersPage onNavigate={navigate} />
+        ) : section === "alerts" ? (
+          <CatalogPage onNavigate={navigate} />
         ) : (
-          <CatalogPage onNavigate={setSection} />
+          <HomePage recent={recent} onNavigate={navigate} />
         )}
       </AuthGate>
       <Toaster position="top-right" />
