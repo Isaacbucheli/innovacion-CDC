@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import type { KqlQuery } from "@/types";
-import { Input } from "@/components/ui/input";
+import SearchInput from "@/components/SearchInput";
 import { Button } from "@/components/ui/button";
 
 export default function KqlView({ kql, canEdit, onOpen, onNew, onEdit, onDelete }: {
@@ -13,7 +13,7 @@ export default function KqlView({ kql, canEdit, onOpen, onNew, onEdit, onDelete 
   return (
     <div className="py-4">
       <div className="flex gap-2 items-center mb-4">
-        <Input className="max-w-sm" placeholder="Buscar consulta…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <SearchInput className="max-w-sm" placeholder="Buscar consulta…" value={q} onChange={setQ} />
         {canEdit && <Button onClick={onNew} className="ml-auto"><Plus className="w-4 h-4 mr-1" />Nueva consulta</Button>}
       </div>
       <div className="flex flex-col gap-2">

@@ -10,7 +10,7 @@ import BusyOverlay from "@/components/BusyOverlay";
 import DataTablePagination from "@/components/DataTablePagination";
 import DataTableColumnHeader from "@/components/DataTableColumnHeader";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import SearchInput from "@/components/SearchInput";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import CanonicalEditDialog from "@/components/waf/CanonicalEditDialog";
 import { getWafAiConfig, getWafCatalog, analyzeWafCanonical, applyWafSuggestion } from "@/lib/api";
@@ -185,11 +185,12 @@ export default function ValidationPage({ onNavigate }: { onNavigate?: (key: stri
 
         {/* TanStack table + pagination */}
         <div className="space-y-3">
-          <Input
+          <SearchInput
             placeholder="Buscar nombre o categoría…"
             value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className="h-9 w-[260px] max-w-full"
+            onChange={setGlobalFilter}
+            className="w-[260px] max-w-full"
+            inputClassName="h-9"
             aria-label="Buscar canónicas"
           />
           <div className="rounded-xl border bg-card overflow-hidden">

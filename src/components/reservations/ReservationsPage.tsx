@@ -13,6 +13,7 @@ import DataTableColumnHeader from "@/components/DataTableColumnHeader";
 import ReservationDetailDialog from "@/components/reservations/ReservationDetailDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import SearchInput from "@/components/SearchInput";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -222,7 +223,7 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
         <div className="space-y-3">
           {/* Barra de filtros de negocio (espejo del módulo original) */}
           <div className="flex flex-wrap items-center gap-2">
-            <Input placeholder="Buscar reserva, producto o región…" value={q} onChange={(e) => setQ(e.target.value)} className="h-9 w-[240px] max-w-full" aria-label="Buscar reservas" />
+            <SearchInput placeholder="Buscar reserva, producto o región…" value={q} onChange={setQ} className="w-[240px] max-w-full" inputClassName="h-9" aria-label="Buscar reservas" />
             <Select value={fVigencia} onValueChange={setFVigencia}>
               <SelectTrigger className="h-9 w-[150px]"><SelectValue /></SelectTrigger>
               <SelectContent>

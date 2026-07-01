@@ -4,7 +4,7 @@ import {
   getSortedRowModel, useReactTable, type SortingState, type ColumnFiltersState,
 } from "@tanstack/react-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
+import SearchInput from "@/components/SearchInput";
 import DataTablePagination from "@/components/DataTablePagination";
 import DataTableColumnHeader from "@/components/DataTableColumnHeader";
 import { impactMeta, filterRecommendations } from "@/lib/waf";
@@ -72,11 +72,12 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
 
   return (
     <div className="space-y-3">
-      <Input
+      <SearchInput
         placeholder="Buscar ámbito o código…"
         value={globalFilter}
-        onChange={(e) => setGlobalFilter(e.target.value)}
-        className="h-9 w-[260px] max-w-full"
+        onChange={setGlobalFilter}
+        className="w-[260px] max-w-full"
+        inputClassName="h-9"
         aria-label="Buscar recomendaciones"
       />
       <div className="rounded-xl border bg-card overflow-hidden">

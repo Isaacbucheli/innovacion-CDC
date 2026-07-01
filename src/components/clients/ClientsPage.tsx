@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
   type ColumnDef,
@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-table";
 import AppShell from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import SearchInput from "@/components/SearchInput";
 import { Skeleton } from "@/components/ui/skeleton";
 import ClientCard from "@/components/clients/ClientCard";
 import ClientFormDialog from "@/components/clients/ClientFormDialog";
@@ -87,15 +87,12 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
             <span className="text-sm text-muted-foreground">
               {clients.length} {clients.length === 1 ? "cliente" : "clientes"} · {activeCount} {activeCount === 1 ? "activo" : "activos"}
             </span>
-            <div className="relative ml-auto min-w-[200px] max-w-sm flex-1">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="pl-9"
-                placeholder="Buscar cliente…"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
-            </div>
+            <SearchInput
+              className="ml-auto min-w-[200px] max-w-sm flex-1"
+              placeholder="Buscar cliente…"
+              value={q}
+              onChange={setQ}
+            />
             {editable && (
               <Button size="sm" onClick={() => setFormClient(null)}>
                 <Plus className="w-4 h-4 mr-1" /> Nuevo cliente

@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { Download, LayoutGrid, Plus, Search, Table2 } from "lucide-react";
+import { Download, LayoutGrid, Plus, Table2 } from "lucide-react";
 import type { Alert } from "@/types";
 import { type AlertFilters, filterAlerts } from "@/lib/filter";
 import { alertsToCsv } from "@/lib/csv";
-import { Input } from "@/components/ui/input";
+import SearchInput from "@/components/SearchInput";
 import { Button } from "@/components/ui/button";
 import Kpis from "@/components/alerts/Kpis";
 import AlertCard from "@/components/alerts/AlertCard";
@@ -31,10 +31,12 @@ export default function AlertsView({ alerts, kqlCount, canEdit, onOpen, onNew, o
     <div>
       <Kpis alerts={alerts} kqlCount={kqlCount} />
       <div className="flex gap-2 flex-wrap items-center mb-4">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Buscar alerta…" value={f.q} onChange={(e) => setF((p) => ({ ...p, q: e.target.value }))} />
-        </div>
+        <SearchInput
+          className="flex-1 min-w-[200px] max-w-sm"
+          placeholder="Buscar alerta…"
+          value={f.q}
+          onChange={(v) => setF((p) => ({ ...p, q: v }))}
+        />
         <span className="text-sm text-muted-foreground ml-auto">{rows.length} de {alerts.length}</span>
         <div className="flex rounded-md border overflow-hidden">
           <button

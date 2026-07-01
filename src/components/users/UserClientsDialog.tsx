@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import SearchInput from "@/components/SearchInput";
 import { Button } from "@/components/ui/button";
 import { listClientsAdmin, getUserClients, setUserClients } from "@/lib/api";
 import type { PublicUser, ClientAdmin } from "@/types";
@@ -51,7 +51,7 @@ export default function UserClientsDialog({ user, open, onOpenChange }: {
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>Acceso a clientes{user ? ` · ${user.full_name}` : ""}</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <Input placeholder="Buscar cliente…" value={q} onChange={(e) => setQ(e.target.value)} className="h-9" />
+          <SearchInput placeholder="Buscar cliente…" value={q} onChange={setQ} inputClassName="h-9" />
           <div className="max-h-72 overflow-y-auto rounded-lg border divide-y">
             {loading ? (
               <p className="text-sm text-muted-foreground p-3">Cargando…</p>

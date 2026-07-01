@@ -10,7 +10,7 @@ import DataTablePagination from "@/components/DataTablePagination";
 import DataTableColumnHeader from "@/components/DataTableColumnHeader";
 import WafClientHeader from "@/components/waf/WafClientHeader";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
+import SearchInput from "@/components/SearchInput";
 import { listClientsAdmin, getWafCostReference } from "@/lib/api";
 import { formatMoney } from "@/lib/costs";
 import { impactMeta } from "@/lib/waf";
@@ -139,11 +139,12 @@ export default function CostReferencePage({ onNavigate }: { onNavigate?: (key: s
 
           {/* TanStack table + pagination */}
           <div className="space-y-3">
-            <Input
+            <SearchInput
               placeholder="Buscar ámbito o código…"
               value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className="h-9 w-[260px] max-w-full"
+              onChange={setGlobalFilter}
+              className="w-[260px] max-w-full"
+              inputClassName="h-9"
               aria-label="Buscar costo referencial"
             />
             <div className="rounded-xl border bg-card overflow-hidden">

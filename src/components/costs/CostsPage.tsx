@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Calculator, Download, Search, Upload } from "lucide-react";
+import { Calculator, Download, Upload } from "lucide-react";
 import { toast } from "sonner";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import SearchInput from "@/components/SearchInput";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import CostsKpis from "@/components/costs/CostsKpis";
@@ -288,15 +288,12 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
 
             <TabsContent value="resultados">
               <div className="flex gap-2 flex-wrap items-center mb-4">
-                <div className="relative flex-1 min-w-[200px] max-w-sm">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    className="pl-9"
-                    placeholder="Buscar recurso, grupo, región…"
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                  />
-                </div>
+                <SearchInput
+                  className="flex-1 min-w-[200px] max-w-sm"
+                  placeholder="Buscar recurso, grupo, región…"
+                  value={q}
+                  onChange={setQ}
+                />
                 <Select value={serviceKey || "__all"} onValueChange={(v) => setServiceKey(v === "__all" ? "" : v)}>
                   <SelectTrigger className="w-[200px]">
                     <SelectValue placeholder="Servicio" />
