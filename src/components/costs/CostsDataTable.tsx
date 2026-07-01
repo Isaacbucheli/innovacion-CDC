@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -86,10 +86,13 @@ export default function CostsDataTable({
   rows,
   canEdit,
   onEditManual,
+  onVisibleCountChange,
 }: {
   rows: CostResult[];
   canEdit?: boolean;
   onEditManual?: (row: CostResult) => void;
+  /** Notifica cuántas filas quedan visibles tras el filtro por columna (además de `rows.length`, que es antes de ese filtro). */
+  onVisibleCountChange?: (n: number) => void;
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -233,6 +236,8 @@ export default function CostsDataTable({
   });
 
   const pad = dense ? "py-1.5" : "py-3";
+  const visibleCount = table.getFilteredRowModel().rows.length;
+  useEffect(() => { onVisibleCountChange?.(visibleCount); }, [visibleCount, onVisibleCountChange]);
 
   return (
     <div>

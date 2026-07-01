@@ -94,6 +94,8 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
     () => filterResults(subRows, { q, serviceKey, hideReserved }),
     [subRows, q, serviceKey, hideReserved],
   );
+  // CostsDataTable filtra ademas por columna (embudo); refleja ese conteo real, no solo tableRows.length.
+  const [visibleCount, setVisibleCount] = useState(tableRows.length);
   const subNames = useMemo(() => subscriptionNames(results), [results]);
 
   async function doCalculate(serviceKeys: string[], autoBuild: boolean) {
@@ -312,13 +314,13 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
                   Ocultar reservados
                 </label>
                 <span className="text-sm text-muted-foreground ml-auto">
-                  {tableRows.length} de {subRows.length}
+                  {visibleCount} de {subRows.length}
                 </span>
               </div>
               {dataLoading ? (
                 <Skeleton className="h-40 w-full" />
               ) : (
-                <CostsDataTable rows={tableRows} canEdit={editable} onEditManual={setManualRow} />
+                <CostsDataTable rows={tableRows} canEdit={editable} onEditManual={setManualRow} onVisibleCountChange={setVisibleCount} />
               )}
             </TabsContent>
 
