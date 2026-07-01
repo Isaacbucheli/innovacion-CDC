@@ -24,9 +24,9 @@ export const MODULE_GROUPS: ModuleGroup[] = [
   ] },
   { group: "Matriz mejoras Azure", items: [
     { key: "waf", label: "Recomendaciones", desc: "Well-Architected por pilar.", icon: Award, azureIcon: AZ("advisor") },
-    { key: "waf-validation", label: "Validación inteligente", desc: "Curación IA del catálogo.", icon: Sparkles, adminOnly: true, azureIcon: AZ("advisor") },
-    { key: "waf-ingestions", label: "Historial de ingestas", desc: "Cargas de Advisor y Excel.", icon: History, azureIcon: AZ("advisor") },
-    { key: "waf-cost", label: "Costo referencial Azure", desc: "Estimación con tarifas públicas.", icon: Wallet, azureIcon: AZ("waf-cost") },
+    { key: "waf-validation", label: "Validación inteligente", desc: "Curación IA del catálogo.", icon: Sparkles, adminOnly: true, azureIcon: AZ("azure-openai") },
+    { key: "waf-ingestions", label: "Historial de ingestas", desc: "Cargas de Advisor y Excel.", icon: History, azureIcon: AZ("data-factory") },
+    { key: "waf-cost", label: "Costo referencial Azure", desc: "Estimación con tarifas públicas.", icon: Wallet, azureIcon: AZ("cost-analysis") },
   ] },
   { group: "Informes", items: [
     // Concepto interno (reportería): sin SVG oficial de Azure → icono lucide coherente.
