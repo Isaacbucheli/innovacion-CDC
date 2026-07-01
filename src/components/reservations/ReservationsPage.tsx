@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
-  getSortedRowModel, useReactTable, type SortingState, type ColumnFiltersState,
+  createColumnHelper, flexRender, getCoreRowModel, getPaginationRowModel,
+  getSortedRowModel, useReactTable, type SortingState,
 } from "@tanstack/react-table";
-import { CalendarClock, CalendarX, Layers, Gauge } from "lucide-react";
+import { CalendarClock, CalendarX, Layers, Gauge, Download, RefreshCw, MoreHorizontal } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
 import WafClientHeader from "@/components/waf/WafClientHeader";
@@ -13,16 +13,18 @@ import DataTableColumnHeader from "@/components/DataTableColumnHeader";
 import ReservationDetailDialog from "@/components/reservations/ReservationDetailDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { listClientsAdmin, getReservations, getReservationUtilization } from "@/lib/api";
-import { textColumnFilter, globalTextFilter } from "@/lib/columnFilter";
-import { situacion, isInactive, utilChip, daysChip, daysLabel, stateChip, utilNum } from "@/lib/reservations";
+import {
+  situacion, isInactive, RES_INACTIVE_STATES, utilChip, utilBucket, daysChip, daysLabel, stateChip, utilNum,
+} from "@/lib/reservations";
 import type { ClientAdmin, Reservation } from "@/types";
 
 const KEY = "innovacion_cdc_waf_client";
 type Util = { last?: string | null; d7?: string | null; pending?: boolean };
 const col = createColumnHelper<Reservation>();
-const textFilter = textColumnFilter<Reservation>;
-const globalSearch = globalTextFilter<Reservation>((r) => `${r.name} ${r.product} ${r.region}`);
 
 function Kpi({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent: string }) {
   return (
@@ -42,42 +44,20 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
   const [util, setUtil] = useState<Record<string, Util>>({});
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [detail, setDetail] = useState<Reservation | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([{ id: "days_remaining", desc: false }]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
+  // Filtros de negocio (client-side), espejo del módulo original.
+  const [q, setQ] = useState("");
+  const [fVigencia, setFVigencia] = useState("all");
+  const [fEstado, setFEstado] = useState("all");
+  const [fU1, setFU1] = useState("all");
+  const [fU7, setFU7] = useState("all");
+  const [showInactive, setShowInactive] = useState(false);
   const runId = useRef(0);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-
-  useEffect(() => {
-    listClientsAdmin().then((cs) => {
-      setClients(cs);
-      const stored = Number(localStorage.getItem(KEY));
-      setClientId(cs.some((c) => c.client_id === stored) ? stored : cs[0]?.client_id ?? null);
-    }).catch((e) => toast.error(e instanceof Error ? e.message : String(e))).finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    if (clientId == null) return;
-    const myRun = ++runId.current;
-    setLoading(true); setMessage(""); setRows([]); setUtil({});
-    getReservations(clientId, alertDays, false).then((data) => {
-      if (!mounted.current || myRun !== runId.current) return;
-      const res = data.reservations ?? [];
-      setRows(res);
-      if (data.has_credentials === false) setMessage(data.message || "El cliente no tiene credenciales Azure activas.");
-      else if (data.errors?.length) setMessage(`No se pudieron leer reservas de ${data.errors.length} credencial(es). Verifica el rol Reservations Reader del App Registration.`);
-      else if (!res.length) setMessage("Este cliente no tiene reservas visibles en Azure.");
-      // Fase 2: utilización por reserva activa, en lotes concurrentes.
-      const pending = res.filter((r) => !isInactive(r));
-      setUtil(Object.fromEntries(pending.map((r) => [r.reservation_id, { pending: true } as Util])));
-      void loadUtilization(clientId, pending, myRun);
-    }).catch((e) => {
-      if (mounted.current && myRun === runId.current) { setMessage(`No se pudieron cargar las reservas: ${e instanceof Error ? e.message : e}`); }
-    }).finally(() => { if (mounted.current && myRun === runId.current) setLoading(false); });
-  }, [clientId, alertDays]);
 
   async function loadUtilization(cid: number, pending: Reservation[], myRun: number) {
     let i = 0;
@@ -98,18 +78,69 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
     await Promise.all(Array.from({ length: Math.min(6, pending.length) }, worker));
   }
 
+  // Carga fase 1 (lista) + fase 2 (utilización). alert_days sólo se envía en la carga;
+  // los filtros y KPIs se recalculan client-side sin volver a llamar la API.
+  const reload = useCallback((cid: number, days: number) => {
+    const myRun = ++runId.current;
+    setLoading(true); setMessage(""); setRows([]); setUtil({}); setGeneratedAt(null);
+    getReservations(cid, days, false).then((data) => {
+      if (!mounted.current || myRun !== runId.current) return;
+      const res = data.reservations ?? [];
+      setRows(res);
+      setGeneratedAt(data.generated_at ?? null);
+      if (data.has_credentials === false) setMessage(data.message || "El cliente no tiene credenciales Azure activas.");
+      else if (data.errors?.length) setMessage(`No se pudieron leer reservas de ${data.errors.length} credencial(es). Verifica el rol Reservations Reader del App Registration.`);
+      else if (!res.length) setMessage("Este cliente no tiene reservas visibles en Azure.");
+      const pending = res.filter((r) => !isInactive(r));
+      setUtil(Object.fromEntries(pending.map((r) => [r.reservation_id, { pending: true } as Util])));
+      void loadUtilization(cid, pending, myRun);
+    }).catch((e) => {
+      if (mounted.current && myRun === runId.current) setMessage(`No se pudieron cargar las reservas: ${e instanceof Error ? e.message : e}`);
+    }).finally(() => { if (mounted.current && myRun === runId.current) setLoading(false); });
+  }, []);
+
+  useEffect(() => {
+    listClientsAdmin().then((cs) => {
+      setClients(cs);
+      const stored = Number(localStorage.getItem(KEY));
+      setClientId(cs.some((c) => c.client_id === stored) ? stored : cs[0]?.client_id ?? null);
+    }).catch((e) => toast.error(e instanceof Error ? e.message : String(e))).finally(() => setLoading(false));
+  }, []);
+
+  // Recarga sólo al cambiar de cliente (alertDays es client-side).
+  useEffect(() => { if (clientId != null) reload(clientId, alertDays); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [clientId, reload]);
+
   function selectClient(id: number) { localStorage.setItem(KEY, String(id)); setClientId(id); }
   function openDetail(r: Reservation) { setDetail(r); setDetailOpen(true); }
 
-  const total = rows.length;
+  // Estados de Azure presentes (para el filtro dinámico).
+  const estados = useMemo(() => [...new Set(rows.map((r) => r.state).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [rows]);
+
+  // Filtro de negocio (espejo de cdcFiltered).
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    const estadoInactive = RES_INACTIVE_STATES.includes(fEstado.toLowerCase());
+    return rows.filter((r) => {
+      if (!showInactive && !estadoInactive && isInactive(r)) return false;
+      if (term && !`${r.name} ${r.product} ${r.region}`.toLowerCase().includes(term)) return false;
+      if (fVigencia !== "all" && situacion(r, alertDays) !== fVigencia) return false;
+      if (fEstado !== "all" && (r.state || "") !== fEstado) return false;
+      if (fU1 !== "all" && utilBucket(util[r.reservation_id]?.last) !== fU1) return false;
+      if (fU7 !== "all" && utilBucket(util[r.reservation_id]?.d7) !== fU7) return false;
+      return true;
+    });
+  }, [rows, util, q, fVigencia, fEstado, fU1, fU7, showInactive, alertDays]);
+
   const expiring = useMemo(() => rows.filter((r) => situacion(r, alertDays) === "por").length, [rows, alertDays]);
   const expired = useMemo(() => rows.filter((r) => r.expired || r.days_remaining < 0).length, [rows]);
+  const utilTotal = Object.keys(util).length;
+  const utilDone = Object.values(util).filter((u) => !u.pending).length;
+  const utilPending = utilTotal - utilDone;
   const avgUse = useMemo(() => {
-    const anyPending = Object.values(util).some((u) => u.pending);
-    if (anyPending) return "…";
+    if (utilPending > 0) return "…";
     const ns = Object.values(util).map((u) => utilNum(u.d7)).filter((n): n is number => n !== null);
     return ns.length ? `${Math.round(ns.reduce((s, n) => s + n, 0) / ns.length)}%` : "n/d";
-  }, [util]);
+  }, [util, utilPending]);
 
   const chip = (cls: string, text: React.ReactNode) => <span className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{text}</span>;
   const usoCell = (id: string, pick: (u: Util) => string | null | undefined) => {
@@ -120,31 +151,46 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
   };
 
   const columns = useMemo(() => [
-    col.accessor("name", { header: "Reserva", filterFn: textFilter, cell: (c) => <span className="font-medium">{c.getValue()}</span> }),
-    col.accessor("product", { header: "Producto", filterFn: textFilter }),
-    col.accessor("region", { header: "Región", filterFn: textFilter }),
-    col.accessor("quantity", { header: "Cant.", enableColumnFilter: false, cell: (c) => <span className="tabular-nums">{c.getValue()}</span> }),
-    col.accessor((r) => r.term_label || r.term, { id: "term", header: "Término", filterFn: textFilter }),
-    col.accessor("expires_on", { header: "Caduca", filterFn: textFilter }),
-    col.accessor("days_remaining", {
-      header: "Días", sortingFn: "basic", filterFn: textFilter,
-      cell: (c) => chip(daysChip(c.row.original), daysLabel(c.row.original)),
-    }),
-    col.display({ id: "u1", header: "Uso 1d", cell: (c) => usoCell(c.row.original.reservation_id, (u) => u.last) }),
-    col.display({ id: "u7", header: "Uso 7d", cell: (c) => usoCell(c.row.original.reservation_id, (u) => u.d7) }),
-    col.accessor("state", { header: "Estado", filterFn: textFilter, cell: (c) => chip(stateChip(c.getValue()), c.getValue()) }),
+    col.accessor("name", { header: "Reserva", cell: (c) => <span className="font-medium">{c.getValue()}</span> }),
+    col.accessor("product", { header: "Producto" }),
+    col.accessor("region", { header: "Región" }),
+    col.accessor("quantity", { header: "Cant.", cell: (c) => <span className="tabular-nums">{c.getValue()}</span> }),
+    col.accessor((r) => r.term_label || r.term, { id: "term", header: "Término" }),
+    col.accessor("expires_on", { header: "Caduca" }),
+    col.accessor("days_remaining", { header: "Días", sortingFn: "basic", cell: (c) => chip(daysChip(c.row.original), daysLabel(c.row.original)) }),
+    col.accessor((r) => utilNum(util[r.reservation_id]?.last) ?? -1, { id: "u1", header: "Uso 1d", sortingFn: "basic", cell: (c) => usoCell(c.row.original.reservation_id, (u) => u.last) }),
+    col.accessor((r) => utilNum(util[r.reservation_id]?.d7) ?? -1, { id: "u7", header: "Uso 7d", sortingFn: "basic", cell: (c) => usoCell(c.row.original.reservation_id, (u) => u.d7) }),
+    col.accessor("state", { header: "Estado", cell: (c) => chip(stateChip(c.getValue()), c.getValue()) }),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [util]);
 
   const table = useReactTable({
-    data: rows, columns,
-    state: { sorting, columnFilters, globalFilter },
-    onSortingChange: setSorting, onColumnFiltersChange: setColumnFilters, onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: globalSearch,
-    getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(), getPaginationRowModel: getPaginationRowModel(),
+    data: filtered, columns,
+    state: { sorting }, onSortingChange: setSorting,
+    enableColumnFilters: false, // el filtrado va en la barra de negocio, no por columna
+    getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
+
+  function exportCsv() {
+    const out = table.getSortedRowModel().rows.map((r) => r.original);
+    if (!out.length) return;
+    const head = ["Reserva", "Producto", "Región", "Cantidad", "Término", "Caduca", "Días para caducar", "Uso 1 día", "Uso 7 días", "Estado"];
+    const cell = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
+    const lines = out.map((r) => [
+      r.name, r.product, r.region, r.quantity, r.term_label || r.term, r.expires_on, r.days_remaining,
+      util[r.reservation_id]?.last ?? "", util[r.reservation_id]?.d7 ?? "", r.state,
+    ].map(cell).join(","));
+    const csv = [head.map(cell).join(","), ...lines].join("\r\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "reservas-por-vencer.csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+
+  const hasFilters = q || fVigencia !== "all" || fEstado !== "all" || fU1 !== "all" || fU7 !== "all";
+  const usoOpts = [["all", "Uso: todos"], ["nd", "Sin dato"], ["low", "Bajo (<30%)"], ["mid", "Medio (30-69%)"], ["high", "Alto (≥70%)"]];
 
   return (
     <AppShell title="Reservas por vencer" subtitle="Gestión CDC · reservas de capacidad Azure"
@@ -153,25 +199,77 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
       <BusyOverlay show={loading} title="Cargando reservas" />
       <div className="space-y-5">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Kpi icon={<Layers className="w-4 h-4" />} label="Reservas" value={String(total)} accent="#a3c243" />
+          <Kpi icon={<Layers className="w-4 h-4" />} label="Reservas" value={String(rows.length)} accent="#a3c243" />
           <Kpi icon={<CalendarClock className="w-4 h-4" />} label={`Por vencer (≤${alertDays}d)`} value={String(expiring)} accent="#d9a82a" />
           <Kpi icon={<CalendarX className="w-4 h-4" />} label="Vencidas" value={String(expired)} accent="#a53b35" />
           <Kpi icon={<Gauge className="w-4 h-4" />} label="Uso prom. 7 días" value={avgUse} accent="#70b043" />
         </div>
 
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          {generatedAt && !Number.isNaN(new Date(generatedAt).getTime()) && <span>Actualizado: {new Date(generatedAt).toLocaleString("es-EC")}</span>}
+          {utilPending > 0 && <span className="text-primary">Calculando utilización {utilDone}/{utilTotal}…</span>}
+        </div>
+
         {message && <p className="text-sm text-muted-foreground border-l-2 border-border pl-3">{message}</p>}
 
         <div className="space-y-3">
+          {/* Barra de filtros de negocio (espejo del módulo original) */}
           <div className="flex flex-wrap items-center gap-2">
-            <Input placeholder="Buscar reserva, producto o región…" value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)} className="h-9 w-[260px] max-w-full" aria-label="Buscar reservas" />
+            <Input placeholder="Buscar reserva, producto o región…" value={q} onChange={(e) => setQ(e.target.value)} className="h-9 w-[240px] max-w-full" aria-label="Buscar reservas" />
+            <Select value={fVigencia} onValueChange={setFVigencia}>
+              <SelectTrigger className="h-9 w-[150px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Vigencia: todas</SelectItem>
+                <SelectItem value="por">Por vencer</SelectItem>
+                <SelectItem value="vig">Vigentes</SelectItem>
+                <SelectItem value="venc">Vencidas</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={fEstado} onValueChange={setFEstado}>
+              <SelectTrigger className="h-9 w-[150px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Estado: todos</SelectItem>
+                {estados.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={fU1} onValueChange={setFU1}>
+              <SelectTrigger className="h-9 w-[150px]"><SelectValue /></SelectTrigger>
+              <SelectContent>{usoOpts.map(([v, l]) => <SelectItem key={v} value={v}>{l.replace("Uso:", "Uso 1d:")}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={fU7} onValueChange={setFU7}>
+              <SelectTrigger className="h-9 w-[150px]"><SelectValue /></SelectTrigger>
+              <SelectContent>{usoOpts.map(([v, l]) => <SelectItem key={v} value={v}>{l.replace("Uso:", "Uso 7d:")}</SelectItem>)}</SelectContent>
+            </Select>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+              <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="accent-primary h-4 w-4" />
+              Mostrar vencidas/canceladas
+            </label>
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               Aviso (días):
               <Input type="number" min={1} max={365} value={alertDays}
                 onChange={(e) => setAlertDays(Math.min(365, Math.max(1, Number(e.target.value) || 30)))}
                 className="h-9 w-20" aria-label="Días de aviso" />
             </label>
+            {hasFilters && (
+              <Button variant="ghost" size="sm" className="h-9" onClick={() => { setQ(""); setFVigencia("all"); setFEstado("all"); setFU1("all"); setFU7("all"); }}>Limpiar</Button>
+            )}
+            <div className="ml-auto flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9"><MoreHorizontal className="w-4 h-4 mr-1" />Acciones</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={exportCsv} disabled={!filtered.length}><Download className="w-4 h-4 mr-2" />Exportar CSV</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => clientId != null && reload(clientId, alertDays)}><RefreshCw className="w-4 h-4 mr-2" />Actualizar</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
+
+          <div className="text-xs text-muted-foreground">
+            {rows.length ? `${filtered.length} de ${rows.length} reservas` : ""}
+          </div>
+
           <div className="rounded-xl border bg-card overflow-hidden">
             <Table>
               <TableHeader>
@@ -179,9 +277,7 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
                   <TableRow key={hg.id}>
                     {hg.headers.map((h) => (
                       <TableHead key={h.id}>
-                        {h.isPlaceholder ? null : h.column.getCanFilter() || h.column.getCanSort()
-                          ? <DataTableColumnHeader column={h.column} title={String(h.column.columnDef.header)} />
-                          : flexRender(h.column.columnDef.header, h.getContext())}
+                        {h.isPlaceholder ? null : <DataTableColumnHeader column={h.column} title={String(h.column.columnDef.header)} />}
                       </TableHead>
                     ))}
                   </TableRow>
@@ -189,14 +285,20 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
               </TableHeader>
               <TableBody>
                 {table.getRowModel().rows.length === 0 ? (
-                  <TableRow><TableCell colSpan={columns.length} className="text-center text-muted-foreground py-8">Sin reservas que coincidan.</TableCell></TableRow>
-                ) : table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} onClick={() => openDetail(row.original)} className="cursor-pointer">
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                    ))}
-                  </TableRow>
-                ))}
+                  <TableRow><TableCell colSpan={columns.length} className="text-center text-muted-foreground py-8">
+                    {rows.length ? "Sin reservas que coincidan con los filtros." : "Este cliente no tiene reservas registradas en Azure."}
+                  </TableCell></TableRow>
+                ) : table.getRowModel().rows.map((row) => {
+                  const porVencer = situacion(row.original, alertDays) === "por";
+                  return (
+                    <TableRow key={row.id} onClick={() => openDetail(row.original)}
+                      className={`cursor-pointer ${porVencer ? "bg-amber-50 dark:bg-amber-950/30" : ""}`}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
