@@ -29,3 +29,19 @@ test("estado vacío cuando no hay filas", () => {
   render(<CostsDataTable rows={[]} />);
   expect(screen.getByText(/Sin recursos que coincidan/i)).toBeInTheDocument();
 });
+
+test("RI vacía con not_eligible muestra pill 'No elegible'", () => {
+  render(<CostsDataTable rows={[R({ resource_name: "vm-1", ri_1y_monthly: null, ri_eligibility: "not_eligible" })]} />);
+  expect(screen.getAllByText("No elegible").length).toBeGreaterThan(0);
+});
+
+test("RI vacía con unknown NO muestra pill", () => {
+  render(<CostsDataTable rows={[R({ resource_name: "vm-2", ri_1y_monthly: null, ri_eligibility: "unknown" })]} />);
+  expect(screen.queryByText("No elegible")).not.toBeInTheDocument();
+});
+
+test("columna Categoría usa lookups", () => {
+  const lookups = { regions: {}, resource_types: {}, service_categories: { vms: "Compute" } };
+  render(<CostsDataTable rows={[R({ service_key: "vms", resource_name: "vm-3" })]} lookups={lookups} />);
+  expect(screen.getByText("Compute")).toBeInTheDocument();
+});

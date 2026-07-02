@@ -21,18 +21,20 @@ import OptionsMenu from "@/components/costs/OptionsMenu";
 import ManualCostDialog from "@/components/costs/ManualCostDialog";
 import { useCosts } from "@/hooks/useCosts";
 import { applySubscriptionFilter, computeKpis, filterResults, serviceName, subscriptionNames } from "@/lib/costs";
+import { categoryOf } from "@/lib/finops";
 import { bestEffortRefresh, runCalculation } from "@/lib/costActions";
 import {
   clearPriceCache,
   downloadFromApi,
   generateExcel,
+  getFinOpsLookups,
   importInventory,
   recalcScenarios,
   refreshPowerHistory,
   refreshRiCoverage,
 } from "@/lib/api";
 import { canEdit, getRole } from "@/lib/auth";
-import type { CostResult } from "@/types";
+import type { CostResult, FinOpsLookups } from "@/types";
 
 const RI_SOURCE_LABELS: Record<string, string> = {
   consumption: "consumo confirmado (Azure)",
@@ -75,6 +77,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
   const [subs, setSubs] = useState<string[] | null>(null);
   const [q, setQ] = useState("");
   const [serviceKey, setServiceKey] = useState("");
+  const [category, setCategory] = useState("");
   const [hideReserved, setHideReserved] = useState(false);
   const [tab, setTab] = useState("servicios");
   const [busy, setBusy] = useState(false);
@@ -82,18 +85,30 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
   const [calcOpen, setCalcOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [manualRow, setManualRow] = useState<CostResult | null>(null);
+  const [lookups, setLookups] = useState<FinOpsLookups | null>(null);
 
   // Al cambiar de cliente, los nombres de suscripción cambian: resetear el filtro.
   useEffect(() => {
     setSubs(null);
+    setCategory("");
   }, [clientId]);
+
+  // Catálogos FinOps (categorías/regiones/tipos): carga best-effort, una sola vez.
+  useEffect(() => {
+    getFinOpsLookups().then(setLookups).catch(() => {});
+  }, []);
 
   const subRows = useMemo(() => applySubscriptionFilter(results, subs), [results, subs]);
   const kpis = useMemo(() => computeKpis(subRows, scenarios), [subRows, scenarios]);
-  const tableRows = useMemo(
-    () => filterResults(subRows, { q, serviceKey, hideReserved }),
-    [subRows, q, serviceKey, hideReserved],
+  const categoryOptions = useMemo(
+    () => [...new Set(subRows.map((r) => categoryOf(r.service_key, lookups)))].sort(),
+    [subRows, lookups],
   );
+  const tableRows = useMemo(() => {
+    const base = filterResults(subRows, { q, serviceKey, hideReserved });
+    if (!category) return base;
+    return base.filter((r) => categoryOf(r.service_key, lookups) === category);
+  }, [subRows, q, serviceKey, hideReserved, category, lookups]);
   // CostsDataTable filtra ademas por columna (embudo); refleja ese conteo real, no solo tableRows.length.
   const [visibleCount, setVisibleCount] = useState(tableRows.length);
   const subNames = useMemo(() => subscriptionNames(results), [results]);
@@ -309,6 +324,19 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
                     ))}
                   </SelectContent>
                 </Select>
+                <Select value={category || "__all"} onValueChange={(v) => setCategory(v === "__all" ? "" : v)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all">Todas las categorías</SelectItem>
+                    {categoryOptions.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
                   <input type="checkbox" checked={hideReserved} onChange={(e) => setHideReserved(e.target.checked)} />
                   Ocultar reservados
@@ -320,7 +348,13 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
               {dataLoading ? (
                 <Skeleton className="h-40 w-full" />
               ) : (
-                <CostsDataTable rows={tableRows} canEdit={editable} onEditManual={setManualRow} onVisibleCountChange={setVisibleCount} />
+                <CostsDataTable
+                  rows={tableRows}
+                  canEdit={editable}
+                  onEditManual={setManualRow}
+                  onVisibleCountChange={setVisibleCount}
+                  lookups={lookups}
+                />
               )}
             </TabsContent>
 

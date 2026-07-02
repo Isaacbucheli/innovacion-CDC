@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -13,7 +13,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { Columns3, Pencil, Rows3, Rows4 } from "lucide-react";
-import type { CostResult } from "@/types";
+import type { CostResult, FinOpsLookups } from "@/types";
 import {
   PRICING_META,
   formatMoney,
@@ -29,6 +29,7 @@ import {
   translateNote,
   visibleServiceKey,
 } from "@/lib/costs";
+import { categoryOf, showNotEligibleBadge } from "@/lib/finops";
 import { textColumnFilter, labelColumnFilter } from "@/lib/columnFilter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ import DataTablePagination from "@/components/DataTablePagination";
 
 const COL_LABELS: Record<string, string> = {
   service: "Servicio",
+  categoria: "Categoría",
   resource_name: "Recurso",
   resource_group: "Grupo",
   location: "Región",
@@ -87,19 +89,36 @@ export default function CostsDataTable({
   canEdit,
   onEditManual,
   onVisibleCountChange,
+  lookups = null,
 }: {
   rows: CostResult[];
   canEdit?: boolean;
   onEditManual?: (row: CostResult) => void;
   /** Notifica cuántas filas quedan visibles tras el filtro por columna (además de `rows.length`, que es antes de ese filtro). */
   onVisibleCountChange?: (n: number) => void;
+  /** Catálogos FinOps (categorías/regiones/tipos) para columnas derivadas; opcional. */
+  lookups?: FinOpsLookups | null;
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [dense, setDense] = useState(false);
 
-  const columns: ColumnDef<CostResult>[] = [
+  const riCell = (v: number | null, row: CostResult) => {
+    if (v != null) return money(v);
+    return showNotEligibleBadge(row) ? (
+      <Pill
+        className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+        title="Este SKU no tiene precio de reserva publicado por Azure"
+      >
+        No elegible
+      </Pill>
+    ) : (
+      <span className="text-muted-foreground">-</span>
+    );
+  };
+
+  const columns: ColumnDef<CostResult>[] = useMemo(() => [
     {
       id: "service",
       accessorFn: (r) => serviceName(visibleServiceKey(r.service_key)),
@@ -114,6 +133,13 @@ export default function CostsDataTable({
           </span>
         );
       },
+    },
+    {
+      id: "categoria",
+      accessorFn: (r) => categoryOf(r.service_key, lookups),
+      header: "Categoría",
+      filterFn: textFilter,
+      cell: ({ getValue }) => <span className="text-muted-foreground">{String(getValue())}</span>,
     },
     {
       accessorKey: "resource_name",
@@ -139,8 +165,20 @@ export default function CostsDataTable({
         ),
     },
     { accessorKey: "payg_monthly", header: "PAYG mes", sortingFn: numSort, filterFn: textFilter, cell: (c) => money(c.getValue<number | null>()) },
-    { accessorKey: "ri_1y_monthly", header: "RI 1A", sortingFn: numSort, filterFn: textFilter, cell: (c) => money(c.getValue<number | null>()) },
-    { accessorKey: "ri_3y_monthly", header: "RI 3A", sortingFn: numSort, filterFn: textFilter, cell: (c) => money(c.getValue<number | null>()) },
+    {
+      accessorKey: "ri_1y_monthly",
+      header: "RI 1A",
+      sortingFn: numSort,
+      filterFn: textFilter,
+      cell: ({ row }) => riCell(row.original.ri_1y_monthly, row.original),
+    },
+    {
+      accessorKey: "ri_3y_monthly",
+      header: "RI 3A",
+      sortingFn: numSort,
+      filterFn: textFilter,
+      cell: ({ row }) => riCell(row.original.ri_3y_monthly, row.original),
+    },
     { accessorKey: "savings_1y_pct", header: "Ahorro 1A", sortingFn: numSort, filterFn: textFilter, cell: (c) => pct(c.getValue<number | null>()) },
     { accessorKey: "savings_3y_pct", header: "Ahorro 3A", sortingFn: numSort, filterFn: textFilter, cell: (c) => pct(c.getValue<number | null>()) },
     {
@@ -196,34 +234,40 @@ export default function CostsDataTable({
         );
       },
     },
-  ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [lookups]);
 
-  if (canEdit && onEditManual) {
-    columns.push({
-      id: "actions",
-      enableHiding: false,
-      enableSorting: false,
-      enableColumnFilter: false,
-      header: "",
-      cell: ({ row }) => (
-        <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            aria-label="Editar costo manual"
-            onClick={() => onEditManual(row.original)}
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </Button>
-        </div>
-      ),
-    });
-  }
+  const tableColumns: ColumnDef<CostResult>[] = useMemo(() => {
+    if (!(canEdit && onEditManual)) return columns;
+    return [
+      ...columns,
+      {
+        id: "actions",
+        enableHiding: false,
+        enableSorting: false,
+        enableColumnFilter: false,
+        header: "",
+        cell: ({ row }) => (
+          <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              aria-label="Editar costo manual"
+              onClick={() => onEditManual(row.original)}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        ),
+      },
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columns, canEdit, onEditManual]);
 
   const table = useReactTable({
     data: rows,
-    columns,
+    columns: tableColumns,
     state: { sorting, columnVisibility, columnFilters },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
@@ -294,7 +338,7 @@ export default function CostsDataTable({
           <TableBody>
             {table.getRowModel().rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={tableColumns.length} className="text-center text-muted-foreground py-8">
                   Sin recursos que coincidan.
                 </TableCell>
               </TableRow>
