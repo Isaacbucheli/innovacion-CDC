@@ -16,7 +16,8 @@ import AdvisorScoreDialog from "@/components/waf/AdvisorScoreDialog";
 import DataTablePagination from "@/components/DataTablePagination";
 import { useClients } from "@/hooks/useClients";
 import { usePagedRows } from "@/hooks/usePagedRows";
-import { refreshWafAdvisorScore, refreshWafAdvisorScoreAll } from "@/lib/api";
+import { refreshWafAdvisorScore } from "@/lib/api";
+import { refreshAdvisorScoreBatch } from "@/lib/advisorScore";
 import { canEdit, getRole } from "@/lib/auth";
 import type { ClientAdmin } from "@/types";
 
@@ -35,6 +36,7 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
   const [scoreClient, setScoreClient] = useState<ClientAdmin | null>(null);
   const [scoreAllOpen, setScoreAllOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [scoreProgress, setScoreProgress] = useState<string | undefined>(undefined);
   const [danger, setDanger] = useState<{ mode: DangerMode; client: ClientAdmin } | null>(null);
 
   const filtered = useMemo(() => {
@@ -64,13 +66,22 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
   }
 
   async function doScoreRefreshAll(includeInReports: boolean) {
+    const active = clients.filter((c) => c.is_active);
+    if (active.length === 0) { toast.error("No hay clientes activos para actualizar."); return; }
+    // Orquestado cliente por cliente para no reventar el timeout del gateway (~230s) que la
+    // ruta all-clients síncrona provocaba ("Failed to fetch"). Ver lib/advisorScore.ts.
+    setScoreAllOpen(false);
     setBusy(true);
     try {
-      const r = await refreshWafAdvisorScoreAll(includeInReports);
-      toast.success(`Advisor Score actualizado · ${r.clients_refreshed} de ${r.clients_total} clientes${r.clients_failed ? ` · ${r.clients_failed} con error` : ""}.`);
-      setScoreAllOpen(false);
+      const r = await refreshAdvisorScoreBatch(
+        clients,
+        includeInReports,
+        (done, total, name) => setScoreProgress(`Cliente ${done + 1} de ${total}: ${name}`),
+      );
+      toast.success(`Advisor Score actualizado · ${r.refreshed} de ${r.total} clientes${r.failed ? ` · ${r.failed} con error` : ""}.`);
+      reload();
     } catch (e) { toast.error(msg(e)); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setScoreProgress(undefined); }
   }
 
   return (
@@ -80,7 +91,7 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
       active="clientes"
       onNavigate={onNavigate}
     >
-      <BusyOverlay show={busy} title="Actualizando Advisor Score" />
+      <BusyOverlay show={busy} title="Actualizando Advisor Score" detail={scoreProgress} />
       {loading ? (
         <div className="flex flex-col gap-2">
           {Array.from({ length: 8 }).map((_, i) => (
