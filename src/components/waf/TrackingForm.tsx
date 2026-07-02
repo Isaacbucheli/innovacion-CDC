@@ -18,6 +18,7 @@ export default function TrackingForm({ clientId, canonicalId, detail, onSaved }:
   const editable = canEdit();
   const [pct, setPct] = useState(detail.completion_pct ?? 0);
   const [date, setDate] = useState(detail.remediation_start_date ?? "");
+  const [endDate, setEndDate] = useState(detail.remediation_end_date ?? "");
   const [effort, setEffort] = useState(detail.projected_bit_effort ?? "");
   const [priority, setPriority] = useState(detail.priority_override ? String(detail.priority_override) : "");
   const [log, setLog] = useState(detail.execution_log ?? "");
@@ -26,12 +27,15 @@ export default function TrackingForm({ clientId, canonicalId, detail, onSaved }:
   const [saving, setSaving] = useState(false);
 
   async function save() {
-    const errs = validateTracking({ completion_pct: pct, remediation_start_date: date || null });
+    const errs = validateTracking({
+      completion_pct: pct, remediation_start_date: date || null, remediation_end_date: endDate || null,
+    });
     setErrors(errs);
     if (Object.keys(errs).length) return;
     const body: WafTrackingUpdate = {
       completion_pct: pct,
       remediation_start_date: date || null,
+      remediation_end_date: endDate || null,
       projected_bit_effort: effort || null,
       priority_override: priority ? Number(priority) : null,
       execution_log: log || null,
@@ -67,6 +71,11 @@ export default function TrackingForm({ clientId, canonicalId, detail, onSaved }:
           <Label htmlFor="date">Fecha de inicio</Label>
           <Input id="date" type="date" value={date} disabled={!editable} onChange={(e) => setDate(e.target.value)} />
           {errors.remediation_start_date && <p className="text-sm text-destructive">{errors.remediation_start_date}</p>}
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="end-date">Fecha de cierre</Label>
+          <Input id="end-date" type="date" value={endDate} disabled={!editable} onChange={(e) => setEndDate(e.target.value)} />
+          {errors.remediation_end_date && <p className="text-sm text-destructive">{errors.remediation_end_date}</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="effort">Esfuerzo BIT</Label>

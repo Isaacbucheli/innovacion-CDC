@@ -269,6 +269,7 @@ export interface WafRecommendationDetail extends WafRecommendation {
   client_action_es: string | null;
   bit_action_es: string | null;
   remediation_start_date: string | null;
+  remediation_end_date: string | null;
   projected_bit_effort: string | null;
   execution_log: string | null;
   priority_override: number | null;
@@ -303,6 +304,7 @@ export interface WafHistoryEntry {
 export interface WafTrackingUpdate {
   completion_pct: number;
   remediation_start_date: string | null;
+  remediation_end_date: string | null;
   projected_bit_effort: string | null;
   execution_log: string | null;
   priority_override: number | null;

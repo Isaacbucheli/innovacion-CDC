@@ -61,6 +61,7 @@ export function filterRecommendations(
 
 export function validateTracking(form: {
   completion_pct?: number; remediation_start_date?: string | null;
+  remediation_end_date?: string | null;
 }): Record<string, string> {
   const errors: Record<string, string> = {};
   const pct = form.completion_pct;
@@ -70,6 +71,12 @@ export function validateTracking(form: {
   const d = form.remediation_start_date;
   if (d && Number.isNaN(Date.parse(d))) {
     errors.remediation_start_date = "Fecha inválida.";
+  }
+  const e = form.remediation_end_date;
+  if (e && Number.isNaN(Date.parse(e))) {
+    errors.remediation_end_date = "Fecha inválida.";
+  } else if (e && d && !Number.isNaN(Date.parse(d)) && Date.parse(e) < Date.parse(d)) {
+    errors.remediation_end_date = "La fecha de cierre no puede ser anterior a la de inicio.";
   }
   return errors;
 }
