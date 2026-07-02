@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Gauge, LayoutGrid } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,29 +28,25 @@ export default function CoverageTab({ analysisId }: { analysisId: number }) {
   const [data, setData] = useState<CoverageResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const mounted = useRef(true);
 
   useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     setError(null);
     setData(null);
     getCoverage(analysisId)
       .then((r) => {
-        if (mounted.current) setData(r);
+        if (!cancelled) setData(r);
       })
       .catch(() => {
-        if (mounted.current) setError("No se pudo cargar la cobertura de cálculo.");
+        if (!cancelled) setError("No se pudo cargar la cobertura de cálculo.");
       })
       .finally(() => {
-        if (mounted.current) setLoading(false);
+        if (!cancelled) setLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
   }, [analysisId]);
 
   if (loading) return <Skeleton className="h-40 w-full mt-4" />;
