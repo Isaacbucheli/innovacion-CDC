@@ -7,6 +7,9 @@ import type {
   ClientSubscription,
   ClientSummary,
   CostResult,
+  CoverageResult,
+  FinOpsLookups,
+  FinOpsRefreshStatus,
   InventoryRow,
   KqlQuery,
   PowerHistoryResult,
@@ -362,6 +365,13 @@ export async function downloadFromApi(path: string, fileName: string, base: stri
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+// ---- FinOps: Fase 1 (integración FinOps Toolkit) ----
+export const getFinOpsLookups = () => request<FinOpsLookups>("/finops-data/lookups");
+export const getCoverage = (analysisId: number) => request<CoverageResult>(`/analysis/${analysisId}/coverage`);
+export const getFinOpsStatus = () => request<FinOpsRefreshStatus[]>("/finops-data/status");
+export const refreshFinOpsData = () =>
+  request<{ results: { dataset: string; status: string; row_count: number }[] }>("/finops-data/refresh", { method: "POST" });
 
 // ---- Informe de gestión mensual ----
 export const listReports = (clientId: number) =>

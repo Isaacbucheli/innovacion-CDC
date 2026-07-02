@@ -13,6 +13,7 @@ const R = (over: Partial<CostResult>): CostResult => ({
   calculation_status: "calculated", is_variable_pricing: null, is_manual_cost: null,
   manual_monthly_cost: null, manual_cost_note: null, ri_applies: null,
   ri_not_applicable_reason: null, ri_coverage: null, ri_reservation_name: null, ri_term: null,
+  ri_eligibility: null,
   power_running_hours: null, power_uptime_pct: null, power_period_start: null, power_period_end: null,
   calculation_notes: null, calculated_at: null, ...over,
 });

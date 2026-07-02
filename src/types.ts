@@ -58,12 +58,41 @@ export interface CostResult {
   ri_coverage: string | null;
   ri_reservation_name: string | null;
   ri_term: string | null;
+  ri_eligibility: string | null;
   power_running_hours: number | null;
   power_uptime_pct: number | null;
   power_period_start: string | null;
   power_period_end: string | null;
   calculation_notes: string | null;
   calculated_at: string | null;
+}
+
+// ---- FinOps: Fase 1 (integración FinOps Toolkit) ----
+export interface FinOpsLookups {
+  regions: Record<string, string>;
+  resource_types: Record<string, { display_name: string; service_category: string | null }>;
+  service_categories: Record<string, string>;
+}
+
+export interface CoverageGap {
+  resource_type: string;
+  display_name: string | null;
+  service_category: string | null;
+  count: number;
+}
+
+export interface CoverageResult {
+  total_resources: number;
+  costed_resources: number;
+  coverage_pct: number;
+  uncovered: CoverageGap[];
+}
+
+export interface FinOpsRefreshStatus {
+  dataset: string;
+  refreshed_at: string | null;
+  row_count: number | null;
+  status: string | null;
 }
 
 export interface ScenarioConfig {
