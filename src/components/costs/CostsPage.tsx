@@ -14,6 +14,7 @@ import CostsDataTable from "@/components/costs/CostsDataTable";
 import ScenarioCards from "@/components/costs/ScenarioCards";
 import SubscriptionFilter from "@/components/costs/SubscriptionFilter";
 import InventorySummary from "@/components/costs/InventorySummary";
+import CoverageTab from "@/components/costs/CoverageTab";
 import CalculateDialog from "@/components/costs/CalculateDialog";
 import ClientCombobox from "@/components/costs/ClientCombobox";
 import ImportDialog from "@/components/costs/ImportDialog";
@@ -297,6 +298,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
               <TabsTrigger value="resultados">Resultados</TabsTrigger>
               <TabsTrigger value="escenarios">Escenarios</TabsTrigger>
               <TabsTrigger value="inventario">Inventario</TabsTrigger>
+              <TabsTrigger value="cobertura">Cobertura</TabsTrigger>
             </TabsList>
 
             <TabsContent value="servicios">
@@ -364,6 +366,10 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
 
             <TabsContent value="inventario">
               {dataLoading ? <Skeleton className="h-40 w-full mt-4" /> : <InventorySummary rows={inventory} />}
+            </TabsContent>
+
+            <TabsContent value="cobertura">
+              {analysis ? <CoverageTab analysisId={analysis.analysis_id} /> : null}
             </TabsContent>
           </Tabs>
         </>
