@@ -16,6 +16,7 @@ export default function OptionsMenu({
   onRefreshRi,
   onRefreshPower,
   onClearCache,
+  onFinOpsRefresh,
 }: {
   disabled?: boolean;
   isAdmin?: boolean;
@@ -23,6 +24,7 @@ export default function OptionsMenu({
   onRefreshRi: () => void;
   onRefreshPower: () => void;
   onClearCache: () => void;
+  onFinOpsRefresh: () => void;
 }) {
   return (
     <DropdownMenu>
@@ -41,6 +43,7 @@ export default function OptionsMenu({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onClearCache}>Limpiar caché de precios</DropdownMenuItem>
+            <DropdownMenuItem onClick={onFinOpsRefresh}>Actualizar datos FinOps</DropdownMenuItem>
           </>
         )}
       </DropdownMenuContent>

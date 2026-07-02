@@ -20,6 +20,7 @@ import ClientCombobox from "@/components/costs/ClientCombobox";
 import ImportDialog from "@/components/costs/ImportDialog";
 import OptionsMenu from "@/components/costs/OptionsMenu";
 import ManualCostDialog from "@/components/costs/ManualCostDialog";
+import FinOpsRefreshDialog from "@/components/costs/FinOpsRefreshDialog";
 import { useCosts } from "@/hooks/useCosts";
 import { applySubscriptionFilter, computeKpis, filterResults, serviceName, subscriptionNames } from "@/lib/costs";
 import { categoryOf } from "@/lib/finops";
@@ -85,6 +86,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
   const [busyMsg, setBusyMsg] = useState<{ title: string; detail?: string }>({ title: "" });
   const [calcOpen, setCalcOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [finopsOpen, setFinopsOpen] = useState(false);
   const [manualRow, setManualRow] = useState<CostResult | null>(null);
   const [lookups, setLookups] = useState<FinOpsLookups | null>(null);
 
@@ -280,6 +282,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
                 onRefreshRi={doRefreshRi}
                 onRefreshPower={doRefreshPower}
                 onClearCache={doClearCache}
+                onFinOpsRefresh={() => setFinopsOpen(true)}
               />
             )}
           </div>
@@ -394,6 +397,11 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
         open={manualRow !== null}
         onOpenChange={(o) => !o && setManualRow(null)}
         onSaved={reloadData}
+      />
+      <FinOpsRefreshDialog
+        open={finopsOpen}
+        onOpenChange={setFinopsOpen}
+        onDone={() => {}}
       />
 
       <BusyOverlay
