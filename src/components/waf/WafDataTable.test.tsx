@@ -4,8 +4,8 @@ import WafDataTable from "@/components/waf/WafDataTable";
 import type { WafRecommendation } from "@/types";
 
 const recs: WafRecommendation[] = [
-  { canonical_id: 1, matrix_code: "2.1", pillar_number: 2, review_scope_es: "MFA admins", business_impact: "High", resource_count: 18, completion_pct: 20 },
-  { canonical_id: 2, matrix_code: "5.1", pillar_number: 5, review_scope_es: "Reserved Instances", business_impact: "High", resource_count: 31, completion_pct: 10 },
+  { canonical_id: 1, matrix_code: "2.1", pillar_number: 2, review_scope_es: "MFA admins", business_impact: "High", resource_count: 18, completion_pct: 20, remediation_end_date: "2026-08-15" },
+  { canonical_id: 2, matrix_code: "5.1", pillar_number: 5, review_scope_es: "Reserved Instances", business_impact: "High", resource_count: 31, completion_pct: 10, remediation_end_date: null },
 ];
 
 const pillarNames = { 2: "Seguridad", 5: "Costos" };
@@ -28,7 +28,12 @@ test("el buscador global filtra por código o ámbito", () => {
 
 test("ofrece el botón de filtro en todas las columnas", () => {
   render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
-  for (const name of ["Código", "Pilar", "Ámbito", "Impacto", "Recursos", "Avance"]) {
+  for (const name of ["Código", "Pilar", "Ámbito", "Impacto", "Recursos", "Avance", "Fecha de cierre"]) {
     expect(screen.getByRole("button", { name: `Filtrar ${name}` })).toBeInTheDocument();
   }
+});
+
+test("muestra la fecha de cierre formateada (y — cuando no hay)", () => {
+  render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
+  expect(screen.getByText("15/08/2026")).toBeInTheDocument();
 });

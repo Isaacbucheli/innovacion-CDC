@@ -18,6 +18,13 @@ import type { WafRecommendation } from "@/types";
 
 const col = createColumnHelper<WafRecommendation>();
 
+// Formatea "yyyy-MM-dd" a "dd/MM/yyyy" sin construir Date (evita corrimiento por zona horaria).
+function fmtDate(iso: string | null): string {
+  if (!iso) return "—";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+}
+
 const textFilter = textColumnFilter<WafRecommendation>;
 // Impacto se filtra contra la etiqueta en español (Alta/Media/Baja), no contra "high/medium/low".
 const impactFilter = labelColumnFilter<WafRecommendation>((raw) => impactMeta(raw as string | null).label);
@@ -60,6 +67,10 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
           <span className="text-xs text-muted-foreground tabular-nums">{c.getValue()}%</span>
         </div>
       ),
+    }),
+    col.accessor("remediation_end_date", {
+      header: "Fecha de cierre", filterFn: textFilter, sortingFn: "basic",
+      cell: (c) => <span className="tabular-nums text-xs text-muted-foreground">{fmtDate(c.getValue())}</span>,
     }),
     ];
   }, [pillarNames]);

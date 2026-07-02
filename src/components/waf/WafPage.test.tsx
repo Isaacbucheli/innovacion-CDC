@@ -8,7 +8,7 @@ const mockUseWafState = {
   clientId: 3 as number | null,
   summary: { client_id: 3, recommendations: 1, active_recommendations: 1, cost_recommendations: 0, active_findings: 2, latest_ingestion: null },
   sections: [{ section_num: 5, section_name: "Costos", total_recs: 1, total_resources: 2, avg_progress: 10, high_recs: 1, medium_recs: 0 }],
-  recommendations: [{ canonical_id: 9, matrix_code: "5.1", pillar_number: 5, review_scope_es: "RI", business_impact: "High", resource_count: 2, completion_pct: 10 }],
+  recommendations: [{ canonical_id: 9, matrix_code: "5.1", pillar_number: 5, review_scope_es: "RI", business_impact: "High", resource_count: 2, completion_pct: 10, remediation_end_date: null }],
   pillarNames: { 5: "Costos" },
   loading: false,
   dataLoading: false,
@@ -27,7 +27,7 @@ beforeEach(() => {
   mockUseWafState.clientId = 3;
   mockUseWafState.summary = { client_id: 3, recommendations: 1, active_recommendations: 1, cost_recommendations: 0, active_findings: 2, latest_ingestion: null };
   mockUseWafState.sections = [{ section_num: 5, section_name: "Costos", total_recs: 1, total_resources: 2, avg_progress: 10, high_recs: 1, medium_recs: 0 }];
-  mockUseWafState.recommendations = [{ canonical_id: 9, matrix_code: "5.1", pillar_number: 5, review_scope_es: "RI", business_impact: "High", resource_count: 2, completion_pct: 10 }];
+  mockUseWafState.recommendations = [{ canonical_id: 9, matrix_code: "5.1", pillar_number: 5, review_scope_es: "RI", business_impact: "High", resource_count: 2, completion_pct: 10, remediation_end_date: null }];
   mockUseWafState.pillarNames = { 5: "Costos" };
   mockUseWafState.loading = false;
   mockUseWafState.dataLoading = false;
