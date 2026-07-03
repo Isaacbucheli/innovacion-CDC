@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
-import WafClientHeader from "@/components/waf/WafClientHeader";
+import ClientHeader from "@/components/ClientHeader";
 import DataTablePagination from "@/components/DataTablePagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePagedRows } from "@/hooks/usePagedRows";
@@ -43,7 +43,7 @@ export default function IngestionsPage({ onNavigate }: { onNavigate?: (key: stri
   return (
     <AppShell title="Historial de ingestas" subtitle="Matriz mejoras Azure · cargas de Advisor/Excel"
       active="waf-ingestions" onNavigate={onNavigate}
-      headerRight={<WafClientHeader clients={clients} clientId={clientId} onSelect={selectClient} />}>
+      headerRight={<ClientHeader clients={clients} clientId={clientId} onSelect={selectClient} />}>
       <BusyOverlay show={loading} title="Cargando historial" />
       <div className="rounded-xl border bg-card overflow-hidden">
         <Table>

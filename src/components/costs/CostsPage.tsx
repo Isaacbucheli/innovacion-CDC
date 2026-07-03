@@ -16,7 +16,7 @@ import SubscriptionFilter from "@/components/costs/SubscriptionFilter";
 import InventorySummary from "@/components/costs/InventorySummary";
 import CoverageTab from "@/components/costs/CoverageTab";
 import CalculateDialog from "@/components/costs/CalculateDialog";
-import ClientCombobox from "@/components/costs/ClientCombobox";
+import ClientHeader from "@/components/ClientHeader";
 import ImportDialog from "@/components/costs/ImportDialog";
 import OptionsMenu from "@/components/costs/OptionsMenu";
 import ManualCostDialog from "@/components/costs/ManualCostDialog";
@@ -236,7 +236,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
     }
   }
 
-  const clientSelect = <ClientCombobox clients={clients} value={clientId} onChange={selectClient} />;
+  const clientSelect = <ClientHeader clients={clients} clientId={clientId} onSelect={selectClient} />;
 
   return (
     <AppShell

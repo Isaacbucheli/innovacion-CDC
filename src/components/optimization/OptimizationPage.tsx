@@ -5,7 +5,7 @@ import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import ClientCombobox from "@/components/costs/ClientCombobox";
+import ClientHeader from "@/components/ClientHeader";
 import OptimizationKpis from "@/components/optimization/OptimizationKpis";
 import SavingsDonut from "@/components/optimization/SavingsDonut";
 import FindingsGroup from "@/components/optimization/FindingsGroup";
@@ -48,7 +48,7 @@ export default function OptimizationPage({ onNavigate }: { onNavigate?: (s: stri
     }
   }
 
-  const clientSelect = <ClientCombobox clients={clients} value={clientId} onChange={selectClient} disabled={busy} />;
+  const clientSelect = <ClientHeader clients={clients} clientId={clientId} onSelect={selectClient} disabled={busy} />;
 
   return (
     <AppShell

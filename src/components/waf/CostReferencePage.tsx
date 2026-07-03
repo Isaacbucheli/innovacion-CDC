@@ -8,7 +8,7 @@ import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
 import DataTablePagination from "@/components/DataTablePagination";
 import DataTableColumnHeader from "@/components/DataTableColumnHeader";
-import WafClientHeader from "@/components/waf/WafClientHeader";
+import ClientHeader from "@/components/ClientHeader";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
@@ -127,7 +127,7 @@ export default function CostReferencePage({ onNavigate }: { onNavigate?: (key: s
   return (
     <AppShell title="Costo referencial Azure" subtitle="Matriz mejoras Azure · estimación con tarifas públicas"
       active="waf-cost" onNavigate={onNavigate}
-      headerRight={<WafClientHeader clients={clients} clientId={clientId} onSelect={selectClient} />}>
+      headerRight={<ClientHeader clients={clients} clientId={clientId} onSelect={selectClient} />}>
       <BusyOverlay show={loading} title="Cargando costo referencial" />
       {data && !data.has_cost_data ? (
         <p className="text-sm text-muted-foreground">{data.message ?? "Este cliente aún no tiene costos calculados."}</p>

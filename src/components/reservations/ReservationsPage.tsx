@@ -7,7 +7,7 @@ import {
 import { CalendarClock, CalendarX, Columns3, Layers, Gauge, Download, RefreshCw, MoreHorizontal, Rows3, Rows4 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
-import WafClientHeader from "@/components/waf/WafClientHeader";
+import ClientHeader from "@/components/ClientHeader";
 import DataTablePagination from "@/components/DataTablePagination";
 import DataTableColumnHeader from "@/components/DataTableColumnHeader";
 import ReservationDetailDialog from "@/components/reservations/ReservationDetailDialog";
@@ -207,7 +207,7 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
   return (
     <AppShell title="Reservas por vencer" subtitle="Gestión CDC · reservas de capacidad Azure"
       active="reservations" onNavigate={onNavigate}
-      headerRight={<WafClientHeader clients={clients} clientId={clientId} onSelect={selectClient} disabled={loading || utilPending > 0} />}>
+      headerRight={<ClientHeader clients={clients} clientId={clientId} onSelect={selectClient} disabled={loading || utilPending > 0} />}>
       <BusyOverlay show={loading} title="Cargando reservas" />
       <div className="space-y-5">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

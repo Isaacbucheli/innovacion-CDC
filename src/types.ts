@@ -130,6 +130,7 @@ export interface Scenario {
 export interface ClientSummary {
   client_id: number;
   client_name: string;
+  has_logo?: boolean;
 }
 
 /** Cliente con metadatos de administración (GET /clients, backend .NET). */

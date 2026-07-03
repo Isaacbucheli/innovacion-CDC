@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { FileText, RefreshCw } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
-import WafClientHeader from "@/components/waf/WafClientHeader";
+import ClientHeader from "@/components/ClientHeader";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ReportView from "@/components/reports/ReportView";
@@ -106,7 +106,7 @@ export default function ReportPage({ onNavigate }: { onNavigate?: (key: string) 
   return (
     <AppShell title="Informe de gestión mensual" subtitle="Informes · resumen mensual de la plataforma"
       active="report" onNavigate={onNavigate}
-      headerRight={<WafClientHeader clients={clients} clientId={clientId} onSelect={selectClient} />}>
+      headerRight={<ClientHeader clients={clients} clientId={clientId} onSelect={selectClient} />}>
       <BusyOverlay show={loading} title="Cargando" />
       <BusyOverlay show={activelyGenerating} title="Generando informe" detail={genMsg || "Puede tardar varios minutos; no cierres la ventana."} />
       <div className="space-y-5">

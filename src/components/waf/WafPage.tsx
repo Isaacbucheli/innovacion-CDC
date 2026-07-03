@@ -1,7 +1,7 @@
 import { useState } from "react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
-import WafClientHeader from "@/components/waf/WafClientHeader";
+import ClientHeader from "@/components/ClientHeader";
 import WafKpis from "@/components/waf/WafKpis";
 import PillarCards from "@/components/waf/PillarCards";
 import WafDataTable from "@/components/waf/WafDataTable";
@@ -34,7 +34,7 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
 
   return (
     <AppShell title="Recomendaciones" subtitle="Matriz mejoras Azure · Well-Architected" active="waf" onNavigate={onNavigate}
-      headerRight={<WafClientHeader clients={waf.clients} clientId={waf.clientId} onSelect={waf.selectClient} />}>
+      headerRight={<ClientHeader clients={waf.clients} clientId={waf.clientId} onSelect={waf.selectClient} />}>
       <BusyOverlay show={waf.loading || waf.dataLoading} title="Cargando recomendaciones" />
       <div className="space-y-5">
         {waf.clientId != null && <WafActions clientId={waf.clientId} onChanged={waf.reloadData} />}
