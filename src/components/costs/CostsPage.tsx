@@ -166,14 +166,22 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
 
   async function doRefreshPower() {
     if (!analysis) return;
-    setBusyMsg({ title: "Actualizando encendido/apagado", detail: "Leyendo el Activity Log del mes anterior…" });
+    setBusyMsg({
+      title: "Actualizando encendido/apagado",
+      detail: "Procesando encendido/apagado… (puede tardar unos minutos)",
+    });
     setBusy(true);
     try {
-      await refreshPowerHistory(analysis.analysis_id);
-      const finalStatus = await pollPowerHistory(analysis.analysis_id);
-      const { ok, text } = powerToastMessage(finalStatus);
-      if (ok) toast.success(text); else toast.error(text);
-      reloadData();
+      await refreshPowerHistory(analysis.analysis_id); // encola (202)
+      const status = await pollPowerHistory(analysis.analysis_id);
+      const m = powerToastMessage(status);
+      if (m.ok) {
+        toast.success(m.text);
+        reloadData();
+      } else {
+        toast.error(m.text);
+        if (status.status !== "running") reloadData();
+      }
     } catch (e) {
       toast.error(`Error actualizando encendido/apagado: ${msg(e)}`);
     } finally {
