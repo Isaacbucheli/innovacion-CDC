@@ -25,6 +25,7 @@ import { useCosts } from "@/hooks/useCosts";
 import { applySubscriptionFilter, computeKpis, filterResults, serviceName, subscriptionNames } from "@/lib/costs";
 import { categoryOf } from "@/lib/finops";
 import { bestEffortRefresh, runCalculation } from "@/lib/costActions";
+import { pollPowerHistory, powerToastMessage } from "@/lib/powerHistory";
 import {
   clearPriceCache,
   downloadFromApi,
@@ -45,13 +46,6 @@ const RI_SOURCE_LABELS: Record<string, string> = {
   no_reservations: "sin reservas activas",
   no_analysis: "sin análisis",
   error: "error de lectura",
-};
-
-const POWER_SOURCE_LABELS: Record<string, string> = {
-  activity_log: "Activity Log de Azure",
-  no_events: "sin eventos de encendido/apagado en el periodo",
-  no_vms: "sin VMs en el análisis",
-  no_analysis: "sin análisis",
 };
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : "Error inesperado");
@@ -175,12 +169,10 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
     setBusyMsg({ title: "Actualizando encendido/apagado", detail: "Leyendo el Activity Log del mes anterior…" });
     setBusy(true);
     try {
-      const data = await refreshPowerHistory(analysis.analysis_id);
-      const period = (data.period_start ?? "").slice(0, 7);
-      const src = POWER_SOURCE_LABELS[data.source ?? ""] ?? data.source ?? "";
-      toast.success(
-        `Encendido/apagado: ${data.updated_count ?? 0} VM(s) actualizadas${period ? ` (periodo ${period})` : ""}. Fuente: ${src}.`,
-      );
+      await refreshPowerHistory(analysis.analysis_id);
+      const finalStatus = await pollPowerHistory(analysis.analysis_id);
+      const { ok, text } = powerToastMessage(finalStatus);
+      if (ok) toast.success(text); else toast.error(text);
       reloadData();
     } catch (e) {
       toast.error(`Error actualizando encendido/apagado: ${msg(e)}`);
