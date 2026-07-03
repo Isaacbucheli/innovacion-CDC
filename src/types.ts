@@ -227,6 +227,21 @@ export interface PowerHistoryResult {
   source?: string;
 }
 
+/** Respuesta del POST .../power-history/refresh (202, encolado). */
+export interface PowerHistoryEnqueue {
+  status: string;
+  message?: string;
+}
+
+/** Estado del job de encendido/apagado (GET .../power-history/status). */
+export interface PowerHistoryJobStatus {
+  status: string; // "none" | "running" | "completed" | "failed"
+  started_at?: string | null;
+  finished_at?: string | null;
+  summary?: PowerHistoryResult | null;
+  error?: string | null;
+}
+
 /** Fila del resumen de inventario (GET /azure/import/inventory/{id}/summary). */
 export interface InventoryRow {
   service_category: string | null;

@@ -201,3 +201,11 @@ describe("WAF api", () => {
     expect(JSON.parse((calls[0][1] as RequestInit).body as string)).toEqual({ limit: 50, apply: true });
   });
 });
+
+test("getPowerHistoryStatus arma la URL de status", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ status: "none" }), { status: 200, headers: { "Content-Type": "application/json" } })));
+  const { getPowerHistoryStatus } = await import("@/lib/api");
+  await getPowerHistoryStatus(5);
+  const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
+  expect(calls[0][0]).toContain("/analysis/5/power-history/status");
+});

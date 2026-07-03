@@ -12,7 +12,8 @@ import type {
   FinOpsRefreshStatus,
   InventoryRow,
   KqlQuery,
-  PowerHistoryResult,
+  PowerHistoryEnqueue,
+  PowerHistoryJobStatus,
   RiCoverageResult,
   Role,
   Scenario,
@@ -202,7 +203,9 @@ export const setManualCost = (
 export const refreshRiCoverage = (analysisId: number) =>
   request<RiCoverageResult>(`/analysis/${analysisId}/ri-coverage/refresh`, { method: "POST" });
 export const refreshPowerHistory = (analysisId: number) =>
-  request<PowerHistoryResult>(`/analysis/${analysisId}/power-history/refresh`, { method: "POST" });
+  request<PowerHistoryEnqueue>(`/analysis/${analysisId}/power-history/refresh`, { method: "POST" });
+export const getPowerHistoryStatus = (analysisId: number) =>
+  request<PowerHistoryJobStatus>(`/analysis/${analysisId}/power-history/status`);
 export const clearPriceCache = () =>
   request<{ removed_rows?: number; message?: string }>(`/prices/refresh-all`, { method: "POST" });
 export const importInventory = (analysisId: number, body: { services: string[]; replace_existing: boolean }) =>
