@@ -209,3 +209,39 @@ test("getPowerHistoryStatus arma la URL de status", async () => {
   const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
   expect(calls[0][0]).toContain("/analysis/5/power-history/status");
 });
+
+describe("Optimización api", () => {
+  it("runOptimizationScan POST a /optimization/clients/{id}/scan", async () => {
+    const spy = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", spy);
+    const { runOptimizationScan } = await import("@/lib/api");
+    await runOptimizationScan(6);
+    const calls = (spy as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0]).toContain("/optimization/clients/6/scan");
+    expect((calls[0][1] as RequestInit).method).toBe("POST");
+  });
+  it("getScanFindings arma la URL del scan", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("[]", { status: 200 })));
+    const { getScanFindings } = await import("@/lib/api");
+    await getScanFindings(42);
+    const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0]).toContain("/optimization/scans/42/findings");
+  });
+  it("listOptimizationScans arma la URL del historial", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("[]", { status: 200 })));
+    const { listOptimizationScans } = await import("@/lib/api");
+    await listOptimizationScans(6);
+    const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0]).toContain("/optimization/clients/6/scans");
+  });
+  it("updateFindingState PUT con estado y nota en el body", async () => {
+    const spy = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", spy);
+    const { updateFindingState } = await import("@/lib/api");
+    await updateFindingState("abcd", "resuelto", "ya migrado");
+    const calls = (spy as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0]).toContain("/optimization/findings/abcd/state");
+    expect((calls[0][1] as RequestInit).method).toBe("PUT");
+    expect(JSON.parse((calls[0][1] as RequestInit).body as string)).toEqual({ state: "resuelto", notes: "ya migrado" });
+  });
+});

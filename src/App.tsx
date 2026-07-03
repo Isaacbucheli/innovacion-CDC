@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/sonner";
 // home + login) no arrastra librerías pesadas como Recharts (informes) o cmdk
 // (paleta del catálogo) hasta que hacen falta. HomePage queda eager (es el landing).
 const CostsPage = lazy(() => import("@/components/costs/CostsPage"));
+const OptimizationPage = lazy(() => import("@/components/optimization/OptimizationPage"));
 const ClientsPage = lazy(() => import("@/components/clients/ClientsPage"));
 const WafPage = lazy(() => import("@/components/waf/WafPage"));
 const CostReferencePage = lazy(() => import("@/components/waf/CostReferencePage"));
@@ -50,6 +51,8 @@ export default function App() {
         <Suspense fallback={<BusyOverlay show title="Cargando…" />}>
           {section === "costos" ? (
             <CostsPage onNavigate={navigate} />
+          ) : section === "optimization" ? (
+            <OptimizationPage onNavigate={navigate} />
           ) : section === "clientes" ? (
             <ClientsPage onNavigate={navigate} />
           ) : section === "waf" ? (

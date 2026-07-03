@@ -620,6 +620,51 @@ export interface ReservationConsumer {
   days_seen?: number | null;
 }
 
+// ---- Optimización Azure (barrido del tenant) ----
+export type FindingState = "abierto" | "en_progreso" | "resuelto" | "ignorado";
+
+/** Hallazgo del barrido (GET /optimization/scans/{id}/findings). */
+export interface OptFinding {
+  check_id: string;
+  category: string; // "cost_waste" | "governance"
+  severity: string; // "high" | "medium" | "low"
+  subscription_id: string;
+  azure_resource_id: string;
+  resource_name: string | null;
+  resource_type: string | null;
+  region: string | null;
+  details: Record<string, unknown>;
+  estimated_monthly_savings: number | null;
+  currency: string;
+  fingerprint: string; // hex
+  state: FindingState;
+  notes: string | null;
+}
+
+/** Barrido histórico (GET /optimization/clients/{id}/scans). */
+export interface OptScan {
+  scan_id: number;
+  started_at: string;
+  finished_at: string | null;
+  status: string; // "running" | "completed" | "failed"
+  subscriptions_scanned: number;
+  findings_count: number;
+  total_estimated_monthly_savings: number | null;
+  currency: string;
+}
+
+/** Resumen que devuelve POST /optimization/clients/{id}/scan. */
+export interface OptScanSummary {
+  scan_id: number;
+  findings_count: number;
+  subscriptions_scanned: number;
+  total_estimated_monthly_savings: number;
+  errors: unknown[];
+  new: number;
+  persisting: number;
+  auto_resolved: number;
+}
+
 // El JSON del informe es amplio; se tipa por secciones a medida que se implementan.
 export interface MonthlyReport {
   schema_version?: number;

@@ -1,6 +1,6 @@
 import {
   Coins, Award, Sparkles, History, Wallet, FileText, CalendarClock, Bell,
-  Building2, Users, Boxes, type LucideIcon,
+  Building2, Users, Boxes, Radar, type LucideIcon,
 } from "lucide-react";
 
 import { azIcon } from "@/lib/azureIcons";
@@ -22,6 +22,7 @@ export interface ModuleGroup { group: string; items: ModuleItem[] }
 export const MODULE_GROUPS: ModuleGroup[] = [
   { group: "Matriz costos Azure", items: [
     { key: "costos", label: "Optimización de costos", desc: "Matriz de costos y escenarios de ahorro.", icon: Coins, azureIcon: AZ("cost-management") },
+    { key: "optimization", label: "Oportunidades de Optimización", desc: "Recomendaciones de costo y gobernanza del tenant.", icon: Radar, azureIcon: AZ("cost-analysis") },
     { key: "service-catalog", label: "Catálogo de servicios", desc: "Servicios Azure que alimentan el costeo.", icon: Boxes, azureIcon: AZ("resources") },
   ] },
   { group: "Matriz mejoras Azure", items: [

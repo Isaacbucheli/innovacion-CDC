@@ -53,6 +53,10 @@ import type {
   CredentialAudit,
   SubscriptionSyncSummary,
   PublicUser,
+  OptFinding,
+  OptScan,
+  OptScanSummary,
+  FindingState,
 } from "@/types";
 import { clearSession, getToken, setSession } from "@/lib/auth";
 
@@ -386,6 +390,20 @@ export const generateReport = (clientId: number, body: { year: number; month: nu
 /** Descarga el informe en Word (.docx) con autenticación. */
 export const downloadReportWord = (clientId: number, year: number, month: number, fileName: string) =>
   downloadFromApi(`/reports/clients/${clientId}/${year}/${month}/export/word`, fileName);
+
+// ---- Optimización Azure (barrido del tenant) ----
+export const getOptimizationAccess = () =>
+  request<{ allowed: boolean }>("/optimization/access");
+export const runOptimizationScan = (clientId: number) =>
+  request<OptScanSummary>(`/optimization/clients/${clientId}/scan`, { method: "POST" });
+export const listOptimizationScans = (clientId: number) =>
+  request<OptScan[]>(`/optimization/clients/${clientId}/scans`);
+export const getScanFindings = (scanId: number) =>
+  request<OptFinding[]>(`/optimization/scans/${scanId}/findings`);
+export const updateFindingState = (fingerprint: string, state: FindingState, notes?: string | null) =>
+  request<{ fingerprint: string; state: string }>(
+    `/optimization/findings/${fingerprint}/state`, jsonOpts("PUT", { state, notes: notes ?? null }),
+  );
 
 // ---- Reservas Azure por vencer (Gestión CDC) ----
 export const getReservations = (clientId: number, alertDays = 30, includeUtilization = false) =>

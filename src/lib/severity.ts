@@ -3,9 +3,9 @@ export type SeverityKey = "critical" | "high" | "medium" | "low" | "info";
 export function severityKey(sev: string | null): SeverityKey {
   const s = (sev ?? "").toUpperCase();
   if (s.includes("CRÍT") || s.includes("CRIT")) return "critical";
-  if (s.startsWith("ALT")) return "high";
-  if (s.startsWith("MED")) return "medium";
-  if (s.startsWith("BAJ")) return "low";
+  if (s.startsWith("ALT") || s.startsWith("HIGH")) return "high";
+  if (s.startsWith("MED")) return "medium"; // MEDIA (es) y MEDIUM (en) empiezan por MED
+  if (s.startsWith("BAJ") || s.startsWith("LOW")) return "low";
   return "info";
 }
 

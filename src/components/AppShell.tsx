@@ -18,6 +18,9 @@ const MENU: Group[] = [
     icon: azIcon("cost-management"),
     items: [
       { label: "Optimización de costos", section: "costos" },
+      // Convive con la matriz de costos. El acceso lo gatea el backend (rol + lista blanca de
+      // emails); la propia vista muestra "módulo no disponible" si el usuario no está autorizado.
+      { label: "Oportunidades de Optimización", section: "optimization" },
       { label: "Catálogo de servicios", section: "service-catalog" },
     ],
   },

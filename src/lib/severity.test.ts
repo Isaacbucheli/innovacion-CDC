@@ -9,3 +9,9 @@ test("mapea severidades en español a claves", () => {
   expect(severityKey("desconocida")).toBe("info");
   expect(severityKey(null)).toBe("info");
 });
+
+test("mapea severidades en inglés del backend de optimización", () => {
+  expect(severityKey("high")).toBe("high");
+  expect(severityKey("medium")).toBe("medium");
+  expect(severityKey("low")).toBe("low");
+});
