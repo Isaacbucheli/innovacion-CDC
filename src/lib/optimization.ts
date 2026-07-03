@@ -16,6 +16,7 @@ export interface CheckMeta {
 /** Mapa check_id → metadata de presentación. Espejo de OptimizationChecks.Registered (.NET). */
 export const CHECK_META: Record<string, CheckMeta> = {
   vms_without_ahb: { title: "Azure Hybrid Benefit no aplicado", section: "rate", group: "ahb" },
+  underutilized_vms: { title: "VMs subutilizadas (right-sizing)", section: "usage", group: "compute" },
   stopped_not_deallocated_vms: { title: "VMs detenidas no desasignadas", section: "usage", group: "compute" },
   long_deallocated_vms: { title: "VMs desasignadas (posibles olvidadas)", section: "usage", group: "compute" },
   empty_app_service_plans: { title: "App Service Plans sin aplicaciones", section: "usage", group: "compute" },
