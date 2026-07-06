@@ -6,6 +6,7 @@ import CredentialFormDialog from "@/components/credentials/CredentialFormDialog"
 import RotateSecretDialog from "@/components/credentials/RotateSecretDialog";
 import CredentialAuditSheet from "@/components/credentials/CredentialAuditSheet";
 import LighthouseConnectCard from "@/components/credentials/LighthouseConnectCard";
+import LighthouseClientPicker from "@/components/credentials/LighthouseClientPicker";
 import DataTablePagination from "@/components/DataTablePagination";
 import { Button } from "@/components/ui/button";
 import { usePagedRows } from "@/hooks/usePagedRows";
@@ -111,8 +112,11 @@ export default function CredentialsManager({ clientId }: { clientId: number }) {
       />
       <div className="space-y-8">
         <LighthouseConnectCard onConnected={() => setLighthousePickerOpen(true)} />
-        {/* Task 11: LighthouseClientPicker consumirá lighthousePickerOpen/setLighthousePickerOpen */}
-        {lighthousePickerOpen && null}
+        <LighthouseClientPicker
+          open={lighthousePickerOpen}
+          onOpenChange={setLighthousePickerOpen}
+          onLinked={reload}
+        />
 
         {/* Credenciales */}
         <section className="space-y-3">
