@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { MoreHorizontal, Plus, RefreshCw } from "lucide-react";
+import { Cloud, MoreHorizontal, Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import SearchInput from "@/components/SearchInput";
 import { Skeleton } from "@/components/ui/skeleton";
 import ClientCard from "@/components/clients/ClientCard";
@@ -12,6 +13,8 @@ import ClientFormDialog from "@/components/clients/ClientFormDialog";
 import ClientDangerDialog, { type DangerMode } from "@/components/clients/ClientDangerDialog";
 import ClientLogoDialog from "@/components/clients/ClientLogoDialog";
 import ClientCredentialsDialog from "@/components/clients/ClientCredentialsDialog";
+import LighthouseConnectCard from "@/components/credentials/LighthouseConnectCard";
+import LighthouseClientPicker from "@/components/credentials/LighthouseClientPicker";
 import AdvisorScoreDialog from "@/components/waf/AdvisorScoreDialog";
 import DataTablePagination from "@/components/DataTablePagination";
 import { useClients } from "@/hooks/useClients";
@@ -35,6 +38,11 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
   const [credClient, setCredClient] = useState<ClientAdmin | null>(null);
   const [scoreClient, setScoreClient] = useState<ClientAdmin | null>(null);
   const [scoreAllOpen, setScoreAllOpen] = useState(false);
+  // Cliente temporal (Lighthouse): flujo independiente de cualquier cliente, disparado
+  // desde el menú Opciones (no dentro del detalle de un cliente).
+  const [lighthouseOpen, setLighthouseOpen] = useState(false);
+  const [lighthousePickerOpen, setLighthousePickerOpen] = useState(false);
+  const [lighthouseReprobe, setLighthouseReprobe] = useState(0);
   const [busy, setBusy] = useState(false);
   const [scoreProgress, setScoreProgress] = useState<string | undefined>(undefined);
   const [danger, setDanger] = useState<{ mode: DangerMode; client: ClientAdmin } | null>(null);
@@ -137,6 +145,9 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
                   <DropdownMenuItem onClick={() => setScoreAllOpen(true)}>
                     <RefreshCw className="w-4 h-4 mr-2" /> Sincronizar Advisor Score (todos)
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLighthouseOpen(true)}>
+                    <Cloud className="w-4 h-4 mr-2" /> Cliente temporal (Lighthouse)
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -185,6 +196,25 @@ export default function ClientsPage({ onNavigate }: { onNavigate?: (s: string) =
         open={credClient !== null}
         client={credClient}
         onOpenChange={(o) => !o && setCredClient(null)}
+      />
+
+      {/* Cliente temporal (Lighthouse): conectar cuenta Azure → elegir clientes delegados → vincular. */}
+      <Dialog open={lighthouseOpen} onOpenChange={setLighthouseOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Cliente temporal (Lighthouse)</DialogTitle></DialogHeader>
+          <LighthouseConnectCard
+            embedded
+            reprobeSignal={lighthouseReprobe}
+            onConnected={() => { setLighthouseOpen(false); setLighthousePickerOpen(true); }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <LighthouseClientPicker
+        open={lighthousePickerOpen}
+        onOpenChange={setLighthousePickerOpen}
+        onLinked={() => reload()}
+        onSessionLost={() => setLighthouseReprobe((n) => n + 1)}
       />
 
       <AdvisorScoreDialog

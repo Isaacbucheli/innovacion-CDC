@@ -15,12 +15,15 @@ function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
  * Si el endpoint no existe o el usuario no tiene permiso (404/403), no se muestra nada
  * (feature apagado / fuera de alcance para este usuario).
  */
-export default function LighthouseConnectCard({ onConnected, reprobeSignal }: {
+export default function LighthouseConnectCard({ onConnected, reprobeSignal, embedded = false }: {
   onConnected: () => void;
   /** Al cambiar de valor, vuelve a consultar el estado de la sesión (ver Finding 1:
    * el picker detecta sesión expirada server-side y pide re-probar para que esta
    * tarjeta deje de mostrar "Conectado como…" con un botón muerto). */
   reprobeSignal?: number;
+  /** true cuando vive dentro de un diálogo (Opciones → Cliente temporal): sin borde
+   * propio para no dibujar una tarjeta-dentro-de-diálogo. */
+  embedded?: boolean;
 }) {
   const [hidden, setHidden] = useState(false);
   const [session, setSession] = useState<AzureUserSession | null>(null);
@@ -91,11 +94,11 @@ export default function LighthouseConnectCard({ onConnected, reprobeSignal }: {
   const status = session?.status ?? "none";
 
   return (
-    <div className="rounded-xl border p-4 space-y-3">
+    <div className={embedded ? "space-y-3" : "rounded-xl border p-4 space-y-3"}>
       {status === "authenticated" ? (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="font-medium">Cliente temporal (Lighthouse)</div>
+            {!embedded && <div className="font-medium">Cliente temporal (Lighthouse)</div>}
             <div className="text-sm text-muted-foreground truncate">
               Conectado como <span className="font-medium text-foreground">{session?.azure_upn}</span>
             </div>
@@ -110,7 +113,7 @@ export default function LighthouseConnectCard({ onConnected, reprobeSignal }: {
       ) : (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="font-medium">Cliente temporal (Lighthouse)</div>
+            {!embedded && <div className="font-medium">Cliente temporal (Lighthouse)</div>}
             <p className="text-sm text-muted-foreground">
               Conecta tu cuenta Azure para ver los clientes delegados y correr una optimización sin app registration.
             </p>
