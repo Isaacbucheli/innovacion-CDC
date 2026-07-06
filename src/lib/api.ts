@@ -1,6 +1,7 @@
 import type {
   Alert,
   AnalysisSummary,
+  AzureUserSession,
   CalculateRequest,
   CalculateResponse,
   ClientAdmin,
@@ -12,6 +13,8 @@ import type {
   FinOpsRefreshStatus,
   InventoryRow,
   KqlQuery,
+  LighthouseClientGroup,
+  LighthouseLinkResult,
   PowerHistoryEnqueue,
   PowerHistoryJobStatus,
   RiCoverageResult,
@@ -414,3 +417,35 @@ export const getReservationUtilization = (clientId: number, credentialId: number
 export const getReservationConsumers = (clientId: number, credentialId: number, reservationId: string, days = 30) =>
   request<{ consumers: ReservationConsumer[]; source: string; count: number; days: number }>(
     `/cdc/clients/${clientId}/reservation-consumers?credential_id=${credentialId}&reservation_id=${encodeURIComponent(reservationId)}&days=${days}`);
+
+// ---- Sesión Azure de usuario (Lighthouse: device code + selección de suscripciones) ----
+export async function startAzureUserSession(): Promise<AzureUserSession> {
+  return request<AzureUserSession>("/azure/user-sessions", { method: "POST" });
+}
+
+export async function getAzureUserSession(): Promise<AzureUserSession> {
+  return request<AzureUserSession>("/azure/user-sessions/current");
+}
+
+export async function disconnectAzureUserSession(): Promise<void> {
+  await request<unknown>("/azure/user-sessions/current", { method: "DELETE" });
+}
+
+export async function getLighthouseClients(refresh = false): Promise<LighthouseClientGroup[]> {
+  return request<LighthouseClientGroup[]>(
+    `/azure/user-sessions/current/clients${refresh ? "?refresh=true" : ""}`,
+  );
+}
+
+export async function linkLighthouseSelection(body: {
+  client_id?: number;
+  new_client_name?: string;
+  tenant_id: string;
+  subscriptions: { subscription_id: string; display_name?: string | null }[];
+}): Promise<LighthouseLinkResult> {
+  return request<LighthouseLinkResult>("/azure/user-sessions/current/link", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}

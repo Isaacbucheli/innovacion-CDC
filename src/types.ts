@@ -376,6 +376,32 @@ export interface SubscriptionSyncSummary {
   errors?: { credential_id?: number; credential_name?: string; error?: string }[];
 }
 
+// ---- Sesión Azure de usuario (Lighthouse: device code + selección de suscripciones) ----
+export interface AzureUserSession {
+  status: "none" | "pending_device" | "authenticated" | "failed" | "expired";
+  user_code?: string | null;
+  verification_url?: string | null;
+  azure_upn?: string | null;
+  error?: string | null;
+}
+
+export interface LighthouseSubscription {
+  subscription_id: string;
+  display_name?: string | null;
+}
+
+export interface LighthouseClientGroup {
+  tenant_id: string;
+  client_name: string;
+  subscriptions: LighthouseSubscription[];
+}
+
+export interface LighthouseLinkResult {
+  client_id: number;
+  credential_id: number;
+  subscriptions_linked: number;
+}
+
 /** Request de sync con Azure Advisor (POST /waf/clients/{id}/advisor-sync). */
 export interface WafAdvisorSyncRequest {
   subscriptions: string[];
