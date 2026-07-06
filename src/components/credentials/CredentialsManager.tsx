@@ -41,6 +41,10 @@ export default function CredentialsManager({ clientId }: { clientId: number }) {
   const [audit, setAudit] = useState<Credential | null>(null);
   // Task 11 consume este estado para abrir el selector de clientes Lighthouse.
   const [lighthousePickerOpen, setLighthousePickerOpen] = useState(false);
+  // Se incrementa para forzar que LighthouseConnectCard vuelva a consultar su sesión
+  // (Finding 1: si el picker detecta sesión expirada, la tarjeta debe dejar de mostrar
+  // "Conectado como…" con acciones muertas).
+  const [lighthouseReprobe, setLighthouseReprobe] = useState(0);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
@@ -111,11 +115,21 @@ export default function CredentialsManager({ clientId }: { clientId: number }) {
         }
       />
       <div className="space-y-8">
-        <LighthouseConnectCard onConnected={() => setLighthousePickerOpen(true)} />
+        <LighthouseConnectCard
+          onConnected={() => setLighthousePickerOpen(true)}
+          reprobeSignal={lighthouseReprobe}
+        />
         <LighthouseClientPicker
           open={lighthousePickerOpen}
           onOpenChange={setLighthousePickerOpen}
-          onLinked={reload}
+          onLinked={(linkedClientId) => {
+            // Finding 2: el picker puede vincular un cliente NUEVO o uno EXISTENTE
+            // distinto al que se está viendo aquí. Solo recargamos si es el mismo
+            // cliente; si difiere, el toast de éxito del picker ya avisó al usuario
+            // y la navegación al cliente vinculado queda como follow-up.
+            if (linkedClientId === clientId) reload();
+          }}
+          onSessionLost={() => setLighthouseReprobe((n) => n + 1)}
         />
 
         {/* Credenciales */}

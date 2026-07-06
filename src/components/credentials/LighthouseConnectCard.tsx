@@ -15,7 +15,13 @@ function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
  * Si el endpoint no existe o el usuario no tiene permiso (404/403), no se muestra nada
  * (feature apagado / fuera de alcance para este usuario).
  */
-export default function LighthouseConnectCard({ onConnected }: { onConnected: () => void }) {
+export default function LighthouseConnectCard({ onConnected, reprobeSignal }: {
+  onConnected: () => void;
+  /** Al cambiar de valor, vuelve a consultar el estado de la sesión (ver Finding 1:
+   * el picker detecta sesión expirada server-side y pide re-probar para que esta
+   * tarjeta deje de mostrar "Conectado como…" con un botón muerto). */
+  reprobeSignal?: number;
+}) {
   const [hidden, setHidden] = useState(false);
   const [session, setSession] = useState<AzureUserSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +38,8 @@ export default function LighthouseConnectCard({ onConnected }: { onConnected: ()
       .catch(() => { if (mounted.current) setHidden(true); })
       .finally(() => { if (mounted.current) setLoading(false); });
   }
-  useEffect(() => { probe(); }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { probe(); }, [reprobeSignal]);
 
   async function connect() {
     setConnecting(true);

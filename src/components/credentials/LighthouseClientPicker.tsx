@@ -19,10 +19,16 @@ function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
  * checkboxes por suscripción y vinculación a un cliente bitcost (nuevo o existente).
  * La selección solo puede abarcar UN tenant porque el link (credencial) es por tenant.
  */
-export default function LighthouseClientPicker({ open, onOpenChange, onLinked }: {
+export default function LighthouseClientPicker({ open, onOpenChange, onLinked, onSessionLost }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  onLinked: () => void;
+  /** Recibe el client_id vinculado: quien lo use decide si le corresponde recargar
+   * (ver Finding 2 — el link puede apuntar a un cliente distinto al que se está viendo). */
+  onLinked: (linkedClientId: number) => void;
+  /** Se dispara cuando la carga de clientes delegados falla (típicamente sesión
+   * expirada, 409) para que el llamador pueda re-probar el estado de la tarjeta
+   * de conexión y dejar de mostrar "Conectado como…" con acciones muertas. */
+  onSessionLost?: () => void;
 }) {
   const [groups, setGroups] = useState<LighthouseClientGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +52,7 @@ export default function LighthouseClientPicker({ open, onOpenChange, onLinked }:
         // backend no distingue el código en el cuerpo, así que ante cualquier error
         // de carga tratamos igual — avisamos y cerramos (no hay nada más que mostrar).
         toast.error(msg(e) || "Sesión expirada, vuelve a conectar");
-        if (mounted.current) onOpenChange(false);
+        if (mounted.current) { onOpenChange(false); onSessionLost?.(); }
       })
       .finally(() => { if (mounted.current) { setLoading(false); setRefreshing(false); } });
   }
@@ -88,14 +94,14 @@ export default function LighthouseClientPicker({ open, onOpenChange, onLinked }:
       .map((s) => ({ subscription_id: s.subscription_id, display_name: s.display_name ?? null }));
     setLinking(true);
     try {
-      await linkLighthouseSelection({
+      const result = await linkLighthouseSelection({
         tenant_id: tenantId,
         subscriptions,
         ...(destMode === "new" ? { new_client_name: newName.trim() } : { client_id: Number(existingClientId) }),
       });
       toast.success("Cliente vinculado — ya puedes importar inventario y calcular");
       onOpenChange(false);
-      onLinked();
+      onLinked(result.client_id);
     } catch (e) { toast.error(msg(e)); }
     finally { if (mounted.current) setLinking(false); }
   }
