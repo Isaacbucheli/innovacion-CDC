@@ -22,6 +22,7 @@ import ImportDialog from "@/components/costs/ImportDialog";
 import OptionsMenu from "@/components/costs/OptionsMenu";
 import ManualCostDialog from "@/components/costs/ManualCostDialog";
 import FinOpsRefreshDialog from "@/components/costs/FinOpsRefreshDialog";
+import ExcelExportDialog from "@/components/costs/ExcelExportDialog";
 import { useCosts } from "@/hooks/useCosts";
 import { applySubscriptionFilter, computeKpis, filterResults, serviceName, subscriptionNames } from "@/lib/costs";
 import { applyMarginToResults, applyMarginToScenarios } from "@/lib/margin";
@@ -92,6 +93,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
   const [calcOpen, setCalcOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [finopsOpen, setFinopsOpen] = useState(false);
+  const [excelDialogOpen, setExcelDialogOpen] = useState(false);
   const [manualRow, setManualRow] = useState<CostResult | null>(null);
   const [lookups, setLookups] = useState<FinOpsLookups | null>(null);
 
@@ -240,14 +242,19 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
     }
   }
 
-  async function doExcel() {
+  async function doExcel(exportMarginPct?: number) {
     if (!analysis) return;
     setBusyMsg({ title: "Generando Excel", detail: "Plantilla ejecutiva…" });
     setBusy(true);
     try {
-      const r = await generateExcel(analysis.analysis_id);
-      if (r.download_url) await downloadFromApi(r.download_url, r.file_name || "resultado-optimizacion-costos.xlsx");
-      toast.success("Excel generado y descargado desde la plantilla oficial.");
+      const r = await generateExcel(analysis.analysis_id, exportMarginPct);
+      if (!r.download_url) {
+        toast.error("Error generando Excel: la respuesta no incluyó un archivo para descargar.");
+        return;
+      }
+      await downloadFromApi(r.download_url, r.file_name || "resultado-optimizacion-costos.xlsx");
+      toast.success("Excel generado y descargado.");
+      setExcelDialogOpen(false);
     } catch (e) {
       toast.error(`Error generando Excel: ${msg(e)}`);
     } finally {
@@ -289,7 +296,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
                 Importar inventario
               </Button>
             )}
-            <Button variant="outline" size="sm" disabled={busy || !analysis} onClick={doExcel}>
+            <Button variant="outline" size="sm" disabled={busy || !analysis} onClick={() => setExcelDialogOpen(true)}>
               <Download className="w-4 h-4 mr-1" />
               Exportar Excel
             </Button>
@@ -455,6 +462,13 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
         open={finopsOpen}
         onOpenChange={setFinopsOpen}
         onDone={() => {}}
+      />
+      <ExcelExportDialog
+        open={excelDialogOpen}
+        onOpenChange={setExcelDialogOpen}
+        defaultMarginPct={marginPct}
+        busy={busy}
+        onConfirm={doExcel}
       />
 
       <BusyOverlay
