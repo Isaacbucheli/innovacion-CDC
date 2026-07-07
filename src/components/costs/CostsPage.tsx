@@ -131,7 +131,11 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
   const [visibleCount, setVisibleCount] = useState(marginedRows.length);
   const subNames = useMemo(() => subscriptionNames(results), [results]);
 
-  async function doCalculate(serviceKeys: string[], autoBuild: boolean) {
+  async function doCalculate(
+    serviceKeys: string[],
+    autoBuild: boolean,
+    extras: { uptime: boolean; reservas: boolean } = { uptime: false, reservas: false },
+  ) {
     if (!analysis) return;
     setBusyMsg({ title: "Calculando costos", detail: "Preparando…" });
     setBusy(true);
@@ -139,8 +143,51 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
       await runCalculation(analysis.analysis_id, serviceKeys, { autoBuildScenarios: autoBuild }, (p) =>
         setBusyMsg({ title: "Calculando costos", detail: `${p.service} (${p.index + 1}/${p.total}), bloque ${p.batch}…` }),
       );
-      setBusyMsg({ title: "Afinando resultados", detail: "Actualizando cobertura RI y encendido/apagado…" });
-      await bestEffortRefresh(analysis.analysis_id);
+
+      if (!extras.uptime && !extras.reservas) {
+        // Por defecto (igual que hoy): refresh best-effort silencioso de RI + encola el job de uptime.
+        setBusyMsg({ title: "Afinando resultados", detail: "Actualizando cobertura RI y encendido/apagado…" });
+        await bestEffortRefresh(analysis.analysis_id);
+      } else {
+        // Cobertura RI: completa CON feedback si se pidió; si no, best-effort silencioso (como hoy).
+        setBusyMsg({ title: "Afinando resultados", detail: "Actualizando cobertura RI…" });
+        if (extras.reservas) {
+          try {
+            const data = await refreshRiCoverage(analysis.analysis_id);
+            const est = (data.estimated ?? []).reduce((s, g) => s + (g.estimated_units ?? 0), 0);
+            const src = RI_SOURCE_LABELS[data.source ?? ""] ?? data.source ?? "";
+            toast.success(
+              `Cobertura RI: ${data.confirmed_count ?? 0} confirmados${est ? ` (+${est} estimados por SKU/región)` : ""}. Fuente: ${src}.`,
+            );
+          } catch (e) {
+            toast.error(`Error actualizando cobertura RI: ${msg(e)}`);
+          }
+        } else {
+          try {
+            await refreshRiCoverage(analysis.analysis_id);
+          } catch {
+            /* best-effort: reintentable desde Opciones */
+          }
+        }
+
+        // Encendido/apagado (uptime): SIEMPRE se encola (como hoy); si se pidió, ADEMÁS espera el job y da feedback.
+        try {
+          await refreshPowerHistory(analysis.analysis_id); // encola (202)
+          if (extras.uptime) {
+            setBusyMsg({
+              title: "Calculando encendido/apagado",
+              detail: "Procesando encendido/apagado… (puede tardar unos minutos)",
+            });
+            const status = await pollPowerHistory(analysis.analysis_id);
+            const m = powerToastMessage(status);
+            if (m.ok) toast.success(m.text);
+            else toast.error(m.text);
+          }
+        } catch (e) {
+          if (extras.uptime) toast.error(`Error actualizando encendido/apagado: ${msg(e)}`);
+        }
+      }
+
       toast.success("Costos calculados correctamente.");
       setCalcOpen(false);
       reloadData();

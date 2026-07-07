@@ -15,13 +15,25 @@ export default function CalculateDialog({
   services: ServiceCatalogItem[];
   busy?: boolean;
   onOpenChange: (o: boolean) => void;
-  onConfirm: (serviceKeys: string[], autoBuildScenarios: boolean) => void;
+  onConfirm: (
+    serviceKeys: string[],
+    autoBuildScenarios: boolean,
+    extras: { uptime: boolean; reservas: boolean },
+  ) => void;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [autoBuild, setAutoBuild] = useState(true);
+  // Pasos lentos/opcionales (apagados por defecto): al marcarlos, el cálculo ADEMÁS espera el job
+  // de encendido/apagado y/o cruza la cobertura de reservas con feedback. Ver notas en la UI.
+  const [uptime, setUptime] = useState(false);
+  const [reservas, setReservas] = useState(false);
 
   useEffect(() => {
-    if (open) setSelected(services.map((s) => s.service_key));
+    if (open) {
+      setSelected(services.map((s) => s.service_key));
+      setUptime(false);
+      setReservas(false);
+    }
   }, [open, services]);
 
   const toggle = (key: string) =>
@@ -60,11 +72,38 @@ export default function CalculateDialog({
           <input type="checkbox" checked={autoBuild} onChange={(e) => setAutoBuild(e.target.checked)} />
           Recalcular escenarios con los costos
         </label>
+
+        {/* Pasos opcionales más lentos (apagados por defecto). */}
+        <div className="mt-1 space-y-2 rounded-md border bg-muted/30 p-2">
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input type="checkbox" className="mt-0.5" checked={uptime} onChange={(e) => setUptime(e.target.checked)} />
+            <span>
+              Calcular encendido/apagado (uptime)
+              <span className="block text-xs text-muted-foreground">
+                Usa el Activity Log del mes anterior. Tarda unos minutos.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input type="checkbox" className="mt-0.5" checked={reservas} onChange={(e) => setReservas(e.target.checked)} />
+            <span>
+              Actualizar cobertura de reservas (RI)
+              <span className="block text-xs text-muted-foreground">
+                Cruza las reservas activas contra los recursos. Requiere permiso de lectura de reservas.
+              </span>
+            </span>
+          </label>
+        </div>
+
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             Cancelar
           </Button>
-          <Button type="button" disabled={busy || selected.length === 0} onClick={() => onConfirm(selected, autoBuild)}>
+          <Button
+            type="button"
+            disabled={busy || selected.length === 0}
+            onClick={() => onConfirm(selected, autoBuild, { uptime, reservas })}
+          >
             {busy ? "Calculando…" : `Calcular (${selected.length})`}
           </Button>
         </DialogFooter>
