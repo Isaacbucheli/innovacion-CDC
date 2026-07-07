@@ -1,5 +1,6 @@
 import type { CostResult, Scenario } from "@/types";
 import { azIcon } from "@/lib/azureIcons";
+import { isRiEligible } from "@/lib/margin";
 
 // Etiquetas e iconos de servicio (portados del front vanilla de bitcost).
 export const SERVICE_LABELS: Record<string, string> = {
@@ -208,13 +209,15 @@ export interface ResultFilters {
   q: string;
   serviceKey: string; // "" = todos
   hideReserved: boolean;
+  onlyRiEligible?: boolean;
 }
 
-/** Filtro de la tabla de resultados: buscador + servicio + ocultar reservados. */
+/** Filtro de la tabla de resultados: buscador + servicio + ocultar reservados + solo elegibles RI. */
 export function filterResults(rows: CostResult[], f: ResultFilters): CostResult[] {
   const term = f.q.trim().toLowerCase();
   return rows.filter((row) => {
     if (f.hideReserved && riConfirmed(row)) return false;
+    if (f.onlyRiEligible && !isRiEligible(row)) return false;
     if (f.serviceKey && visibleServiceKey(row.service_key) !== f.serviceKey) return false;
     if (term && !rowSearchText(row).includes(term)) return false;
     return true;

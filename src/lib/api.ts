@@ -219,8 +219,11 @@ export const importInventory = (analysisId: number, body: { services: string[]; 
   request<unknown>(`/azure/import/inventory/${analysisId}`, jsonOpts("POST", body));
 export const getInventorySummary = (analysisId: number) =>
   request<InventoryRow[]>(`/azure/import/inventory/${analysisId}/summary`);
-export const generateExcel = (analysisId: number) =>
-  request<{ download_url?: string; file_name?: string }>(`/excel/generate/${analysisId}`, { method: "POST" });
+export const generateExcel = (analysisId: number, marginPct?: number) =>
+  request<{ download_url?: string; file_name?: string }>(
+    `/excel/generate/${analysisId}`,
+    marginPct && marginPct > 0 ? jsonOpts("POST", { margin_pct: marginPct }) : { method: "POST" },
+  );
 
 // ---- WAF (Matriz mejoras Azure): lecturas ----
 export const getWafSummary = (clientId: number) =>

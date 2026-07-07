@@ -148,6 +148,15 @@ describe("filterResults", () => {
   test("ocultar reservados quita ri_coverage=confirmed", () => {
     expect(filterResults(rows, { q: "", serviceKey: "", hideReserved: true }).map((x) => x.resource_id)).toEqual([2, 3]);
   });
+  it("filterResults con onlyRiEligible oculta no elegibles y reservados", () => {
+    const rows = [
+      { ri_1y_monthly: 10, ri_coverage: null } as CostResult,
+      { ri_1y_monthly: null, ri_3y_monthly: null } as CostResult,
+      { ri_1y_monthly: 10, ri_coverage: "confirmed" } as CostResult,
+    ];
+    const out = filterResults(rows, { q: "", serviceKey: "", hideReserved: false, onlyRiEligible: true });
+    expect(out).toHaveLength(1);
+  });
 });
 
 test("groupByService agrega payg, conteo e issues por servicio visible", () => {
