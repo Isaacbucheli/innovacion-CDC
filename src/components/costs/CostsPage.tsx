@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SearchInput from "@/components/SearchInput";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import CostsKpis from "@/components/costs/CostsKpis";
 import ServicesSummary from "@/components/costs/ServicesSummary";
@@ -23,6 +24,7 @@ import ManualCostDialog from "@/components/costs/ManualCostDialog";
 import FinOpsRefreshDialog from "@/components/costs/FinOpsRefreshDialog";
 import { useCosts } from "@/hooks/useCosts";
 import { applySubscriptionFilter, computeKpis, filterResults, serviceName, subscriptionNames } from "@/lib/costs";
+import { applyMarginToResults, applyMarginToScenarios } from "@/lib/margin";
 import { categoryOf } from "@/lib/finops";
 import { bestEffortRefresh, runCalculation } from "@/lib/costActions";
 import { pollPowerHistory, powerToastMessage } from "@/lib/powerHistory";
@@ -50,6 +52,13 @@ const RI_SOURCE_LABELS: Record<string, string> = {
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : "Error inesperado");
 
+/** Sanitiza el input de margen: vacío/no numérico → 0; clamp a [0, 100]. */
+function clampMarginPct(raw: string): number {
+  const n = Number(raw);
+  if (raw.trim() === "" || !Number.isFinite(n)) return 0;
+  return Math.min(100, Math.max(0, n));
+}
+
 export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => void }) {
   const {
     clients,
@@ -75,6 +84,8 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
   const [serviceKey, setServiceKey] = useState("");
   const [category, setCategory] = useState("");
   const [hideReserved, setHideReserved] = useState(false);
+  const [onlyRiEligible, setOnlyRiEligible] = useState(false);
+  const [marginPct, setMarginPct] = useState<number>(0);
   const [tab, setTab] = useState("servicios");
   const [busy, setBusy] = useState(false);
   const [busyMsg, setBusyMsg] = useState<{ title: string; detail?: string }>({ title: "" });
@@ -96,18 +107,24 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
   }, []);
 
   const subRows = useMemo(() => applySubscriptionFilter(results, subs), [results, subs]);
-  const kpis = useMemo(() => computeKpis(subRows, scenarios), [subRows, scenarios]);
+  const filteredRows = useMemo(() => {
+    const base = filterResults(subRows, { q, serviceKey, hideReserved, onlyRiEligible });
+    if (!category) return base;
+    return base.filter((r) => categoryOf(r.service_key, lookups) === category);
+  }, [subRows, q, serviceKey, hideReserved, onlyRiEligible, category, lookups]);
+  // Margen comercial: escala montos visibles (KPIs, tabla, resumen y escenarios) sin tocar % de ahorro.
+  const marginedRows = useMemo(() => applyMarginToResults(filteredRows, marginPct), [filteredRows, marginPct]);
+  const marginedScenarios = useMemo(
+    () => applyMarginToScenarios(scenarios, marginPct),
+    [scenarios, marginPct],
+  );
+  const kpis = useMemo(() => computeKpis(marginedRows, marginedScenarios), [marginedRows, marginedScenarios]);
   const categoryOptions = useMemo(
     () => [...new Set(subRows.map((r) => categoryOf(r.service_key, lookups)))].sort(),
     [subRows, lookups],
   );
-  const tableRows = useMemo(() => {
-    const base = filterResults(subRows, { q, serviceKey, hideReserved });
-    if (!category) return base;
-    return base.filter((r) => categoryOf(r.service_key, lookups) === category);
-  }, [subRows, q, serviceKey, hideReserved, category, lookups]);
-  // CostsDataTable filtra ademas por columna (embudo); refleja ese conteo real, no solo tableRows.length.
-  const [visibleCount, setVisibleCount] = useState(tableRows.length);
+  // CostsDataTable filtra ademas por columna (embudo); refleja ese conteo real, no solo marginedRows.length.
+  const [visibleCount, setVisibleCount] = useState(marginedRows.length);
   const subNames = useMemo(() => subscriptionNames(results), [results]);
 
   async function doCalculate(serviceKeys: string[], autoBuild: boolean) {
@@ -287,6 +304,14 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
             )}
           </div>
 
+          {marginPct > 0 && (
+            <div className="mb-3">
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                Margen {marginPct}% aplicado
+              </span>
+            </div>
+          )}
+
           <CostsKpis kpis={kpis} />
 
           {subNames.length > 1 && (
@@ -305,7 +330,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
             </TabsList>
 
             <TabsContent value="servicios">
-              {dataLoading ? <Skeleton className="h-40 w-full mt-4" /> : <ServicesSummary rows={subRows} />}
+              {dataLoading ? <Skeleton className="h-40 w-full mt-4" /> : <ServicesSummary rows={marginedRows} />}
             </TabsContent>
 
             <TabsContent value="resultados">
@@ -346,6 +371,31 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
                   <input type="checkbox" checked={hideReserved} onChange={(e) => setHideReserved(e.target.checked)} />
                   Ocultar reservados
                 </label>
+                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={onlyRiEligible}
+                    onChange={(e) => setOnlyRiEligible(e.target.checked)}
+                  />
+                  Solo elegibles a RI
+                </label>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    placeholder="Margen %"
+                    value={marginPct === 0 ? "" : marginPct}
+                    onChange={(e) => setMarginPct(clampMarginPct(e.target.value))}
+                    className="w-[110px] h-9"
+                  />
+                  {marginPct > 0 && (
+                    <Button variant="ghost" size="sm" className="h-9 px-2" onClick={() => setMarginPct(0)}>
+                      Limpiar
+                    </Button>
+                  )}
+                </div>
                 <span className="text-sm text-muted-foreground ml-auto">
                   {visibleCount} de {subRows.length}
                 </span>
@@ -354,7 +404,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
                 <Skeleton className="h-40 w-full" />
               ) : (
                 <CostsDataTable
-                  rows={tableRows}
+                  rows={marginedRows}
                   canEdit={editable}
                   onEditManual={setManualRow}
                   onVisibleCountChange={setVisibleCount}
@@ -364,7 +414,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
             </TabsContent>
 
             <TabsContent value="escenarios">
-              {dataLoading ? <Skeleton className="h-40 w-full mt-4" /> : <ScenarioCards scenarios={scenarios} />}
+              {dataLoading ? <Skeleton className="h-40 w-full mt-4" /> : <ScenarioCards scenarios={marginedScenarios} />}
             </TabsContent>
 
             <TabsContent value="inventario">
