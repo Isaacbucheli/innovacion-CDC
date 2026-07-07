@@ -114,6 +114,8 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
   }, [subRows, q, serviceKey, hideReserved, onlyRiEligible, category, lookups]);
   // Margen comercial: escala montos visibles (KPIs, tabla, resumen y escenarios) sin tocar % de ahorro.
   const marginedRows = useMemo(() => applyMarginToResults(filteredRows, marginPct), [filteredRows, marginPct]);
+  // Servicios: resumen completo (subRows) con margen, desacoplado de filtros de Resultados.
+  const marginedSubRows = useMemo(() => applyMarginToResults(subRows, marginPct), [subRows, marginPct]);
   const marginedScenarios = useMemo(
     () => applyMarginToScenarios(scenarios, marginPct),
     [scenarios, marginPct],
@@ -330,7 +332,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
             </TabsList>
 
             <TabsContent value="servicios">
-              {dataLoading ? <Skeleton className="h-40 w-full mt-4" /> : <ServicesSummary rows={marginedRows} />}
+              {dataLoading ? <Skeleton className="h-40 w-full mt-4" /> : <ServicesSummary rows={marginedSubRows} />}
             </TabsContent>
 
             <TabsContent value="resultados">
@@ -386,6 +388,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
                     max={100}
                     step={1}
                     placeholder="Margen %"
+                    aria-label="Margen %"
                     value={marginPct === 0 ? "" : marginPct}
                     onChange={(e) => setMarginPct(clampMarginPct(e.target.value))}
                     className="w-[110px] h-9"
