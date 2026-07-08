@@ -95,3 +95,15 @@ describe("computeKpis", () => {
     expect(k.severity).toEqual({ high: 1, medium: 2, low: 1 });
   });
 });
+
+import { optimizationExcelFileName, STATE_ORDER } from "@/lib/optimization";
+
+test("nombre del excel: slug del cliente + fecha del barrido", () => {
+  expect(optimizationExcelFileName("Banco Delta", "2026-07-03T14:00:00Z"))
+    .toBe("oportunidades-optimizacion-Banco-Delta-20260703.xlsx");
+  expect(optimizationExcelFileName("A/B:C", "")).toBe("oportunidades-optimizacion-A-B-C-export.xlsx");
+});
+
+test("STATE_ORDER cubre los 4 estados en orden", () => {
+  expect(STATE_ORDER).toEqual(["abierto", "en_progreso", "resuelto", "ignorado"]);
+});

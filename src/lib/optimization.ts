@@ -1,4 +1,4 @@
-import type { OptFinding } from "@/types";
+import type { OptFinding, FindingState } from "@/types";
 import { severityKey, type SeverityKey } from "@/lib/severity";
 
 // Estructura del reporte al estilo del FinOps Toolkit: dos secciones (Rate / Usage)
@@ -149,4 +149,14 @@ export function computeKpis(findings: OptFinding[]): OptKpis {
     if (k === "high" || k === "medium" || k === "low") severity[k] += 1;
   }
   return { totalSavings, count: findings.length, severity };
+}
+
+/** Orden canónico de estados de hallazgo (mismos strings que el backend). */
+export const STATE_ORDER: FindingState[] = ["abierto", "en_progreso", "resuelto", "ignorado"];
+
+/** Nombre del archivo del export Excel (espejo del backend): slug del cliente + fecha del barrido. */
+export function optimizationExcelFileName(clientName: string, startedAt: string): string {
+  const slug = clientName.trim().replace(/[\\/:*?"<>| ]+/g, "-");
+  const date = (startedAt || "").slice(0, 10).replaceAll("-", "") || "export";
+  return `oportunidades-optimizacion-${slug}-${date}.xlsx`;
 }

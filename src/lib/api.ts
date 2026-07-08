@@ -406,6 +406,13 @@ export const updateFindingState = (fingerprint: string, state: FindingState, not
     `/optimization/findings/${fingerprint}/state`, jsonOpts("PUT", { state, notes: notes ?? null }),
   );
 
+/** Descarga el Excel de hallazgos del barrido (states vacío = todos los estados). */
+export const downloadOptimizationExcel = (scanId: number, states: FindingState[], fileName: string) =>
+  downloadFromApi(
+    `/optimization/scans/${scanId}/excel${states.length ? `?states=${states.join(",")}` : ""}`,
+    fileName,
+  );
+
 // ---- Reservas Azure por vencer (Gestión CDC) ----
 export const getReservations = (clientId: number, alertDays = 30, includeUtilization = false) =>
   request<ReservationsResponse>(`/cdc/clients/${clientId}/reservations?alert_days=${alertDays}&include_utilization=${includeUtilization}`);
