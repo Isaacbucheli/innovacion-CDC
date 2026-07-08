@@ -1,5 +1,13 @@
 import { describe, expect, test } from "vitest";
-import { checkMeta, computeKpis, groupFindings, savingsByGroup, sortBySavings } from "@/lib/optimization";
+import {
+  checkMeta,
+  computeKpis,
+  groupFindings,
+  optimizationExcelFileName,
+  savingsByGroup,
+  sortBySavings,
+  STATE_ORDER,
+} from "@/lib/optimization";
 import type { OptFinding } from "@/types";
 
 const F = (over: Partial<OptFinding>): OptFinding => ({
@@ -96,12 +104,15 @@ describe("computeKpis", () => {
   });
 });
 
-import { optimizationExcelFileName, STATE_ORDER } from "@/lib/optimization";
-
 test("nombre del excel: slug del cliente + fecha del barrido", () => {
   expect(optimizationExcelFileName("Banco Delta", "2026-07-03T14:00:00Z"))
     .toBe("oportunidades-optimizacion-Banco-Delta-20260703.xlsx");
   expect(optimizationExcelFileName("A/B:C", "")).toBe("oportunidades-optimizacion-A-B-C-export.xlsx");
+});
+
+test("nombre del excel: formato real del backend (started_at ISO invariante sin Z)", () => {
+  expect(optimizationExcelFileName("Banco Delta", "2026-07-03T14:00:00"))
+    .toBe("oportunidades-optimizacion-Banco-Delta-20260703.xlsx");
 });
 
 test("STATE_ORDER cubre los 4 estados en orden", () => {
