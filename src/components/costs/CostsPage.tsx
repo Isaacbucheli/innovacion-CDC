@@ -434,17 +434,19 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
                   Solo elegibles a RI
                 </label>
                 <div className="flex items-center gap-1">
+                  <span className="text-sm text-muted-foreground">Margen</span>
                   <Input
                     type="number"
                     min={0}
                     max={100}
                     step={1}
-                    placeholder="Margen %"
+                    placeholder="0"
                     aria-label="Margen %"
                     value={marginPct === 0 ? "" : marginPct}
                     onChange={(e) => setMarginPct(clampMarginPct(e.target.value))}
-                    className="w-[110px] h-9"
+                    className="w-[64px] h-9 text-right"
                   />
+                  <span className="text-sm text-muted-foreground">%</span>
                   {marginPct > 0 && (
                     <Button variant="ghost" size="sm" className="h-9 px-2" onClick={() => setMarginPct(0)}>
                       Limpiar
