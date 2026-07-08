@@ -27,7 +27,7 @@ import { useCosts } from "@/hooks/useCosts";
 import { applySubscriptionFilter, computeKpis, filterResults, serviceName, subscriptionNames } from "@/lib/costs";
 import { applyMarginToResults, applyMarginToScenarios } from "@/lib/margin";
 import { categoryOf } from "@/lib/finops";
-import { bestEffortRefresh, runCalculation } from "@/lib/costActions";
+import { runCalculation } from "@/lib/costActions";
 import { pollPowerHistory, powerToastMessage } from "@/lib/powerHistory";
 import {
   clearPriceCache,
@@ -144,47 +144,43 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
         setBusyMsg({ title: "Calculando costos", detail: `${p.service} (${p.index + 1}/${p.total}), bloque ${p.batch}…` }),
       );
 
-      if (!extras.uptime && !extras.reservas) {
-        // Por defecto (igual que hoy): refresh best-effort silencioso de RI + encola el job de uptime.
-        setBusyMsg({ title: "Afinando resultados", detail: "Actualizando cobertura RI y encendido/apagado…" });
-        await bestEffortRefresh(analysis.analysis_id);
-      } else {
-        // Cobertura RI: completa CON feedback si se pidió; si no, best-effort silencioso (como hoy).
-        setBusyMsg({ title: "Afinando resultados", detail: "Actualizando cobertura RI…" });
-        if (extras.reservas) {
-          try {
-            const data = await refreshRiCoverage(analysis.analysis_id);
-            const est = (data.estimated ?? []).reduce((s, g) => s + (g.estimated_units ?? 0), 0);
-            const src = RI_SOURCE_LABELS[data.source ?? ""] ?? data.source ?? "";
-            toast.success(
-              `Cobertura RI: ${data.confirmed_count ?? 0} confirmados${est ? ` (+${est} estimados por SKU/región)` : ""}. Fuente: ${src}.`,
-            );
-          } catch (e) {
-            toast.error(`Error actualizando cobertura RI: ${msg(e)}`);
-          }
-        } else {
-          try {
-            await refreshRiCoverage(analysis.analysis_id);
-          } catch {
-            /* best-effort: reintentable desde Opciones */
-          }
+      // Cobertura RI: completa CON feedback si se pidió; si no, best-effort silencioso (completa rápido).
+      setBusyMsg({ title: "Afinando resultados", detail: "Actualizando cobertura RI…" });
+      if (extras.reservas) {
+        try {
+          const data = await refreshRiCoverage(analysis.analysis_id);
+          const est = (data.estimated ?? []).reduce((s, g) => s + (g.estimated_units ?? 0), 0);
+          const src = RI_SOURCE_LABELS[data.source ?? ""] ?? data.source ?? "";
+          toast.success(
+            `Cobertura RI: ${data.confirmed_count ?? 0} confirmados${est ? ` (+${est} estimados por SKU/región)` : ""}. Fuente: ${src}.`,
+          );
+        } catch (e) {
+          toast.error(`Error actualizando cobertura RI: ${msg(e)}`);
         }
+      } else {
+        try {
+          await refreshRiCoverage(analysis.analysis_id);
+        } catch {
+          /* best-effort: reintentable desde Opciones */
+        }
+      }
 
-        // Encendido/apagado (uptime): SIEMPRE se encola (como hoy); si se pidió, ADEMÁS espera el job y da feedback.
+      // Encendido/apagado (uptime): un "Calcular" normal NO lo toca — se PRESERVA el último calculado.
+      // Solo se (re)calcula si se pidió explícitamente (toggle o acción del menú), porque el job BORRA
+      // el vm_power_usage y lo recomputa async: si se disparara en cada cálculo, el uptime desaparecería.
+      if (extras.uptime) {
         try {
           await refreshPowerHistory(analysis.analysis_id); // encola (202)
-          if (extras.uptime) {
-            setBusyMsg({
-              title: "Calculando encendido/apagado",
-              detail: "Procesando encendido/apagado… (puede tardar unos minutos)",
-            });
-            const status = await pollPowerHistory(analysis.analysis_id);
-            const m = powerToastMessage(status);
-            if (m.ok) toast.success(m.text);
-            else toast.error(m.text);
-          }
+          setBusyMsg({
+            title: "Calculando encendido/apagado",
+            detail: "Procesando encendido/apagado… (puede tardar unos minutos)",
+          });
+          const status = await pollPowerHistory(analysis.analysis_id);
+          const m = powerToastMessage(status);
+          if (m.ok) toast.success(m.text);
+          else toast.error(m.text);
         } catch (e) {
-          if (extras.uptime) toast.error(`Error actualizando encendido/apagado: ${msg(e)}`);
+          toast.error(`Error actualizando encendido/apagado: ${msg(e)}`);
         }
       }
 
@@ -324,11 +320,13 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
       ) : (
         <>
           {error && <p className="text-destructive mb-4">{error}</p>}
-          <p className="text-sm text-muted-foreground mb-4">
-            {analysis
-              ? `Evaluación actual: #${analysis.analysis_id} — ${analysis.analysis_name}`
-              : "Este cliente aún no tiene una evaluación activa. Se crea desde administración."}
-          </p>
+          {/* Se oculta el concepto de "evaluación/análisis": si el cliente ya tiene una, se trabaja
+              con ella sin exponer id/nombre. Solo se avisa cuando aún no hay costos que calcular. */}
+          {!analysis && (
+            <p className="text-sm text-muted-foreground mb-4">
+              Este cliente aún no tiene costos calculados. Se habilita desde administración.
+            </p>
+          )}
 
           <div className="flex flex-wrap gap-2 mb-5">
             {editable && (
