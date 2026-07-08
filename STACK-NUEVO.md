@@ -1,25 +1,23 @@
-# Stack nuevo (front React) — configuración de destino
+# Stack (front React) — configuración de entorno
 
-> **Regla:** el front nuevo habla SOLO con el backend .NET del stack nuevo. NUNCA con el antiguo
-> (FastAPI de prod ni el .NET que está sobre la BD de prod).
-
-## Identidad
-- **SWA del stack nuevo:** **`swa-optimizacion-costos-frontend`**.
-- **Backend:** .NET único (B1–B8), conectado a **`sqldb-optimizacion-costos-valida`**
-  (ver `optimizacion-costos-api-dotnet/STACK-NUEVO.md`).
+> Este front y la API .NET
+> ([`optimizacion-costos-api-dotnet`](https://github.com/Isaacbucheli/optimizacion-costos-api-dotnet))
+> SON la plataforma. Los **nombres y URLs concretos** (SWA, host de la API, BD) se administran
+> **fuera del repo** (documentación privada del equipo). El repo es público — no escribirlos aquí.
 
 ## Cómo apunta el front al backend
-- **DEV:** proxy de Vite `/api` → `http://localhost:5169` (el .NET local, que usa `-valida`).
+
+- **DEV:** proxy de Vite `/api` → `http://localhost:5169` (la API .NET local, con su BD de desarrollo).
   Override: `VITE_DEV_API_TARGET=<url>`.
-- **PROD:** `VITE_API_BASE_URL` = URL del backend .NET del stack nuevo (la fija la tarea I).
-  **No hay fallback a prod**: si no se setea, las llamadas van al propio origen y fallan (no a prod).
+- **PROD:** `VITE_API_BASE_URL` = URL de la API .NET (con fallback en `src/lib/api.ts`).
+  Nunca apuntar a otro backend que no sea el de la plataforma.
 
-## CSP (staticwebapp.config.json)
-- `connect-src` hoy está en `'self'` (se quitaron los hosts de prod).
-- **Tarea I:** agregar el host del backend .NET nuevo a `connect-src` (sin esto el navegador bloquea
-  las llamadas — lección aprendida del piloto). NUNCA volver a listar los backends de prod.
+## CSP (`staticwebapp.config.json`)
 
-## Pendiente de la tarea I (requiere OK del usuario)
-- Provisionar el SWA `swa-optimizacion-costos-frontend` + su `VITE_API_BASE_URL`.
-- Completar `connect-src` con el backend nuevo.
-- CORS del backend .NET debe incluir el origen del SWA nuevo.
+- `connect-src` debe listar el host de la API — sin esto el navegador bloquea las llamadas con
+  "Failed to fetch" aunque curl funcione (lección aprendida).
+- `img-src` incluye `blob:` (los logos de cliente se renderizan desde objectURL).
+
+## CORS
+
+El `CORS_ORIGINS` de la API debe incluir el origen de este SWA.

@@ -6,11 +6,11 @@ import type { AzureUserSession, LighthouseClientGroup } from "@/types";
 
 const groups: LighthouseClientGroup[] = [
   {
-    tenant_id: "t-a", client_name: "SG CONSULTING GROUP",
+    tenant_id: "t-a", client_name: "ACME CONSULTING GROUP",
     subscriptions: [{ subscription_id: "s1", display_name: "Microsoft Azure" }],
   },
   {
-    tenant_id: "t-b", client_name: "Banco Delta",
+    tenant_id: "t-b", client_name: "Banco Demo",
     subscriptions: [
       { subscription_id: "s2", display_name: "PROD" },
       { subscription_id: "s3", display_name: "DEV" },
@@ -20,9 +20,9 @@ const groups: LighthouseClientGroup[] = [
 
 describe("filterGroups", () => {
   it("filtra por nombre de cliente o de suscripción, case-insensitive", () => {
-    expect(filterGroups(groups, "sg consulting")).toHaveLength(1);
+    expect(filterGroups(groups, "acme consulting")).toHaveLength(1);
     expect(filterGroups(groups, "prod")).toHaveLength(1);
-    expect(filterGroups(groups, "prod")[0].client_name).toBe("Banco Delta");
+    expect(filterGroups(groups, "prod")[0].client_name).toBe("Banco Demo");
     expect(filterGroups(groups, "")).toHaveLength(2);
     expect(filterGroups(groups, "zzz")).toHaveLength(0);
   });

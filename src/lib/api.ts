@@ -63,15 +63,10 @@ import type {
 } from "@/types";
 import { clearSession, getToken, setSession } from "@/lib/auth";
 
-// Stack nuevo: backend ÚNICO en .NET (B1–B8), conectado a la BD propia
-// `sqldb-optimizacion-costos-valida`. Python (prod) se mantiene en paralelo pero el front nuevo
-// NO le habla. En DEV se usa el proxy de Vite (/api → .NET local sobre -valida). En prod, la tarea
-// I fija VITE_API_BASE_URL al backend del stack nuevo. SIN fallback a prod: NUNCA apuntar al antiguo
-// (si VITE_API_BASE_URL no está, las llamadas van al propio origen y fallan ruidosamente, no a prod).
+// Backend ÚNICO de la plataforma: la API .NET. En DEV se usa el proxy de Vite (/api → API .NET local).
+// En prod manda VITE_API_BASE_URL, con fallback al App Service de la API.
 export function apiBase(): string {
   if (import.meta.env.DEV) return "/api";
-  // Backend del stack NUEVO: app-optimizacion-costos-api-dotnet (conectado a sqldb-optimizacion-costos-valida).
-  // NO es el antiguo: el antiguo es el FastAPI + BD de prod. Override con VITE_API_BASE_URL si cambia el host.
   return (import.meta.env.VITE_API_BASE_URL as string) || "https://app-optimizacion-costos-api-dotnet.azurewebsites.net";
 }
 

@@ -50,7 +50,7 @@ export default function CredentialFormDialog({ clientId, open, onOpenChange, onS
         <DialogHeader><DialogTitle>Nueva credencial Azure</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1"><Label htmlFor="cn">Nombre</Label>
-            <Input id="cn" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. App Registration BANISI" /></div>
+            <Input id="cn" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. App Registration Cliente" /></div>
           <div className="space-y-1"><Label htmlFor="tn">Tenant ID</Label>
             <Input id="tn" value={tenant} onChange={(e) => setTenant(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" /></div>
           <div className="space-y-1"><Label htmlFor="ac">App Client ID</Label>

@@ -16,5 +16,5 @@ export const LEYENDA: { columna: string; significado: string }[] = [
   { columna: "MEDIA", significado: "Sev2 - Warning" },
   { columna: "BAJA", significado: "Sev3 - Informational" },
   { columna: "CONVENCIÓN DE NOMBRE", significado: "BIT-<CLIENTE>-<TipoAlerta>-<Recurso/Umbral>-<NombreSuscripción>" },
-  { columna: "EJEMPLO", significado: "BIT-MINSUR-Alerta CPU VM Umbral 90-SAPPRD" },
+  { columna: "EJEMPLO", significado: "BIT-CLIENTE-Alerta CPU VM Umbral 90-PROD" },
 ];

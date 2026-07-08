@@ -7,8 +7,7 @@ export default defineConfig({
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
   server: {
     proxy: {
-      // Stack nuevo = backend ÚNICO en .NET, conectado a sqldb-optimizacion-costos-valida.
-      // DEV apunta al .NET LOCAL (su .env/appsettings.Development usa -valida) — NUNCA a prod.
+      // Backend ÚNICO en .NET. DEV apunta al .NET LOCAL (con su BD de desarrollo) — NUNCA a producción.
       // Override con VITE_DEV_API_TARGET si el backend local corre en otro puerto.
       "/api": {
         target: process.env.VITE_DEV_API_TARGET || "http://localhost:5169",

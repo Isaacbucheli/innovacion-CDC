@@ -3,7 +3,7 @@ import { ThemeProvider } from "next-themes";
 import { expect, test, vi } from "vitest";
 
 vi.mock("@/lib/api", () => ({
-  listClientsAdmin: vi.fn(async () => [{ client_id: 3, client_name: "BANISI", has_logo: false }]),
+  listClientsAdmin: vi.fn(async () => [{ client_id: 3, client_name: "Banco Demo", has_logo: false }]),
   getWafCostReference: vi.fn(async () => ({
     client_id: 3, has_cost_data: true, disclaimer: "Valor referencial…", analysis_id: 7, analysis_name: "Eval",
     totals: { payg_monthly: 5991, ri_1y_monthly: 4200, ri_3y_monthly: 3100, resources_total: 50, resources_matched: 40, resources_priced: 35 },
