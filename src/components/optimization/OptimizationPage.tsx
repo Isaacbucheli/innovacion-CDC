@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { History, Radar } from "lucide-react";
+import { Download, History, Radar } from "lucide-react";
 import { toast } from "sonner";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
@@ -12,12 +12,13 @@ import FindingsGroup from "@/components/optimization/FindingsGroup";
 import FindingsTable from "@/components/optimization/FindingsTable";
 import FindingDetailSheet from "@/components/optimization/FindingDetailSheet";
 import ScanHistoryDialog from "@/components/optimization/ScanHistoryDialog";
+import ExportExcelDialog from "@/components/optimization/ExportExcelDialog";
 import { useOptimization } from "@/hooks/useOptimization";
-import { computeKpis, groupFindings } from "@/lib/optimization";
+import { computeKpis, groupFindings, optimizationExcelFileName } from "@/lib/optimization";
 import { formatMoney } from "@/lib/costs";
-import { runOptimizationScan } from "@/lib/api";
+import { downloadOptimizationExcel, runOptimizationScan } from "@/lib/api";
 import { canEdit } from "@/lib/auth";
-import type { OptFinding } from "@/types";
+import type { FindingState, OptFinding } from "@/types";
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : "Error inesperado");
 
@@ -29,6 +30,7 @@ export default function OptimizationPage({ onNavigate }: { onNavigate?: (s: stri
   const [busyMsg, setBusyMsg] = useState<{ title: string; detail?: string }>({ title: "" });
   const [detail, setDetail] = useState<OptFinding | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const kpis = useMemo(() => computeKpis(findings), [findings]);
   const sections = useMemo(() => groupFindings(findings), [findings]);
@@ -43,6 +45,22 @@ export default function OptimizationPage({ onNavigate }: { onNavigate?: (s: stri
       reload();
     } catch (e) {
       toast.error(`El barrido no pudo completarse: ${msg(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doExport(states: FindingState[]) {
+    if (clientId == null || !latestScan) return;
+    const clientName = clients.find((c) => c.client_id === clientId)?.client_name ?? "cliente";
+    setBusyMsg({ title: "Generando Excel", detail: "Armando el archivo de hallazgos…" });
+    setBusy(true);
+    try {
+      await downloadOptimizationExcel(latestScan.scan_id, states, optimizationExcelFileName(clientName, latestScan.started_at));
+      toast.success("Excel exportado.");
+      setExportOpen(false);
+    } catch (e) {
+      toast.error(`No se pudo exportar: ${msg(e)}`);
     } finally {
       setBusy(false);
     }
@@ -82,6 +100,15 @@ export default function OptimizationPage({ onNavigate }: { onNavigate?: (s: stri
             <Button variant="outline" size="sm" disabled={busy} onClick={() => setHistoryOpen(true)}>
               <History className="w-4 h-4 mr-1" />
               Historial
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={busy || !latestScan || findings.length === 0}
+              onClick={() => setExportOpen(true)}
+            >
+              <Download className="w-4 h-4 mr-1" />
+              Exportar
             </Button>
           </div>
 
@@ -141,6 +168,13 @@ export default function OptimizationPage({ onNavigate }: { onNavigate?: (s: stri
         onSaved={reload}
       />
       <ScanHistoryDialog scans={scans} open={historyOpen} onOpenChange={setHistoryOpen} />
+      <ExportExcelDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        findings={findings}
+        busy={busy}
+        onConfirm={doExport}
+      />
 
       <BusyOverlay show={busy} title={busyMsg.title} detail={busyMsg.detail} />
     </AppShell>

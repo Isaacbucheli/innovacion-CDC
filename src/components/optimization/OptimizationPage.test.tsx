@@ -72,3 +72,19 @@ test("muestra estado vacío cuando el cliente no tiene barridos", async () => {
   await renderPage();
   expect(screen.getByText(/aún no tiene barridos/i)).toBeInTheDocument();
 });
+
+test("el botón Exportar abre el diálogo de estados", async () => {
+  const { fireEvent } = await import("@testing-library/react");
+  await renderPage();
+  const btn = screen.getByRole("button", { name: /exportar/i });
+  expect(btn).toBeEnabled();
+  fireEvent.click(btn);
+  expect(screen.getByText("Exportar Excel")).toBeInTheDocument();
+  expect(screen.getByText(/hallazgos incluidos/i)).toBeInTheDocument();
+});
+
+test("sin hallazgos el botón Exportar queda deshabilitado", async () => {
+  mockState.findings = [];
+  await renderPage();
+  expect(screen.getByRole("button", { name: /exportar/i })).toBeDisabled();
+});
