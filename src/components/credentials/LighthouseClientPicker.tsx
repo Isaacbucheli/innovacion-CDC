@@ -16,7 +16,7 @@ function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
 
 /**
  * Selector de clientes delegados (Lighthouse), agrupados por tenant/cliente, con
- * checkboxes por suscripción y vinculación a un cliente bitcost (nuevo o existente).
+ * checkboxes por suscripción y vinculación a un cliente de la plataforma (nuevo o existente).
  * La selección solo puede abarcar UN tenant porque el link (credencial) es por tenant.
  */
 export default function LighthouseClientPicker({ open, onOpenChange, onLinked, onSessionLost }: {
@@ -37,7 +37,7 @@ export default function LighthouseClientPicker({ open, onOpenChange, onLinked, o
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [destMode, setDestMode] = useState<"new" | "existing">("new");
   const [newName, setNewName] = useState("");
-  const [bitcostClients, setBitcostClients] = useState<ClientAdmin[]>([]);
+  const [platformClients, setPlatformClients] = useState<ClientAdmin[]>([]);
   const [existingClientId, setExistingClientId] = useState<string>("");
   const [linking, setLinking] = useState(false);
   const mounted = useRef(true);
@@ -61,7 +61,7 @@ export default function LighthouseClientPicker({ open, onOpenChange, onLinked, o
     if (!open) return;
     setTerm(""); setSel(new Set()); setDestMode("new"); setNewName(""); setExistingClientId("");
     load(false);
-    listClientsAdmin().then((cs) => { if (mounted.current) setBitcostClients(cs); }).catch(() => { /* select queda vacío */ });
+    listClientsAdmin().then((cs) => { if (mounted.current) setPlatformClients(cs); }).catch(() => { /* select queda vacío */ });
   }, [open]);
 
   const filtered = filterGroups(groups, term);
@@ -194,11 +194,11 @@ export default function LighthouseClientPicker({ open, onOpenChange, onLinked, o
               </div>
             ) : (
               <div className="space-y-1">
-                <Label htmlFor="lh-existing">Cliente bitcost</Label>
+                <Label htmlFor="lh-existing">Cliente de la plataforma</Label>
                 <Select value={existingClientId} onValueChange={setExistingClientId}>
                   <SelectTrigger id="lh-existing"><SelectValue placeholder="Selecciona un cliente…" /></SelectTrigger>
                   <SelectContent>
-                    {bitcostClients.map((c) => (
+                    {platformClients.map((c) => (
                       <SelectItem key={c.client_id} value={String(c.client_id)}>{c.client_name}</SelectItem>
                     ))}
                   </SelectContent>

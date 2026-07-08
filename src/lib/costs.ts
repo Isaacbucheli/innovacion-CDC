@@ -2,7 +2,7 @@ import type { CostResult, Scenario } from "@/types";
 import { azIcon } from "@/lib/azureIcons";
 import { isRiEligible } from "@/lib/margin";
 
-// Etiquetas e iconos de servicio (portados del front vanilla de bitcost).
+// Etiquetas e iconos de servicio (portados del front vanilla anterior de la plataforma).
 export const SERVICE_LABELS: Record<string, string> = {
   vms: "Virtual Machines",
   sql_vm: "SQL Server en Azure VMs",
