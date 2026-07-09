@@ -119,6 +119,16 @@ describe("translateNote", () => {
     expect(translateNote(R({ service_key: "cosmos", calculation_notes: null })))
       .toBe("Costo calculado con metadata importada desde Azure.");
   });
+  test("VM apagada muestra nota visible en vez del texto genérico de vms", () => {
+    const note = translateNote(
+      R({
+        service_key: "vms",
+        calculation_notes:
+          "VM apagada — costo PAYG referencial (power state: PowerState/deallocated) | sku=Standard_D4s_v5 region=eastus os=Linux match=deterministic",
+      })
+    );
+    expect(note).toBe("VM apagada — costo PAYG referencial");
+  });
 });
 
 test("subscriptionNames únicos y ordenados, con marcador de faltante", () => {
@@ -140,6 +150,10 @@ describe("filterResults", () => {
   ];
   test("buscador full-text por nombre de recurso", () => {
     expect(filterResults(rows, { q: "disk-01", serviceKey: "", hideReserved: false })).toHaveLength(1);
+  });
+  test("buscador full-text por sku_name", () => {
+    const withSku = [...rows, R({ resource_id: 4, service_key: "vms", resource_name: "vm-otro", sku_name: "Standard_D4s_v5" })];
+    expect(filterResults(withSku, { q: "d4s", serviceKey: "", hideReserved: false }).map((x) => x.resource_id)).toEqual([4]);
   });
   test("filtro por servicio usa la clave visible (sql_vm → vms)", () => {
     const r = filterResults(rows, { q: "", serviceKey: "vms", hideReserved: false });

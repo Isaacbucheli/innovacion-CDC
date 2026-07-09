@@ -169,6 +169,7 @@ export function translateNote(row: CostResult): string {
     return `Base Azure SQL calculada según tier, modelo de compra y capacidad configurada.`;
   }
   if (service === "vms") {
+    if (raw.includes("VM apagada")) return "VM apagada — costo PAYG referencial";
     return `Máquina virtual calculada por tamaño, región, sistema operativo y estado de ejecución.`;
   }
   return raw || "Costo calculado con metadata importada desde Azure.";
@@ -197,6 +198,7 @@ export function rowSearchText(row: CostResult): string {
     row.resource_name,
     row.resource_group,
     row.location,
+    row.sku_name,
     statusMeta(row.calculation_status).label,
     translateNote(row),
   ]
