@@ -47,6 +47,7 @@ const COL_LABELS: Record<string, string> = {
   service: "Servicio",
   categoria: "Categoría",
   resource_name: "Recurso",
+  sku_name: "SKU",
   resource_group: "Grupo",
   location: "Región",
   reserved: "Reservado",
