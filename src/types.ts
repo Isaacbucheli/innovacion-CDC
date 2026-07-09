@@ -24,6 +24,29 @@ export interface KqlQuery {
   is_active: boolean;
 }
 
+/** Política de la línea base Azure Policy (GET /policy-catalog, backend .NET, snake_case). */
+export interface Policy {
+  policy_id: number;
+  policy_number: number | null;
+  name: string;
+  category: string | null;
+  policy_type: string | null;
+  recommended_effect: string | null;
+  mode: string | null;
+  key_parameters: string | null;
+  description: string | null;
+  objective: string | null;
+  recommended_scope: string | null;
+  rollout: string | null;
+  risk: string | null;
+  example_parameters: string | null;
+  azure_cli: string | null;
+  powershell: string | null;
+  script_notes: string | null;
+  official_source: string | null;
+  is_active: boolean;
+}
+
 // ---- Módulo de costos (servido por el backend .NET del stack nuevo) ----
 
 /** Una fila de resultado de costo. Refleja CostResultRow del backend .NET (snake_case). */

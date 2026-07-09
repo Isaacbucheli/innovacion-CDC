@@ -20,6 +20,7 @@ const ReservationsPage = lazy(() => import("@/components/reservations/Reservatio
 const UsersPage = lazy(() => import("@/components/users/UsersPage"));
 const ServiceCatalogPage = lazy(() => import("@/components/services/ServiceCatalogPage"));
 const CatalogPage = lazy(() => import("@/components/CatalogPage"));
+const PolicyCatalogPage = lazy(() => import("@/components/PolicyCatalogPage"));
 
 const SECTION_KEY = "innovacion_cdc_section";
 const RECENT_KEY = "innovacion_cdc_recent";
@@ -73,6 +74,8 @@ export default function App() {
             <ServiceCatalogPage onNavigate={navigate} />
           ) : section === "alerts" ? (
             <CatalogPage onNavigate={navigate} />
+          ) : section === "policies" ? (
+            <PolicyCatalogPage onNavigate={navigate} />
           ) : (
             <HomePage recent={recent} onNavigate={navigate} />
           )}

@@ -45,6 +45,7 @@ const MENU: Group[] = [
     items: [
       { label: "Reservas por vencer", section: "reservations" },
       { label: "Catálogo de alertas", section: "alerts" },
+      { label: "Catálogo de políticas", section: "policies" },
     ],
   },
   {

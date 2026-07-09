@@ -15,6 +15,7 @@ import type {
   KqlQuery,
   LighthouseClientGroup,
   LighthouseLinkResult,
+  Policy,
   PowerHistoryEnqueue,
   PowerHistoryJobStatus,
   RiCoverageResult,
@@ -112,6 +113,12 @@ export const listKql = () => request<KqlQuery[]>("/alert-catalog/kql");
 export const createKql = (p: Partial<KqlQuery>) => request<{ kql_id: number }>("/alert-catalog/kql", jsonOpts("POST", p));
 export const updateKql = (id: number, p: Partial<KqlQuery>) => request("/alert-catalog/kql/" + id, jsonOpts("PUT", p));
 export const deleteKql = (id: number) => request("/alert-catalog/kql/" + id, { method: "DELETE" });
+
+// ---- Catálogo de políticas (Azure Policy) ----
+export const listPolicies = () => request<Policy[]>("/policy-catalog");
+export const createPolicy = (p: Partial<Policy>) => request<{ policy_id: number }>("/policy-catalog", jsonOpts("POST", p));
+export const updatePolicy = (id: number, p: Partial<Policy>) => request("/policy-catalog/" + id, jsonOpts("PUT", p));
+export const deletePolicy = (id: number) => request("/policy-catalog/" + id, { method: "DELETE" });
 
 // ---- Costos: clientes, análisis y catálogo de servicios ----
 export const listClients = () => request<ClientSummary[]>("/clients");
