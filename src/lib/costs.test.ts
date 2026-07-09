@@ -21,7 +21,7 @@ import type { CostResult, Scenario } from "@/types";
 const R = (over: Partial<CostResult>): CostResult => ({
   cost_result_id: 1, resource_id: 1, service_key: "vms",
   resource_name: null, resource_type: null, location: null,
-  subscription_name: null, resource_group: null, azure_resource_id: null,
+  subscription_name: null, resource_group: null, azure_resource_id: null, sku_name: null,
   payg_hourly: null, payg_monthly: null, ri_1y_monthly: null, ri_3y_monthly: null,
   savings_1y_pct: null, savings_3y_pct: null, savings_1y_monthly: null, savings_3y_monthly: null,
   sql_addon_monthly: null, ahb_discount_monthly: null, storage_monthly: null,

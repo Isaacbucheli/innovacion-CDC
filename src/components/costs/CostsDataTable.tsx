@@ -147,6 +147,7 @@ export default function CostsDataTable({
       filterFn: textFilter,
       cell: (c) => <span className="font-medium">{c.getValue<string>() ?? "-"}</span>,
     },
+    { accessorKey: "sku_name", header: "SKU", filterFn: textFilter, cell: (c) => c.getValue<string>() ?? "-" },
     { accessorKey: "resource_group", header: "Grupo", filterFn: textFilter, cell: (c) => c.getValue<string>() ?? "-" },
     { accessorKey: "location", header: "Región", filterFn: textFilter, cell: (c) => c.getValue<string>() ?? "-" },
     {

@@ -37,6 +37,7 @@ export interface CostResult {
   subscription_name: string | null;
   resource_group: string | null;
   azure_resource_id: string | null;
+  sku_name: string | null;
   payg_hourly: number | null;
   payg_monthly: number | null;
   ri_1y_monthly: number | null;
