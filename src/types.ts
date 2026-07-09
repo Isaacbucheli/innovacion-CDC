@@ -47,6 +47,73 @@ export interface Policy {
   is_active: boolean;
 }
 
+// ---- Asignación de consultores (Gestión CDC, backend .NET, snake_case) ----
+
+export type PersonType = "consultor" | "coordinador" | "comercial";
+
+/** Persona del directorio BIT (GET /consultant-assignments/people). */
+export interface Person {
+  person_id: number;
+  name: string;
+  email: string | null;
+  person_type: PersonType;
+  is_active: boolean;
+}
+
+/** Referencia embebida a una persona dentro de una asignación. */
+export interface PersonRef {
+  person_id: number;
+  name: string;
+}
+
+/** Asignación cliente×servicio (GET /consultant-assignments). */
+export interface ConsultantAssignment {
+  assignment_id: number;
+  client_name: string;
+  service: string | null;
+  category: string | null; // ALTO / MEDIO / BAJO
+  databases: string | null;
+  country: string | null;
+  status: string | null;
+  access_accounts: string | null;
+  account_role: string | null;
+  lighthouse: string | null;
+  client_contact_name: string | null;
+  client_contact_phone: string | null;
+  client_contact_email: string | null;
+  contract_end: string | null; // "YYYY-MM-DD"
+  observations: string | null;
+  is_active: boolean;
+  principals: PersonRef[];
+  backups: PersonRef[];
+  coordinator: PersonRef | null;
+  comercial: PersonRef | null;
+}
+
+/** Body de POST/PUT /consultant-assignments: escalares + ids por rol (los arrays REEMPLAZAN el conjunto). */
+export interface AssignmentWrite {
+  client_name?: string;
+  service?: string | null;
+  category?: string | null;
+  databases?: string | null;
+  country?: string | null;
+  status?: string | null;
+  access_accounts?: string | null;
+  account_role?: string | null;
+  lighthouse?: string | null;
+  client_contact_name?: string | null;
+  client_contact_phone?: string | null;
+  client_contact_email?: string | null;
+  contract_end?: string | null;
+  observations?: string | null;
+  principal_ids?: number[];
+  backup_ids?: number[];
+  coordinator_id?: number | null;
+  comercial_id?: number | null;
+}
+
+export type ReassignScope = "principal" | "backup" | "coordinador" | "comercial";
+
 // ---- Módulo de costos (servido por el backend .NET del stack nuevo) ----
 
 /** Una fila de resultado de costo. Refleja CostResultRow del backend .NET (snake_case). */

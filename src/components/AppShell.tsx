@@ -46,6 +46,7 @@ const MENU: Group[] = [
       { label: "Reservas por vencer", section: "reservations" },
       { label: "Catálogo de alertas", section: "alerts" },
       { label: "Catálogo de políticas", section: "policies" },
+      { label: "Asignación de consultores", section: "consultants" },
     ],
   },
   {

@@ -1,4 +1,4 @@
-import type { Alert, Policy } from "@/types";
+import type { Alert, ConsultantAssignment, Policy } from "@/types";
 
 const HEADER = ["N°", "Alerta", "Recurso", "Tipo", "Severidad", "Origen", "Descripción", "Detalle", "Action Group", "Requisito técnico", "KQL"];
 
@@ -25,4 +25,19 @@ export function policiesToCsv(policies: Policy[]): string {
     p.description, p.objective, p.recommended_scope, p.rollout, p.risk, p.official_source,
   ].map(cell).join(","));
   return [POLICY_HEADER.map(cell).join(","), ...rows].join("\r\n");
+}
+
+const ASSIGNMENT_HEADER = [
+  "Cliente", "Servicio", "Categoría", "País", "Principales", "Backups",
+  "Coordinador", "Comercial", "Estado", "Fecha fin contrato",
+];
+
+export function assignmentsToCsv(assignments: ConsultantAssignment[]): string {
+  const rows = assignments.map((a) => [
+    a.client_name, a.service, a.category, a.country,
+    a.principals.map((p) => p.name).join("; "),
+    a.backups.map((p) => p.name).join("; "),
+    a.coordinator?.name, a.comercial?.name, a.status, a.contract_end,
+  ].map(cell).join(","));
+  return [ASSIGNMENT_HEADER.map(cell).join(","), ...rows].join("\r\n");
 }

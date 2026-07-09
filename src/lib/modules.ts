@@ -40,6 +40,7 @@ export const MODULE_GROUPS: ModuleGroup[] = [
     { key: "alerts", label: "Catálogo de alertas", desc: "Alertas Azure Monitor y biblioteca KQL.", icon: Bell, azureIcon: AZ("monitor") },
     // No existe SVG "policy" en assets/azure-icons → se usa el de resource-groups (gobierno/gestión).
     { key: "policies", label: "Catálogo de políticas", desc: "Línea base de Azure Policy para gobierno, seguridad y FinOps.", icon: ShieldCheck, azureIcon: AZ("resource-groups") },
+    { key: "consultants", label: "Asignación de consultores", desc: "Clientes por consultor, backups, carga y reasignación.", icon: Users, azureIcon: AZ("users") },
   ] },
   { group: "Administración", items: [
     { key: "clientes", label: "Clientes", desc: "Alta, credenciales Azure y datos de clientes.", icon: Building2, adminOnly: true },

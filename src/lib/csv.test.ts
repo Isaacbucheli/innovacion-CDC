@@ -1,5 +1,5 @@
-import { alertsToCsv, policiesToCsv } from "@/lib/csv";
-import type { Alert, Policy } from "@/types";
+import { alertsToCsv, assignmentsToCsv, policiesToCsv } from "@/lib/csv";
+import type { Alert, ConsultantAssignment, Policy } from "@/types";
 
 test("genera CSV con cabecera y escapa comillas", () => {
   const alert: Alert = {
@@ -28,4 +28,28 @@ test("genera CSV de políticas con cabecera y escapa comillas", () => {
   expect(lines[1]).toContain('"Policy ""X"""');
   expect(lines[1]).toContain('"Deny o Audit"');
   expect(lines[1]).toContain('"https://learn.microsoft.com"');
+});
+
+test("genera CSV de asignaciones con nombres unidos por punto y coma", () => {
+  // ⚠️ Datos inventados (nunca clientes ni personas reales).
+  const assignment: ConsultantAssignment = {
+    assignment_id: 1, client_name: "Cliente Uno", service: "Infraestructura", category: "ALTO",
+    databases: null, country: "QUITO", status: "ACTIVO", access_accounts: null, account_role: null,
+    lighthouse: null, client_contact_name: null, client_contact_phone: null, client_contact_email: null,
+    contract_end: "2026-12-31", observations: null, is_active: true,
+    principals: [{ person_id: 1, name: "Ana Pérez" }, { person_id: 2, name: "Luis Gómez" }],
+    backups: [{ person_id: 3, name: "Pedro Salas" }],
+    coordinator: { person_id: 4, name: "Carla Ruiz" }, comercial: null,
+  };
+  const csv = assignmentsToCsv([assignment]);
+  const lines = csv.split("\r\n");
+  expect(lines[0]).toContain("Cliente");
+  expect(lines[0]).toContain("Principales");
+  expect(lines[0]).toContain("Fecha fin contrato");
+  expect(lines[1]).toContain('"Ana Pérez; Luis Gómez"');
+  expect(lines[1]).toContain('"Pedro Salas"');
+  expect(lines[1]).toContain('"Carla Ruiz"');
+  expect(lines[1]).toContain('"2026-12-31"');
+  // Comercial null → celda vacía.
+  expect(lines[1]).toContain('"Carla Ruiz","","ACTIVO"');
 });

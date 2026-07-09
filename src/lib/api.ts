@@ -1,12 +1,14 @@
 import type {
   Alert,
   AnalysisSummary,
+  AssignmentWrite,
   AzureUserSession,
   CalculateRequest,
   CalculateResponse,
   ClientAdmin,
   ClientSubscription,
   ClientSummary,
+  ConsultantAssignment,
   CostResult,
   CoverageResult,
   FinOpsLookups,
@@ -15,9 +17,11 @@ import type {
   KqlQuery,
   LighthouseClientGroup,
   LighthouseLinkResult,
+  Person,
   Policy,
   PowerHistoryEnqueue,
   PowerHistoryJobStatus,
+  ReassignScope,
   RiCoverageResult,
   Role,
   Scenario,
@@ -119,6 +123,29 @@ export const listPolicies = () => request<Policy[]>("/policy-catalog");
 export const createPolicy = (p: Partial<Policy>) => request<{ policy_id: number }>("/policy-catalog", jsonOpts("POST", p));
 export const updatePolicy = (id: number, p: Partial<Policy>) => request("/policy-catalog/" + id, jsonOpts("PUT", p));
 export const deletePolicy = (id: number) => request("/policy-catalog/" + id, { method: "DELETE" });
+
+// ---- Asignación de consultores (Gestión CDC) ----
+export const listAssignments = () => request<ConsultantAssignment[]>("/consultant-assignments");
+export const createAssignment = (p: AssignmentWrite) =>
+  request<{ assignment_id: number }>("/consultant-assignments", jsonOpts("POST", p));
+export const updateAssignment = (id: number, p: AssignmentWrite) =>
+  request("/consultant-assignments/" + id, jsonOpts("PUT", p));
+export const deleteAssignment = (id: number) =>
+  request("/consultant-assignments/" + id, { method: "DELETE" });
+
+export const listPeople = () => request<Person[]>("/consultant-assignments/people");
+export const createPerson = (p: Partial<Person>) =>
+  request<{ person_id: number }>("/consultant-assignments/people", jsonOpts("POST", p));
+export const updatePerson = (id: number, p: Partial<Person>) =>
+  request("/consultant-assignments/people/" + id, jsonOpts("PUT", p));
+export const deletePerson = (id: number) =>
+  request("/consultant-assignments/people/" + id, { method: "DELETE" });
+
+/** Reasignación masiva: reemplaza a la persona origen por la destino en las asignaciones activas. */
+export const reassignPerson = (personId: number, body: { to_person_id: number; scopes?: ReassignScope[] }) =>
+  request<{ message: string; changed_assignments: number }>(
+    `/consultant-assignments/people/${personId}/reassign`, jsonOpts("POST", body),
+  );
 
 // ---- Costos: clientes, análisis y catálogo de servicios ----
 export const listClients = () => request<ClientSummary[]>("/clients");
