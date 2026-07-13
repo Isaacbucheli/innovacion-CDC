@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mail, Lock } from "lucide-react";
+import { Mail, Lock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,7 +54,9 @@ export default function LoginScreen({ onAuthed }: { onAuthed: (mustChangePasswor
               </div>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full h-11" disabled={busy}>{busy ? "Ingresando…" : "Ingresar"}</Button>
+            <Button type="submit" className="w-full h-11" disabled={busy}>
+              {busy ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden />Verificando…</> : "Ingresar"}
+            </Button>
           </form>
 
           <p className="mt-4 text-center text-xs text-muted-foreground">¿Olvidaste tu contraseña? Contacta a tu administrador.</p>
