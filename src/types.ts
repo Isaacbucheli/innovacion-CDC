@@ -444,6 +444,7 @@ export interface PublicUser {
   role: string; // admin | consultor | lector
   is_active: boolean;
   created_at?: string | null;
+  must_change_password?: boolean; // contraseña temporal pendiente de cambio en el primer login
 }
 
 // ---- Credenciales Azure (Administración) ----

@@ -22,6 +22,7 @@ function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
 const chip = (cls: string, text: React.ReactNode) => <span className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{text}</span>;
 const OK = "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200";
 const NEUTRAL = "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
+const WARN = "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200";
 const roleChipCls = (role: string) =>
   role === "admin" ? "bg-primary/15 text-primary" : role === "consultor"
     ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200" : NEUTRAL;
@@ -72,7 +73,12 @@ export default function UsersPage({ onNavigate }: { onNavigate?: (key: string) =
     { key: "email", label: "Correo", render: (u) => <span className="font-medium">{u.email}</span> },
     { key: "full_name", label: "Nombre" },
     { key: "role", label: "Perfil", render: (u) => chip(roleChipCls(u.role), roleLabel(u.role)) },
-    { key: "is_active", label: "Estado", render: (u) => chip(u.is_active ? OK : NEUTRAL, u.is_active ? "Activo" : "Inactivo") },
+    { key: "is_active", label: "Estado", render: (u) => (
+      <span className="inline-flex items-center gap-1.5">
+        {chip(u.is_active ? OK : NEUTRAL, u.is_active ? "Activo" : "Inactivo")}
+        {u.must_change_password && u.is_active && chip(WARN, "Contraseña temporal")}
+      </span>
+    ) },
     { key: "acc", label: "", render: (u) => {
       const isSelf = myName && u.email.toLowerCase() === (myName || "").toLowerCase();
       return (

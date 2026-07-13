@@ -29,3 +29,11 @@ test("con token pero me() rechaza limpia la sesión y muestra LoginScreen", asyn
   expect(screen.queryByText(/contenido protegido/i)).not.toBeInTheDocument();
   expect(getToken()).toBe("");
 });
+
+test("con contraseña temporal fuerza la pantalla de cambio en lugar de los children", async () => {
+  setSession("tok", "lector", "Nuevo");
+  vi.spyOn(api, "me").mockResolvedValue({ role: "lector", full_name: "Nuevo", must_change_password: true });
+  render(<AuthGate><div>contenido protegido</div></AuthGate>);
+  await waitFor(() => expect(screen.getByText(/cambia tu contraseña/i)).toBeInTheDocument());
+  expect(screen.queryByText(/contenido protegido/i)).not.toBeInTheDocument();
+});

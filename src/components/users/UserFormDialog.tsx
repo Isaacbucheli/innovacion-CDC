@@ -73,9 +73,12 @@ export default function UserFormDialog({ user, open, onOpenChange, onSaved }: {
               <SelectTrigger id="ur"><SelectValue /></SelectTrigger>
               <SelectContent>{ROLES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
             </Select></div>
-          <div className="space-y-1"><Label htmlFor="up">Contraseña{editing ? " (opcional)" : ""}</Label>
+          <div className="space-y-1"><Label htmlFor="up">{editing ? "Restablecer contraseña (opcional)" : "Contraseña temporal"}</Label>
             <Input id="up" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)}
-              placeholder={editing ? "Dejar en blanco para no cambiar" : "Mínimo 8 caracteres"} /></div>
+              placeholder={editing ? "Dejar en blanco para no cambiar" : "Mínimo 8 caracteres"} />
+            {(!editing || password.length > 0) && (
+              <p className="text-xs text-muted-foreground">Es temporal: el usuario deberá cambiarla en su próximo inicio de sesión.</p>
+            )}</div>
           {editing && (
             <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
               <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="accent-primary h-4 w-4" />

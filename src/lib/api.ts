@@ -99,13 +99,16 @@ function jsonOpts(method: string, body: unknown): RequestInit {
 }
 
 // ---- Auth ----
-export interface LoginResult { access_token: string; role: Role; full_name?: string; email?: string }
+export interface LoginResult { access_token: string; role: Role; full_name?: string; email?: string; must_change_password?: boolean }
 export async function login(email: string, password: string): Promise<LoginResult> {
   const r = await request<LoginResult>("/auth/login", jsonOpts("POST", { username: email, password }));
   setSession(r.access_token, r.role, r.full_name ?? r.email ?? "");
   return r;
 }
-export const me = () => request<{ role: Role; full_name?: string; email?: string }>("/auth/me");
+export const me = () => request<{ role: Role; full_name?: string; email?: string; must_change_password?: boolean }>("/auth/me");
+// Cambio de contraseña del propio usuario (obligatorio cuando es temporal: must_change_password=1).
+export const changePassword = (current_password: string, new_password: string) =>
+  request<{ changed: boolean; must_change_password: boolean }>("/auth/change-password", jsonOpts("POST", { current_password, new_password }));
 
 // ---- Catálogo de alertas ----
 export const listAlerts = () => request<Alert[]>("/alert-catalog");

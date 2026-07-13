@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { login } from "@/lib/api";
 
-export default function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
+export default function LoginScreen({ onAuthed }: { onAuthed: (mustChangePassword: boolean) => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -16,8 +16,8 @@ export default function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
     e.preventDefault();
     setBusy(true); setError("");
     try {
-      await login(email, password);
-      onAuthed();
+      const r = await login(email, password);
+      onAuthed(!!r.must_change_password);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error de autenticación");
     } finally {
