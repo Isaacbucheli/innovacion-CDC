@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useState } from "react";
 import AuthGate from "@/components/AuthGate";
 import HomePage from "@/components/HomePage";
 import BusyOverlay from "@/components/BusyOverlay";
+import AdvisorSyncGuard from "@/components/waf/AdvisorSyncGuard";
 import { Toaster } from "@/components/ui/sonner";
 import { canViewModule, getRole } from "@/lib/auth";
 
@@ -107,9 +108,13 @@ export default function App() {
   return (
     <>
       <AuthGate>
-        <Suspense fallback={<BusyOverlay show title="Cargando…" />}>
-          <SectionView section={section} recent={recent} onNavigate={navigate} />
-        </Suspense>
+        <>
+          {/* Guard global de sincronización Advisor (feature paralela) + vista de sección. */}
+          <AdvisorSyncGuard />
+          <Suspense fallback={<BusyOverlay show title="Cargando…" />}>
+            <SectionView section={section} recent={recent} onNavigate={navigate} />
+          </Suspense>
+        </>
       </AuthGate>
       <Toaster position="top-right" />
     </>

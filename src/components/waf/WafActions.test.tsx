@@ -2,7 +2,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { expect, test, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("@/lib/api", () => ({
-  runWafAdvisorSync: vi.fn(async () => ({ run_id: 1, status: "completed", subscriptions_queued: 1, subscriptions_processed: 1, subscriptions_failed: 0, new_recommendations: 5, new_findings: 9, resolved_findings: 2 })),
+  runWafAdvisorSync: vi.fn(async () => ({ active: true, created: true, job_id: 7, client_id: 3, run_id: null, status: "queued", subscriptions_total: 1, subscriptions_queued: 1, subscriptions_processed: 0, subscriptions_failed: 0, new_recommendations: 0, new_findings: 0, resolved_findings: 0 })),
+  getWafAdvisorSyncStatus: vi.fn(),
   uploadWafIngestion: vi.fn(async () => ({})),
   listClientSubscriptions: vi.fn(async () => [{ client_subscription_id: 1, subscription_id: "sub-A", subscription_name: "Producción", is_active: true, is_managed: true }]),
   downloadFromApi: vi.fn(async () => {}),
@@ -14,7 +15,9 @@ vi.mock("@/lib/api", () => ({
 vi.mock("@/lib/auth", () => ({ canEdit: () => true, canEditModule: vi.fn(() => true), getRole: () => "admin" }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); });
+// Mis tests de gating mutan la implementación de canEditModule; clearAllMocks no borra
+// implementaciones, así que la restauro para no contaminar los tests hermanos.
 afterEach(async () => {
   const { canEditModule } = await import("@/lib/auth");
   vi.mocked(canEditModule).mockImplementation(() => true);
@@ -29,7 +32,7 @@ test("muestra el primario, Exportar y Opciones; Exportar descarga", async () => 
   await waitFor(() => expect(downloadFromApi).toHaveBeenCalled());
 });
 
-test("Consultar Advisor: selecciona y llama al sync, luego onChanged", async () => {
+test("Consultar Advisor: selecciona, encola y guarda el job para el bloqueo global", async () => {
   const { default: WafActions } = await import("@/components/waf/WafActions");
   const { runWafAdvisorSync } = await import("@/lib/api");
   const onChanged = vi.fn();
@@ -38,7 +41,8 @@ test("Consultar Advisor: selecciona y llama al sync, luego onChanged", async () 
   await waitFor(() => expect(screen.getByText("Producción")).toBeInTheDocument());
   fireEvent.click(screen.getByRole("button", { name: /^consultar$/i }));
   await waitFor(() => expect(runWafAdvisorSync).toHaveBeenCalledWith(3, { subscriptions: ["sub-A"], timeout_seconds_per_subscription: 600 }));
-  await waitFor(() => expect(onChanged).toHaveBeenCalled());
+  expect(JSON.parse(localStorage.getItem("innovacion_cdc_advisor_sync_job") || "null")).toEqual({ clientId: 3, jobId: 7 });
+  expect(onChanged).not.toHaveBeenCalled();
 });
 
 test("Consolidar duplicados llama a la API y refresca", async () => {

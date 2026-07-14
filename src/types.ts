@@ -500,17 +500,26 @@ export interface WafAdvisorSyncRequest {
   timeout_seconds_per_subscription?: number;
 }
 
-/** Resultado (síncrono) del sync con Advisor. */
+/** Estado persistido del trabajo de sincronización con Advisor. */
 export interface WafAdvisorSyncResult {
-  run_id: number;
+  active: boolean;
+  created?: boolean;
+  job_id: number;
+  client_id: number;
+  run_id: number | null;
   status: string;
+  subscriptions_total: number;
   subscriptions_queued: number;
   subscriptions_processed: number;
   subscriptions_failed: number;
+  current_subscription?: string | null;
   new_recommendations: number;
   new_findings: number;
   resolved_findings: number;
-  warnings?: string[];
+  warnings?: unknown[];
+  error?: string | null;
+  started_at?: string;
+  completed_at?: string | null;
 }
 
 /** Resultado de consolidar duplicados (POST /waf/clients/{id}/consolidate-duplicates). */

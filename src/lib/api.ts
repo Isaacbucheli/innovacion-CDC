@@ -340,6 +340,8 @@ export const setUserClients = (userId: number, clientIds: number[]) =>
   request<{ user_id: number; client_ids: number[] }>(`/auth/users/${userId}/clients`, jsonOpts("PUT", { client_ids: clientIds }));
 export const runWafAdvisorSync = (clientId: number, body: WafAdvisorSyncRequest) =>
   request<WafAdvisorSyncResult>(`/waf/clients/${clientId}/advisor-sync`, jsonOpts("POST", body));
+export const getWafAdvisorSyncStatus = (clientId: number, jobId: number) =>
+  request<WafAdvisorSyncResult>(`/waf/clients/${clientId}/advisor-sync/${jobId}`);
 
 /** Sube un CSV de Advisor (multipart, campo "file"). Igual patrón que uploadClientLogo. */
 export async function uploadWafIngestion(clientId: number, file: File, base: string = apiBase()): Promise<unknown> {
