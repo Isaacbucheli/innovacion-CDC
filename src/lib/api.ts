@@ -112,6 +112,17 @@ export const me = () =>
 export const changePassword = (current_password: string, new_password: string) =>
   request<{ changed: boolean; must_change_password: boolean }>("/auth/change-password", jsonOpts("POST", { current_password, new_password }));
 
+// ---- Permisos por módulo (matriz rol×módulo, solo admin) ----
+export interface ModulePermissionRow { module_key: string; can_view: boolean; can_edit: boolean }
+export interface ModuleDef { key: string; label: string; group: string }
+export interface ModulePermissionsMatrix {
+  modules: ModuleDef[];
+  permissions: { consultor: ModulePermissionRow[]; lector: ModulePermissionRow[] };
+}
+export const getModulePermissions = () => request<ModulePermissionsMatrix>("/auth/module-permissions");
+export const saveModulePermissions = (permissions: ModulePermissionsMatrix["permissions"]) =>
+  request<ModulePermissionsMatrix>("/auth/module-permissions", jsonOpts("PUT", { permissions }));
+
 // ---- Catálogo de alertas ----
 export const listAlerts = () => request<Alert[]>("/alert-catalog");
 export const createAlert = (p: Partial<Alert>) => request<{ alert_id: number }>("/alert-catalog", jsonOpts("POST", p));

@@ -13,6 +13,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ModulePermissionsPanel from "@/components/users/ModulePermissionsPanel";
 import { listUsers, updateUser, deleteUser } from "@/lib/api";
 import { usePagedRows } from "@/hooks/usePagedRows";
 import { getName, getRole } from "@/lib/auth";
@@ -109,10 +111,19 @@ export default function UsersPage({ onNavigate }: { onNavigate?: (key: string) =
       {!isAdmin ? (
         <p className="text-sm text-muted-foreground">Esta sección es solo para administradores.</p>
       ) : (
-        <>
-          <SimpleTable cols={cols} rows={pageRows} empty="No hay usuarios registrados." />
-          <DataTablePagination table={table} />
-        </>
+        <Tabs defaultValue="usuarios">
+          <TabsList>
+            <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
+            <TabsTrigger value="permisos">Permisos de grupos</TabsTrigger>
+          </TabsList>
+          <TabsContent value="usuarios">
+            <SimpleTable cols={cols} rows={pageRows} empty="No hay usuarios registrados." />
+            <DataTablePagination table={table} />
+          </TabsContent>
+          <TabsContent value="permisos">
+            <ModulePermissionsPanel />
+          </TabsContent>
+        </Tabs>
       )}
       <UserFormDialog user={formUser} open={formOpen} onOpenChange={setFormOpen} onSaved={reload} />
       <UserClientsDialog user={clientsUser} open={clientsUser != null} onOpenChange={(o) => !o && setClientsUser(null)} />
