@@ -41,7 +41,7 @@ vi.mock("@/lib/api", () => ({
   listClientSubscriptions: vi.fn(async () => []),
   downloadFromApi: vi.fn(),
 }));
-vi.mock("@/lib/auth", () => ({ canEdit: () => true, getRole: () => "admin", getName: () => "BIT" }));
+vi.mock("@/lib/auth", () => ({ canEdit: () => true, getRole: () => "admin", getName: () => "BIT", canViewModule: () => true }));
 
 test("renderiza la vista WAF con KPIs, pilar y tabla", async () => {
   const { default: WafPage } = await import("@/components/waf/WafPage");

@@ -10,7 +10,7 @@ vi.mock("@/lib/api", () => ({
   analyzeWafCanonical: vi.fn(async () => ({ canonical_id: 1, suggestion: {} })),
   applyWafSuggestion: vi.fn(async () => ({ message: "ok", canonical_id: 1 })),
 }));
-vi.mock("@/lib/auth", () => ({ getRole: () => "admin", getName: () => "Admin BIT", clearSession: vi.fn() }));
+vi.mock("@/lib/auth", () => ({ getRole: () => "admin", getName: () => "Admin BIT", clearSession: vi.fn(), canViewModule: () => true }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 beforeEach(() => vi.clearAllMocks());

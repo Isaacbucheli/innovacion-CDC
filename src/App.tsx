@@ -3,6 +3,7 @@ import AuthGate from "@/components/AuthGate";
 import HomePage from "@/components/HomePage";
 import BusyOverlay from "@/components/BusyOverlay";
 import { Toaster } from "@/components/ui/sonner";
+import { canViewModule, getRole } from "@/lib/auth";
 
 // Vistas por sección con carga diferida (code-splitting): cada una es un chunk
 // aparte que se descarga solo al abrir esa sección. Así el bundle inicial (shell +
@@ -22,12 +23,26 @@ const ServiceCatalogPage = lazy(() => import("@/components/services/ServiceCatal
 const CatalogPage = lazy(() => import("@/components/CatalogPage"));
 const PolicyCatalogPage = lazy(() => import("@/components/PolicyCatalogPage"));
 const ConsultantsPage = lazy(() => import("@/components/ConsultantsPage"));
+const NoAccessPage = lazy(() => import("@/components/NoAccessPage"));
 
 const SECTION_KEY = "innovacion_cdc_section";
 const RECENT_KEY = "innovacion_cdc_recent";
 function loadRecent(): string[] {
   try { const v = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); return Array.isArray(v) ? v : []; }
   catch { return []; }
+}
+
+// Guard central: si fuerzan la sección por localStorage sin permiso, se muestra
+// el fallback (la API igual respondería 403; esto evita la pantalla rota).
+const ADMIN_SECTIONS = new Set(["clientes", "usuarios", "waf-validation"]);
+const MATRIX_SECTIONS = new Set([
+  "costos", "optimization", "service-catalog", "waf", "waf-ingestions",
+  "waf-cost", "report", "reservations", "alerts", "policies", "consultants",
+]);
+function allowedSection(key: string): boolean {
+  if (ADMIN_SECTIONS.has(key)) return getRole() === "admin";
+  if (MATRIX_SECTIONS.has(key)) return canViewModule(key);
+  return true; // home
 }
 
 export default function App() {
@@ -51,7 +66,9 @@ export default function App() {
     <>
       <AuthGate>
         <Suspense fallback={<BusyOverlay show title="Cargando…" />}>
-          {section === "costos" ? (
+          {!allowedSection(section) ? (
+            <NoAccessPage onNavigate={navigate} />
+          ) : section === "costos" ? (
             <CostsPage onNavigate={navigate} />
           ) : section === "optimization" ? (
             <OptimizationPage onNavigate={navigate} />

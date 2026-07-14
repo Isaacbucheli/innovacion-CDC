@@ -1,7 +1,16 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ThemeProvider } from "next-themes";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import AppShell from "@/components/AppShell";
+
+// Admin ve el menú completo (estas pruebas cubren estructura/navegación, no el
+// filtrado por permisos de módulo — eso vive en el guard central, App.tsx).
+vi.mock("@/lib/auth", () => ({
+  getRole: () => "admin",
+  getName: () => "Admin BIT",
+  clearSession: vi.fn(),
+  canViewModule: () => true,
+}));
 
 function renderShell(active = "alerts") {
   return render(

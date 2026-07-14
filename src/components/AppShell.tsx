@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
-import { clearSession, getName, getRole } from "@/lib/auth";
+import { canViewModule, clearSession, getName, getRole } from "@/lib/auth";
 import { azIcon } from "@/lib/azureIcons";
 
 // Menú espejo del sidebar de PRD (sidebar.js): mismos grupos, orden, etiquetas
@@ -109,7 +109,8 @@ export default function AppShell({
 
         <nav className="flex-1 min-h-0 overflow-y-auto grid content-start gap-1.5">
           {MENU.map((group, gi) => {
-            const items = group.items.filter((it) => !it.adminOnly || isAdmin);
+            // adminOnly → solo admin; el resto son módulos de la matriz → según permiso del rol.
+            const items = group.items.filter((it) => (it.adminOnly ? isAdmin : canViewModule(it.section)));
             if (items.length === 0) return null;
             const isOpen = open.has(gi);
             return (

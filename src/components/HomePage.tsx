@@ -3,7 +3,7 @@ import AppShell from "@/components/AppShell";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { getName, getRole } from "@/lib/auth";
+import { canViewModule, getName, getRole } from "@/lib/auth";
 import { MODULE_GROUPS, MODULE_BY_KEY, type ModuleItem } from "@/lib/modules";
 import { azIcon } from "@/lib/azureIcons";
 
@@ -63,7 +63,7 @@ export default function HomePage({ recent = [], onNavigate }: {
   // Accesos recientes (filtrados por rol, máx. 5).
   const recentItems = recent
     .map((k) => MODULE_BY_KEY[k])
-    .filter((it): it is ModuleItem => !!it && (!it.adminOnly || isAdmin))
+    .filter((it): it is ModuleItem => !!it && (it.adminOnly ? isAdmin : canViewModule(it.key)))
     .slice(0, 5);
 
   // Resuelve los ítems visibles de las tarjetas con popup y descarta las que
@@ -71,7 +71,7 @@ export default function HomePage({ recent = [], onNavigate }: {
   const cards = AREAS.map((a) => {
     if (!a.groupKey) return { area: a, items: [] as ModuleItem[] };
     const group = MODULE_GROUPS.find((g) => g.group === a.groupKey);
-    const items = (group?.items ?? []).filter((it) => !it.adminOnly || isAdmin);
+    const items = (group?.items ?? []).filter((it) => (it.adminOnly ? isAdmin : canViewModule(it.key)));
     return { area: a, items };
   }).filter(({ area, items }) => area.to || items.length > 0);
 
