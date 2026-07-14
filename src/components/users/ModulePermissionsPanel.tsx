@@ -9,11 +9,30 @@ import {
 
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
 
-type PermMap = Record<string, { can_view: boolean; can_edit: boolean }>;
-const toMap = (rows: ModulePermissionRow[]): PermMap =>
+type Perm = { can_view: boolean; can_edit: boolean };
+type PermMap = Record<string, Perm>;
+
+export const toMap = (rows: ModulePermissionRow[]): PermMap =>
   Object.fromEntries(rows.map((r) => [r.module_key, { can_view: r.can_view, can_edit: r.can_edit }]));
-const toRows = (map: PermMap): ModulePermissionRow[] =>
-  Object.entries(map).map(([module_key, p]) => ({ module_key, ...p }));
+
+// El payload PUT reemplaza el rol completo: hay que viajar con TODOS los módulos
+// del catálogo (no solo los presentes en el mapa), explícitos en false/false si
+// el módulo nunca se tocó.
+export const toRows = (map: PermMap, modules: ModuleDef[]): ModulePermissionRow[] =>
+  modules.map((m) => ({ module_key: m.key, ...(map[m.key] ?? { can_view: false, can_edit: false }) }));
+
+// Defensa en profundidad: lector jamás edita, aunque llegue un can_edit:true
+// obsoleto desde el GET (o desde algún estado intermedio antes de guardar).
+export const scrubEdits = (map: PermMap): PermMap =>
+  Object.fromEntries(Object.entries(map).map(([key, p]) => [key, { ...p, can_edit: false }]));
+
+// Reglas espejo del backend: editar ⇒ ver; quitar ver ⇒ quitar editar.
+export function applyPerm(cur: Perm, field: "can_view" | "can_edit", value: boolean): Perm {
+  const next = { ...cur, [field]: value };
+  if (field === "can_edit" && value) next.can_view = true;
+  if (field === "can_view" && !value) next.can_edit = false;
+  return next;
+}
 
 /**
  * Matriz de permisos por módulo para los grupos consultor y lector.
@@ -32,7 +51,7 @@ export default function ModulePermissionsPanel() {
       .then((m) => {
         setModules(m.modules);
         setConsultor(toMap(m.permissions.consultor));
-        setLector(toMap(m.permissions.lector));
+        setLector(scrubEdits(toMap(m.permissions.lector)));
       })
       .catch((e) => toast.error(msg(e)))
       .finally(() => setLoading(false));
@@ -42,19 +61,19 @@ export default function ModulePermissionsPanel() {
     const setter = role === "consultor" ? setConsultor : setLector;
     setter((prev) => {
       const cur = prev[key] ?? { can_view: false, can_edit: false };
-      const next = { ...cur, [field]: value };
-      if (field === "can_edit" && value) next.can_view = true;   // editar ⇒ ver
-      if (field === "can_view" && !value) next.can_edit = false; // sin ver no hay editar
-      return { ...prev, [key]: next };
+      return { ...prev, [key]: applyPerm(cur, field, value) };
     });
   }
 
   async function save() {
     setSaving(true);
     try {
-      const updated = await saveModulePermissions({ consultor: toRows(consultor), lector: toRows(lector) });
+      const updated = await saveModulePermissions({
+        consultor: toRows(consultor, modules),
+        lector: toRows(scrubEdits(lector), modules),
+      });
       setConsultor(toMap(updated.permissions.consultor));
-      setLector(toMap(updated.permissions.lector));
+      setLector(scrubEdits(toMap(updated.permissions.lector)));
       toast.success("Permisos guardados. Los usuarios los verán al volver a ingresar.");
     } catch (e) { toast.error(msg(e)); } finally { setSaving(false); }
   }
