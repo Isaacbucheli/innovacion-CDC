@@ -35,14 +35,14 @@ function loadRecent(): string[] {
 // Guard central: si fuerzan la sección por localStorage sin permiso, se muestra
 // el fallback (la API igual respondería 403; esto evita la pantalla rota).
 const ADMIN_SECTIONS = new Set(["clientes", "usuarios", "waf-validation"]);
-const MATRIX_SECTIONS = new Set([
-  "costos", "optimization", "service-catalog", "waf", "waf-ingestions",
-  "waf-cost", "report", "reservations", "alerts", "policies", "consultants",
-]);
+// Matriz de módulos (11 secciones): costos, optimization, service-catalog, waf,
+// waf-ingestions, waf-cost, report, reservations, alerts, policies, consultants
 function allowedSection(key: string): boolean {
+  if (key === "home") return true;
   if (ADMIN_SECTIONS.has(key)) return getRole() === "admin";
-  if (MATRIX_SECTIONS.has(key)) return canViewModule(key);
-  return true; // home
+  // Fail-closed: toda sección no listada se trata como módulo de la matriz
+  // (una clave desconocida queda denegada para no-admin en vez de abierta).
+  return canViewModule(key);
 }
 
 export default function App() {
