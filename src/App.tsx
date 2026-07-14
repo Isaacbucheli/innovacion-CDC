@@ -45,6 +45,48 @@ function allowedSection(key: string): boolean {
   return canViewModule(key);
 }
 
+// El guard debe evaluarse al RENDER de este componente (ya con la sesión resuelta
+// por AuthGate), no al construir el árbol de App: leer localStorage antes de que
+// AuthGate escriba rol/permisos congelaba una decisión stale (admin veía "Sin acceso").
+function SectionView({ section, recent, onNavigate }: {
+  section: string;
+  recent: string[];
+  onNavigate: (key: string) => void;
+}) {
+  if (!allowedSection(section)) return <NoAccessPage onNavigate={onNavigate} />;
+  return section === "costos" ? (
+    <CostsPage onNavigate={onNavigate} />
+  ) : section === "optimization" ? (
+    <OptimizationPage onNavigate={onNavigate} />
+  ) : section === "clientes" ? (
+    <ClientsPage onNavigate={onNavigate} />
+  ) : section === "waf" ? (
+    <WafPage onNavigate={onNavigate} />
+  ) : section === "waf-cost" ? (
+    <CostReferencePage onNavigate={onNavigate} />
+  ) : section === "waf-ingestions" ? (
+    <IngestionsPage onNavigate={onNavigate} />
+  ) : section === "waf-validation" ? (
+    <ValidationPage onNavigate={onNavigate} />
+  ) : section === "report" ? (
+    <ReportPage onNavigate={onNavigate} />
+  ) : section === "reservations" ? (
+    <ReservationsPage onNavigate={onNavigate} />
+  ) : section === "usuarios" ? (
+    <UsersPage onNavigate={onNavigate} />
+  ) : section === "service-catalog" ? (
+    <ServiceCatalogPage onNavigate={onNavigate} />
+  ) : section === "alerts" ? (
+    <CatalogPage onNavigate={onNavigate} />
+  ) : section === "policies" ? (
+    <PolicyCatalogPage onNavigate={onNavigate} />
+  ) : section === "consultants" ? (
+    <ConsultantsPage onNavigate={onNavigate} />
+  ) : (
+    <HomePage recent={recent} onNavigate={onNavigate} />
+  );
+}
+
 export default function App() {
   // Recuerda la última sección visitada; primer uso → inicio (home).
   const [section, setSection] = useState<string>(() => localStorage.getItem(SECTION_KEY) || "home");
@@ -66,39 +108,7 @@ export default function App() {
     <>
       <AuthGate>
         <Suspense fallback={<BusyOverlay show title="Cargando…" />}>
-          {!allowedSection(section) ? (
-            <NoAccessPage onNavigate={navigate} />
-          ) : section === "costos" ? (
-            <CostsPage onNavigate={navigate} />
-          ) : section === "optimization" ? (
-            <OptimizationPage onNavigate={navigate} />
-          ) : section === "clientes" ? (
-            <ClientsPage onNavigate={navigate} />
-          ) : section === "waf" ? (
-            <WafPage onNavigate={navigate} />
-          ) : section === "waf-cost" ? (
-            <CostReferencePage onNavigate={navigate} />
-          ) : section === "waf-ingestions" ? (
-            <IngestionsPage onNavigate={navigate} />
-          ) : section === "waf-validation" ? (
-            <ValidationPage onNavigate={navigate} />
-          ) : section === "report" ? (
-            <ReportPage onNavigate={navigate} />
-          ) : section === "reservations" ? (
-            <ReservationsPage onNavigate={navigate} />
-          ) : section === "usuarios" ? (
-            <UsersPage onNavigate={navigate} />
-          ) : section === "service-catalog" ? (
-            <ServiceCatalogPage onNavigate={navigate} />
-          ) : section === "alerts" ? (
-            <CatalogPage onNavigate={navigate} />
-          ) : section === "policies" ? (
-            <PolicyCatalogPage onNavigate={navigate} />
-          ) : section === "consultants" ? (
-            <ConsultantsPage onNavigate={navigate} />
-          ) : (
-            <HomePage recent={recent} onNavigate={navigate} />
-          )}
+          <SectionView section={section} recent={recent} onNavigate={navigate} />
         </Suspense>
       </AuthGate>
       <Toaster position="top-right" />
