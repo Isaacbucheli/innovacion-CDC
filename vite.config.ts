@@ -22,5 +22,11 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: "./src/setupTests.ts",
     passWithNoTests: true,
+    // Los tests de render de páginas pesadas (lazy-import + jsdom) completan de sobra
+    // en aislamiento, pero bajo contención de workers en paralelo el arranque de jsdom
+    // los empujaba más allá del default de 5s → timeouts intermitentes. 20s da margen
+    // sin ocultar un cuelgue real (una prueba colgada agota igual el límite).
+    testTimeout: 20000,
+    hookTimeout: 20000,
   },
 });
