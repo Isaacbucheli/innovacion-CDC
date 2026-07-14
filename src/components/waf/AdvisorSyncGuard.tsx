@@ -21,6 +21,16 @@ function detail(status: WafAdvisorSyncResult | null) {
   return status.current_subscription ? `${progress} · ${status.current_subscription}` : progress;
 }
 
+function failureDetail(status: WafAdvisorSyncResult) {
+  const warning = status.warnings?.find(
+    (item): item is { error: string } =>
+      typeof item === "object" && item !== null && "error" in item && typeof item.error === "string",
+  );
+  return warning?.error.replace(/^AdvisorApiException:\s*/, "")
+    || status.error
+    || "error no especificado";
+}
+
 /**
  * Bloqueo global de Advisor. El trabajo vive en backend, pero la UI permanece deliberadamente
  * bloqueada para evitar navegación y consultas paralelas. localStorage restaura el bloqueo al recargar.
@@ -62,7 +72,7 @@ export default function AdvisorSyncGuard() {
           localStorage.removeItem(ADVISOR_SYNC_STORAGE_KEY);
           setTracking(null);
           if (next.status === "failed")
-            toast.error(`Advisor no pudo completar la consulta: ${next.error || "error no especificado"}`);
+            toast.error(`Advisor no pudo completar la consulta: ${failureDetail(next)}`);
           else if (next.status === "partial")
             toast.warning(`Advisor terminó parcialmente: ${next.subscriptions_failed} suscripción(es) con error.`);
           else
