@@ -13,12 +13,12 @@ import AdvisorScoreDialog from "@/components/waf/AdvisorScoreDialog";
 import ExcelImportDialog from "@/components/waf/ExcelImportDialog";
 import { runWafAdvisorSync, uploadWafIngestion, downloadFromApi, consolidateWafDuplicates, refreshWafAdvisorScore } from "@/lib/api";
 import { advisorSyncSummary } from "@/lib/waf";
-import { canEdit, getRole } from "@/lib/auth";
+import { canEditModule, getRole } from "@/lib/auth";
 
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
 
 export default function WafActions({ clientId, onChanged }: { clientId: number; onChanged: () => void }) {
-  const editable = canEdit();
+  const editable = canEditModule("waf");
   const isAdmin = getRole() === "admin";
   const [busy, setBusy] = useState(false);
   const [busyMsg, setBusyMsg] = useState<{ title: string; detail?: string }>({ title: "Procesando…" });

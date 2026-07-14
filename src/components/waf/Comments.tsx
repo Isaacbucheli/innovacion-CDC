@@ -3,13 +3,13 @@ import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { addWafComment } from "@/lib/api";
-import { canEdit } from "@/lib/auth";
+import { canEditModule } from "@/lib/auth";
 import type { WafComment } from "@/types";
 
 export default function Comments({ clientId, canonicalId, comments, onAdded }: {
   clientId: number; canonicalId: number; comments: WafComment[]; onAdded: () => void;
 }) {
-  const editable = canEdit();
+  const editable = canEditModule("waf");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
 

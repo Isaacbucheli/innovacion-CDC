@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { expect, test, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/api", () => ({ addWafComment: vi.fn(async () => ({ comment_id: 1 })) }));
-vi.mock("@/lib/auth", () => ({ canEdit: () => true }));
+vi.mock("@/lib/auth", () => ({ canEdit: () => true, canEditModule: () => true }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 beforeEach(() => vi.clearAllMocks());

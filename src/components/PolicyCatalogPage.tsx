@@ -10,7 +10,7 @@ import ConfirmDelete from "@/components/ConfirmDelete";
 import LeyendaPoliciesView from "@/components/policies/LeyendaPoliciesView";
 import PolicyCommandPalette, { type PolicyTabKey } from "@/components/policies/PolicyCommandPalette";
 import { usePolicyCatalog } from "@/hooks/usePolicyCatalog";
-import { canEdit } from "@/lib/auth";
+import { canEditModule } from "@/lib/auth";
 import { deletePolicy } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Policy } from "@/types";
@@ -23,7 +23,7 @@ const SHORTCUT_LABEL = IS_MAC ? "⌘K" : "Ctrl K";
 // undefined = diálogo cerrado, null = crear nueva, objeto = editar
 export default function PolicyCatalogPage({ onNavigate }: { onNavigate?: (s: string) => void }) {
   const { policies, loading, error, reload } = usePolicyCatalog();
-  const editable = canEdit();
+  const editable = canEditModule("policies");
   const [tab, setTab] = useState<PolicyTabKey>("policies");
   const [cmdOpen, setCmdOpen] = useState(false);
   const [detail, setDetail] = useState<Policy | null>(null);

@@ -11,7 +11,7 @@ vi.mock("@/lib/api", () => ({
   previewWafExcel: vi.fn(async () => ({ file_name: "m.xlsx", client_id: 3, rows_total: 0, rows_matched: 0, rows_needs_review: 0, ai_enabled: true, rows: [] })),
   applyWafExcel: vi.fn(),
 }));
-vi.mock("@/lib/auth", () => ({ canEdit: () => true, getRole: () => "admin" }));
+vi.mock("@/lib/auth", () => ({ canEdit: () => true, canEditModule: () => true, getRole: () => "admin" }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 beforeEach(() => vi.clearAllMocks());

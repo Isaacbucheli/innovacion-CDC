@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { updateWafTracking } from "@/lib/api";
 import { validateTracking } from "@/lib/waf";
-import { canEdit } from "@/lib/auth";
+import { canEditModule } from "@/lib/auth";
 import type { WafRecommendationDetail, WafTrackingUpdate } from "@/types";
 
 const PRIORITY = [{ v: "1", l: "Alta" }, { v: "2", l: "Media" }, { v: "3", l: "Baja" }];
@@ -15,7 +15,7 @@ const PRIORITY = [{ v: "1", l: "Alta" }, { v: "2", l: "Media" }, { v: "3", l: "B
 export default function TrackingForm({ clientId, canonicalId, detail, onSaved }: {
   clientId: number; canonicalId: number; detail: WafRecommendationDetail; onSaved: () => void;
 }) {
-  const editable = canEdit();
+  const editable = canEditModule("waf");
   const [pct, setPct] = useState(detail.completion_pct ?? 0);
   const [date, setDate] = useState(detail.remediation_start_date ?? "");
   const [endDate, setEndDate] = useState(detail.remediation_end_date ?? "");

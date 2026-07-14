@@ -17,14 +17,14 @@ import { useOptimization } from "@/hooks/useOptimization";
 import { computeKpis, groupFindings, optimizationExcelFileName } from "@/lib/optimization";
 import { formatMoney } from "@/lib/costs";
 import { downloadOptimizationExcel, runOptimizationScan } from "@/lib/api";
-import { canEdit } from "@/lib/auth";
+import { canEditModule } from "@/lib/auth";
 import type { FindingState, OptFinding } from "@/types";
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : "Error inesperado");
 
 export default function OptimizationPage({ onNavigate }: { onNavigate?: (s: string) => void }) {
   const { clients, clientId, allowed, scans, latestScan, findings, loading, dataLoading, error, selectClient, reload } = useOptimization();
-  const editable = canEdit();
+  const editable = canEditModule("optimization");
 
   const [busy, setBusy] = useState(false);
   const [busyMsg, setBusyMsg] = useState<{ title: string; detail?: string }>({ title: "" });

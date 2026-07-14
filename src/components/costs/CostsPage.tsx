@@ -39,7 +39,7 @@ import {
   refreshPowerHistory,
   refreshRiCoverage,
 } from "@/lib/api";
-import { canEdit, getRole } from "@/lib/auth";
+import { canEditModule, getRole } from "@/lib/auth";
 import type { CostResult, FinOpsLookups } from "@/types";
 
 const RI_SOURCE_LABELS: Record<string, string> = {
@@ -77,7 +77,7 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
     reloadInventory,
   } = useCosts();
 
-  const editable = canEdit();
+  const editable = canEditModule("costos");
   const isAdmin = getRole() === "admin";
 
   const [subs, setSubs] = useState<string[] | null>(null);

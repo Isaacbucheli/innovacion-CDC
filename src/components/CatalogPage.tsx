@@ -13,7 +13,7 @@ import ConfirmDelete from "@/components/ConfirmDelete";
 import LeyendaView from "@/components/LeyendaView";
 import CommandPalette, { type TabKey } from "@/components/CommandPalette";
 import { useCatalog } from "@/hooks/useCatalog";
-import { canEdit } from "@/lib/auth";
+import { canEditModule } from "@/lib/auth";
 import { deleteAlert, deleteKql } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Alert, KqlQuery } from "@/types";
@@ -26,7 +26,7 @@ const SHORTCUT_LABEL = IS_MAC ? "⌘K" : "Ctrl K";
 // undefined = diálogo cerrado, null = crear nuevo, objeto = editar
 export default function CatalogPage({ onNavigate }: { onNavigate?: (s: string) => void }) {
   const { alerts, kql, loading, error, reload } = useCatalog();
-  const editable = canEdit();
+  const editable = canEditModule("alerts");
   const [tab, setTab] = useState<TabKey>("alerts");
   const [cmdOpen, setCmdOpen] = useState(false);
   const [detail, setDetail] = useState<Alert | null>(null);
