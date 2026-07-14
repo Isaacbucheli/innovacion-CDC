@@ -19,6 +19,7 @@ function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
 
 export default function WafActions({ clientId, onChanged }: { clientId: number; onChanged: () => void }) {
   const editable = canEditModule("waf");
+  const editableIngestions = canEditModule("waf-ingestions");
   const isAdmin = getRole() === "admin";
   const [busy, setBusy] = useState(false);
   const [busyMsg, setBusyMsg] = useState<{ title: string; detail?: string }>({ title: "Procesando…" });
@@ -100,7 +101,7 @@ export default function WafActions({ clientId, onChanged }: { clientId: number; 
       <Button variant="outline" size="sm" disabled={busy} onClick={doExport}>
         <Download className="w-4 h-4 mr-1" /> Exportar Excel
       </Button>
-      {editable && (
+      {(editable || editableIngestions) && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" disabled={busy}>
@@ -109,7 +110,7 @@ export default function WafActions({ clientId, onChanged }: { clientId: number; 
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Cargar datos</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => setCsvOpen(true)}>Importar Advisor CSV</DropdownMenuItem>
+            {editableIngestions && <DropdownMenuItem onClick={() => setCsvOpen(true)}>Importar Advisor CSV</DropdownMenuItem>}
             {editable && <DropdownMenuItem onClick={() => setExcelOpen(true)}>Importar matriz Excel</DropdownMenuItem>}
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Mantenimiento</DropdownMenuLabel>

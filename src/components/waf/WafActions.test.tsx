@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { expect, test, vi, beforeEach } from "vitest";
+import { expect, test, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("@/lib/api", () => ({
   runWafAdvisorSync: vi.fn(async () => ({ run_id: 1, status: "completed", subscriptions_queued: 1, subscriptions_processed: 1, subscriptions_failed: 0, new_recommendations: 5, new_findings: 9, resolved_findings: 2 })),
@@ -11,10 +11,14 @@ vi.mock("@/lib/api", () => ({
   previewWafExcel: vi.fn(async () => ({ file_name: "m.xlsx", client_id: 3, rows_total: 0, rows_matched: 0, rows_needs_review: 0, ai_enabled: true, rows: [] })),
   applyWafExcel: vi.fn(),
 }));
-vi.mock("@/lib/auth", () => ({ canEdit: () => true, canEditModule: () => true, getRole: () => "admin" }));
+vi.mock("@/lib/auth", () => ({ canEdit: () => true, canEditModule: vi.fn(() => true), getRole: () => "admin" }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 beforeEach(() => vi.clearAllMocks());
+afterEach(async () => {
+  const { canEditModule } = await import("@/lib/auth");
+  vi.mocked(canEditModule).mockImplementation(() => true);
+});
 
 test("muestra el primario, Exportar y Opciones; Exportar descarga", async () => {
   const { default: WafActions } = await import("@/components/waf/WafActions");
@@ -75,4 +79,31 @@ test("Importar matriz Excel abre el diálogo de preview", async () => {
   fireEvent.click(opcionesBtn);
   fireEvent.click(await screen.findByText(/importar matriz excel/i));
   expect(await screen.findByText(/sube la matriz waf/i)).toBeInTheDocument();
+});
+
+test("Importar Advisor CSV sigue el permiso de waf-ingestions, no el de waf", async () => {
+  const { canEditModule } = await import("@/lib/auth");
+  vi.mocked(canEditModule).mockImplementation((key: string) => key === "waf");
+  const { default: WafActions } = await import("@/components/waf/WafActions");
+  render(<WafActions clientId={3} onChanged={vi.fn()} />);
+  const opcionesBtn = screen.getByRole("button", { name: /opciones/i });
+  fireEvent.pointerDown(opcionesBtn, { button: 0, ctrlKey: false });
+  fireEvent.click(opcionesBtn);
+  expect(await screen.findByText(/importar matriz excel/i)).toBeInTheDocument();
+  expect(screen.queryByText(/importar advisor csv/i)).not.toBeInTheDocument();
+});
+
+test("con solo permiso de waf-ingestions, el dropdown Opciones aparece y permite importar CSV aunque falte edición de waf", async () => {
+  const { canEditModule } = await import("@/lib/auth");
+  vi.mocked(canEditModule).mockImplementation((key: string) => key === "waf-ingestions");
+  const { default: WafActions } = await import("@/components/waf/WafActions");
+  render(<WafActions clientId={3} onChanged={vi.fn()} />);
+  expect(screen.queryByRole("button", { name: /consultar advisor/i })).not.toBeInTheDocument();
+  const opcionesBtn = screen.getByRole("button", { name: /opciones/i });
+  fireEvent.pointerDown(opcionesBtn, { button: 0, ctrlKey: false });
+  fireEvent.click(opcionesBtn);
+  fireEvent.click(await screen.findByText(/importar advisor csv/i));
+  expect(await screen.findByText(/carga un export csv de azure advisor/i)).toBeInTheDocument();
+  expect(screen.queryByText(/importar matriz excel/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/consolidar duplicados/i)).not.toBeInTheDocument();
 });
