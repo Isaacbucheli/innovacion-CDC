@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Download, MoreHorizontal, CloudUpload, GitMerge, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,8 @@ import ImportCsvDialog from "@/components/waf/ImportCsvDialog";
 import ConsolidateDialog from "@/components/waf/ConsolidateDialog";
 import AdvisorScoreDialog from "@/components/waf/AdvisorScoreDialog";
 import ExcelImportDialog from "@/components/waf/ExcelImportDialog";
-import { runWafAdvisorSync, uploadWafIngestion, downloadFromApi, consolidateWafDuplicates, refreshWafAdvisorScore } from "@/lib/api";
-import { advisorSyncSummary } from "@/lib/waf";
+import { uploadWafIngestion, downloadFromApi, consolidateWafDuplicates, refreshWafAdvisorScore } from "@/lib/api";
+import { ADVISOR_SYNC_COMPLETED_EVENT, startAdvisorSyncJob } from "@/lib/advisorSync";
 import { canEdit, getRole } from "@/lib/auth";
 
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
@@ -27,6 +27,15 @@ export default function WafActions({ clientId, onChanged }: { clientId: number; 
   const [consOpen, setConsOpen] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [excelOpen, setExcelOpen] = useState(false);
+
+  useEffect(() => {
+    const completed = (event: Event) => {
+      const result = (event as CustomEvent<{ client_id?: number }>).detail;
+      if (result?.client_id === clientId) onChanged();
+    };
+    window.addEventListener(ADVISOR_SYNC_COMPLETED_EVENT, completed);
+    return () => window.removeEventListener(ADVISOR_SYNC_COMPLETED_EVENT, completed);
+  }, [clientId, onChanged]);
 
   async function doExport() {
     setBusyMsg({ title: "Generando Excel", detail: "Matriz WAF…" });
@@ -44,9 +53,7 @@ export default function WafActions({ clientId, onChanged }: { clientId: number; 
     setBusyMsg({ title: "Consultando Advisor", detail: "Puede tardar; no cierres la ventana." });
     setBusy(true);
     try {
-      const r = await runWafAdvisorSync(clientId, { subscriptions: subscriptionIds, timeout_seconds_per_subscription: 600 });
-      toast.success(`Advisor sincronizado · ${advisorSyncSummary(r)}`);
-      onChanged();
+      await startAdvisorSyncJob(clientId, subscriptionIds);
     } catch (e) {
       toast.error(`Error consultando Advisor: ${msg(e)}`);
     } finally { setBusy(false); }

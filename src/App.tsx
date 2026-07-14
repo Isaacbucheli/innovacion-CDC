@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useState } from "react";
 import AuthGate from "@/components/AuthGate";
 import HomePage from "@/components/HomePage";
 import BusyOverlay from "@/components/BusyOverlay";
+import AdvisorSyncGuard from "@/components/waf/AdvisorSyncGuard";
 import { Toaster } from "@/components/ui/sonner";
 
 // Vistas por sección con carga diferida (code-splitting): cada una es un chunk
@@ -50,39 +51,42 @@ export default function App() {
   return (
     <>
       <AuthGate>
-        <Suspense fallback={<BusyOverlay show title="Cargando…" />}>
-          {section === "costos" ? (
-            <CostsPage onNavigate={navigate} />
-          ) : section === "optimization" ? (
-            <OptimizationPage onNavigate={navigate} />
-          ) : section === "clientes" ? (
-            <ClientsPage onNavigate={navigate} />
-          ) : section === "waf" ? (
-            <WafPage onNavigate={navigate} />
-          ) : section === "waf-cost" ? (
-            <CostReferencePage onNavigate={navigate} />
-          ) : section === "waf-ingestions" ? (
-            <IngestionsPage onNavigate={navigate} />
-          ) : section === "waf-validation" ? (
-            <ValidationPage onNavigate={navigate} />
-          ) : section === "report" ? (
-            <ReportPage onNavigate={navigate} />
-          ) : section === "reservations" ? (
-            <ReservationsPage onNavigate={navigate} />
-          ) : section === "usuarios" ? (
-            <UsersPage onNavigate={navigate} />
-          ) : section === "service-catalog" ? (
-            <ServiceCatalogPage onNavigate={navigate} />
-          ) : section === "alerts" ? (
-            <CatalogPage onNavigate={navigate} />
-          ) : section === "policies" ? (
-            <PolicyCatalogPage onNavigate={navigate} />
-          ) : section === "consultants" ? (
-            <ConsultantsPage onNavigate={navigate} />
-          ) : (
-            <HomePage recent={recent} onNavigate={navigate} />
-          )}
-        </Suspense>
+        <>
+          <AdvisorSyncGuard />
+          <Suspense fallback={<BusyOverlay show title="Cargando…" />}>
+            {section === "costos" ? (
+              <CostsPage onNavigate={navigate} />
+            ) : section === "optimization" ? (
+              <OptimizationPage onNavigate={navigate} />
+            ) : section === "clientes" ? (
+              <ClientsPage onNavigate={navigate} />
+            ) : section === "waf" ? (
+              <WafPage onNavigate={navigate} />
+            ) : section === "waf-cost" ? (
+              <CostReferencePage onNavigate={navigate} />
+            ) : section === "waf-ingestions" ? (
+              <IngestionsPage onNavigate={navigate} />
+            ) : section === "waf-validation" ? (
+              <ValidationPage onNavigate={navigate} />
+            ) : section === "report" ? (
+              <ReportPage onNavigate={navigate} />
+            ) : section === "reservations" ? (
+              <ReservationsPage onNavigate={navigate} />
+            ) : section === "usuarios" ? (
+              <UsersPage onNavigate={navigate} />
+            ) : section === "service-catalog" ? (
+              <ServiceCatalogPage onNavigate={navigate} />
+            ) : section === "alerts" ? (
+              <CatalogPage onNavigate={navigate} />
+            ) : section === "policies" ? (
+              <PolicyCatalogPage onNavigate={navigate} />
+            ) : section === "consultants" ? (
+              <ConsultantsPage onNavigate={navigate} />
+            ) : (
+              <HomePage recent={recent} onNavigate={navigate} />
+            )}
+          </Suspense>
+        </>
       </AuthGate>
       <Toaster position="top-right" />
     </>

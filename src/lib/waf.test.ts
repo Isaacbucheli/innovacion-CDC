@@ -60,7 +60,8 @@ describe("scoreColor", () => {
 describe("advisorSyncSummary", () => {
   it("resume suscripciones procesadas, nuevas y resueltas", () => {
     const r: WafAdvisorSyncResult = {
-      run_id: 1, status: "completed", subscriptions_queued: 3, subscriptions_processed: 3,
+      active: false, job_id: 9, client_id: 3, run_id: 1, status: "completed",
+      subscriptions_total: 3, subscriptions_queued: 3, subscriptions_processed: 3,
       subscriptions_failed: 0, new_recommendations: 58, new_findings: 312, resolved_findings: 12,
     };
     const s = advisorSyncSummary(r);
