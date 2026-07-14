@@ -1,5 +1,8 @@
 import { beforeEach, expect, test } from "vitest";
-import { canEdit, clearSession, getRole, getToken, setSession } from "@/lib/auth";
+import {
+  canEdit, canEditModule, canViewModule, clearSession, getModulePerms,
+  getRole, getToken, setModulePerms, setSession,
+} from "@/lib/auth";
 
 beforeEach(() => localStorage.clear());
 
@@ -19,4 +22,33 @@ test("canEdit solo admin/consultor", () => {
   expect(canEdit()).toBe(true);
   setSession("t", "consultor", "x");
   expect(canEdit()).toBe(true);
+});
+
+test("canViewModule/canEditModule según la matriz del rol", () => {
+  setSession("t", "consultor", "x");
+  setModulePerms({ alerts: { can_view: true, can_edit: false }, costos: { can_view: true, can_edit: true } });
+  expect(canViewModule("alerts")).toBe(true);
+  expect(canEditModule("alerts")).toBe(false);
+  expect(canEditModule("costos")).toBe(true);
+  expect(canViewModule("policies")).toBe(false); // ausente = denegado
+});
+
+test("admin siempre ve y edita sin matriz", () => {
+  setSession("t", "admin", "x");
+  setModulePerms({});
+  expect(canViewModule("alerts")).toBe(true);
+  expect(canEditModule("alerts")).toBe(true);
+});
+
+test("lector nunca edita aunque la matriz diga que sí", () => {
+  setSession("t", "lector", "x");
+  setModulePerms({ alerts: { can_view: true, can_edit: true } });
+  expect(canViewModule("alerts")).toBe(true);
+  expect(canEditModule("alerts")).toBe(false);
+});
+
+test("clearSession limpia los permisos", () => {
+  setModulePerms({ alerts: { can_view: true, can_edit: true } });
+  clearSession();
+  expect(getModulePerms()).toEqual({});
 });

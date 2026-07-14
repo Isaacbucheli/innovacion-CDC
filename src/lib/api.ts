@@ -105,7 +105,9 @@ export async function login(email: string, password: string): Promise<LoginResul
   setSession(r.access_token, r.role, r.full_name ?? r.email ?? "");
   return r;
 }
-export const me = () => request<{ role: Role; full_name?: string; email?: string; must_change_password?: boolean }>("/auth/me");
+export interface MeModule { key: string; can_view: boolean; can_edit: boolean }
+export const me = () =>
+  request<{ role: Role; full_name?: string; email?: string; must_change_password?: boolean; modules?: MeModule[] }>("/auth/me");
 // Cambio de contraseña del propio usuario (obligatorio cuando es temporal: must_change_password=1).
 export const changePassword = (current_password: string, new_password: string) =>
   request<{ changed: boolean; must_change_password: boolean }>("/auth/change-password", jsonOpts("POST", { current_password, new_password }));
