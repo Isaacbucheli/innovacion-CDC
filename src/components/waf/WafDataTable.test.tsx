@@ -53,3 +53,10 @@ test("el ámbito se muestra como disparador de tooltip con el texto completo", (
   // el tooltip deja de estar cableado.
   expect(scope).toHaveAttribute("data-state", "closed");
 });
+
+test("muestra la chispa Nuevo solo en recomendaciones no vistas", () => {
+  render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
+  // rec canonical_id 1 (2.1) es is_new: true; rec 2 (5.1) es is_new: false
+  const sparks = screen.getAllByLabelText("Recomendación nueva");
+  expect(sparks).toHaveLength(1);
+});

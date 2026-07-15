@@ -53,7 +53,18 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
     // Pilar se filtra contra el NOMBRE del pilar (lo que ve el usuario), no el número.
     const pillarFilter = labelColumnFilter<WafRecommendation>((raw) => pillarNames[raw as number] ?? String(raw ?? ""));
     return [
-    col.accessor("matrix_code", { header: "Código", filterFn: textFilter, cell: (c) => <span className="font-medium">{c.getValue()}</span> }),
+    col.accessor("matrix_code", { header: "Código", filterFn: textFilter, cell: (c) => (
+      <span className="relative inline-block pl-0.5">
+        {c.row.original.is_new && (
+          <svg aria-label="Recomendación nueva" role="img" viewBox="0 0 24 24" fill="none"
+               className="absolute -left-2.5 -top-2 w-3.5 h-3.5 text-primary">
+            <path d="M12 2.5c.4 3.5 1.6 4.7 5.1 5.1-3.5.4-4.7 1.6-5.1 5.1-.4-3.5-1.6-4.7-5.1-5.1C10.4 7.2 11.6 6 12 2.5Z" fill="currentColor"/>
+            <path d="M18.5 13c.2 1.8.8 2.4 2.6 2.6-1.8.2-2.4.8-2.6 2.6-.2-1.8-.8-2.4-2.6-2.6C17.7 15.4 18.3 14.8 18.5 13Z" fill="currentColor"/>
+          </svg>
+        )}
+        <span className="font-medium">{c.getValue()}</span>
+      </span>
+    ) }),
     col.accessor("pillar_number", { header: "Pilar", filterFn: pillarFilter, cell: (c) => pillarNames[c.getValue()] ?? c.getValue() }),
     col.accessor("review_scope_es", { header: "Ámbito", filterFn: textFilter, cell: (c) => (
       <Tooltip>
