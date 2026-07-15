@@ -635,6 +635,14 @@ export interface WafCostReference {
   };
   items: WafCostItem[];
 }
+/** Resultado del sync de Advisor para una suscripción (dentro de una corrida). */
+export interface SubscriptionSyncResult {
+  subscription_id: string;
+  subscription_name: string;
+  credential_name?: string | null;
+  status: "ok" | "partial" | "error";
+  error?: string | null;
+}
 export interface WafIngestionRun {
   run_id: number;
   source_file_name: string | null;
@@ -648,6 +656,8 @@ export interface WafIngestionRun {
   completed_at: string | null;
   created_by: string | null;
   error_message: string | null;
+  /** Detalle por suscripción del sync de Advisor; null en corridas antiguas o CSV. */
+  subscription_results?: SubscriptionSyncResult[] | null;
 }
 
 // ---- WAF admin: validación inteligente (curación IA del catálogo) ----

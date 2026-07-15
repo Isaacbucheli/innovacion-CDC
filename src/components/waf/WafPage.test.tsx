@@ -40,6 +40,8 @@ vi.mock("@/lib/api", () => ({
   uploadWafIngestion: vi.fn(),
   listClientSubscriptions: vi.fn(async () => []),
   downloadFromApi: vi.fn(),
+  // Consumido por el nuevo AdvisorSyncStatusPanel montado en WafPage.
+  getWafIngestionRuns: vi.fn(async () => []),
 }));
 vi.mock("@/lib/auth", () => ({ canEdit: () => true, canEditModule: () => true, getRole: () => "admin", getName: () => "BIT", canViewModule: () => true }));
 
