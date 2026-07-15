@@ -60,3 +60,16 @@ test("muestra la chispa Nuevo solo en recomendaciones no vistas", () => {
   const sparks = screen.getAllByLabelText("Recomendación nueva");
   expect(sparks).toHaveLength(1);
 });
+
+test("Modo cliente oculta la columna Origen y persiste; la chispa Nuevo permanece", () => {
+  localStorage.removeItem("waf_client_mode");
+  const { unmount } = render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
+  expect(screen.getByText("Advisor")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /Modo cliente/i }));
+  expect(screen.queryByText("Advisor")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Recomendación nueva")).toBeInTheDocument(); // la chispa NO se oculta
+  expect(localStorage.getItem("waf_client_mode")).toBe("1");
+  unmount();
+  render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
+  expect(screen.queryByText("Advisor")).not.toBeInTheDocument(); // persistió
+});

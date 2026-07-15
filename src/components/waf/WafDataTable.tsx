@@ -3,7 +3,7 @@ import {
   createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
   getSortedRowModel, useReactTable, type SortingState, type ColumnFiltersState, type VisibilityState,
 } from "@tanstack/react-table";
-import { Columns3, Rows3, Rows4 } from "lucide-react";
+import { Columns3, Rows3, Rows4, Eye, EyeOff, Presentation } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,6 +47,10 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [dense, setDense] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
+  const [clientMode, setClientMode] = useState(() => localStorage.getItem("waf_client_mode") === "1");
+  function toggleClientMode() {
+    setClientMode((v) => { const nv = !v; localStorage.setItem("waf_client_mode", nv ? "1" : "0"); return nv; });
+  }
   const data = useMemo(() => filterRecommendations(recommendations, { minPct, maxPct }), [recommendations, minPct, maxPct]);
 
   const columns = useMemo(() => {
@@ -108,7 +112,7 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
 
   const table = useReactTable({
     data, columns,
-    state: { sorting, columnFilters, columnVisibility, globalFilter },
+    state: { sorting, columnFilters, columnVisibility: clientMode ? { ...columnVisibility, source: false } : columnVisibility, globalFilter },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
@@ -134,6 +138,10 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
           aria-label="Buscar recomendaciones"
         />
         <div className="flex gap-2 ml-auto">
+          <Button variant={clientMode ? "default" : "outline"} size="sm" aria-label="Alternar Modo cliente" onClick={toggleClientMode}>
+            {clientMode ? <EyeOff className="w-4 h-4 mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
+            Modo cliente
+          </Button>
           <Button variant="outline" size="sm" aria-label="Cambiar densidad de la tabla" onClick={() => setDense((d) => !d)}>
             {dense ? <Rows4 className="w-4 h-4 mr-1" /> : <Rows3 className="w-4 h-4 mr-1" />}
             {dense ? "Cómoda" : "Compacta"}
@@ -153,6 +161,11 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
           </DropdownMenu>
         </div>
       </div>
+      {clientMode && (
+        <div className="flex items-center gap-2 text-xs rounded-md bg-primary/10 text-primary px-3 py-1.5">
+          <Presentation className="w-3.5 h-3.5" /> Modo cliente activo — Origen oculto.
+        </div>
+      )}
       <div className="rounded-xl border bg-card overflow-hidden">
         <Table>
           <TableHeader>
