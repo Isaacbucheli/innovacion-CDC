@@ -4,8 +4,8 @@ import WafDataTable from "@/components/waf/WafDataTable";
 import type { WafRecommendation } from "@/types";
 
 const recs: WafRecommendation[] = [
-  { canonical_id: 1, matrix_code: "2.1", pillar_number: 2, review_scope_es: "MFA admins", business_impact: "High", resource_count: 18, completion_pct: 20, remediation_end_date: "2026-08-15" },
-  { canonical_id: 2, matrix_code: "5.1", pillar_number: 5, review_scope_es: "Reserved Instances", business_impact: "High", resource_count: 31, completion_pct: 10, remediation_end_date: null },
+  { canonical_id: 1, matrix_code: "2.1", pillar_number: 2, review_scope_es: "MFA admins", business_impact: "High", resource_count: 18, completion_pct: 20, remediation_end_date: "2026-08-15", is_new: true, source: "advisor" },
+  { canonical_id: 2, matrix_code: "5.1", pillar_number: 5, review_scope_es: "Reserved Instances", business_impact: "High", resource_count: 31, completion_pct: 10, remediation_end_date: null, is_new: false, source: "excel" },
 ];
 
 const pillarNames = { 2: "Seguridad", 5: "Costos" };
