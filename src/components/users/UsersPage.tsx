@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ModulePermissionsPanel from "@/components/users/ModulePermissionsPanel";
 import { listUsers, updateUser, deleteUser } from "@/lib/api";
 import { usePagedRows } from "@/hooks/usePagedRows";
-import { getName, getRole } from "@/lib/auth";
+import { getEmail, getRole } from "@/lib/auth";
 import type { PublicUser } from "@/types";
 
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
@@ -31,7 +31,7 @@ const roleChipCls = (role: string) =>
 
 export default function UsersPage({ onNavigate }: { onNavigate?: (key: string) => void }) {
   const isAdmin = getRole() === "admin";
-  const myName = getName();
+  const myEmail = getEmail();
   const [rows, setRows] = useState<PublicUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [formUser, setFormUser] = useState<PublicUser | null>(null);
@@ -74,7 +74,12 @@ export default function UsersPage({ onNavigate }: { onNavigate?: (key: string) =
   const cols: SimpleCol<PublicUser>[] = [
     { key: "email", label: "Correo", render: (u) => <span className="font-medium">{u.email}</span> },
     { key: "full_name", label: "Nombre" },
-    { key: "role", label: "Perfil", render: (u) => chip(roleChipCls(u.role), roleLabel(u.role)) },
+    { key: "role", label: "Perfil", render: (u) => (
+      <span className="inline-flex items-center gap-1.5">
+        {chip(roleChipCls(u.role), roleLabel(u.role))}
+        {u.is_super_admin && chip("bg-primary/15 text-primary", "Superadmin")}
+      </span>
+    ) },
     { key: "is_active", label: "Estado", render: (u) => (
       <span className="inline-flex items-center gap-1.5">
         {chip(u.is_active ? OK : NEUTRAL, u.is_active ? "Activo" : "Inactivo")}
@@ -82,18 +87,20 @@ export default function UsersPage({ onNavigate }: { onNavigate?: (key: string) =
       </span>
     ) },
     { key: "acc", label: "", render: (u) => {
-      const isSelf = myName && u.email.toLowerCase() === (myName || "").toLowerCase();
+      const isSelf = !!myEmail && u.email.toLowerCase() === myEmail.toLowerCase();
       return (
         <div className="text-right">
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Acciones"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => openEdit(u)}>Editar</DropdownMenuItem>
+              {/* Superadmin protegido: otro admin no lo edita/desactiva/elimina (el backend igual lo bloquea);
+                  el propio superadmin SÍ puede editar su perfil (nombre/contraseña). */}
+              <DropdownMenuItem onClick={() => openEdit(u)} disabled={u.is_super_admin && !isSelf}>Editar</DropdownMenuItem>
               {(u.role === "consultor" || u.role === "lector") && (
                 <DropdownMenuItem onClick={() => setClientsUser(u)}>Acceso a clientes</DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={() => toggleActive(u)}>{u.is_active ? "Desactivar" : "Activar"}</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setToDelete(u)} disabled={!!isSelf} className="text-destructive focus:text-destructive">Eliminar</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toggleActive(u)} disabled={u.is_super_admin}>{u.is_active ? "Desactivar" : "Activar"}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setToDelete(u)} disabled={!!isSelf || u.is_super_admin} className="text-destructive focus:text-destructive">Eliminar</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

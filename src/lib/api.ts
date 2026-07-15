@@ -66,7 +66,7 @@ import type {
   OptScanSummary,
   FindingState,
 } from "@/types";
-import { clearSession, getToken, setSession } from "@/lib/auth";
+import { clearSession, getToken, setEmail, setSession } from "@/lib/auth";
 
 // Backend ÚNICO de la plataforma: la API .NET. En DEV se usa el proxy de Vite (/api → API .NET local).
 // En prod manda VITE_API_BASE_URL, con fallback al App Service de la API.
@@ -103,6 +103,7 @@ export interface LoginResult { access_token: string; role: Role; full_name?: str
 export async function login(email: string, password: string): Promise<LoginResult> {
   const r = await request<LoginResult>("/auth/login", jsonOpts("POST", { username: email, password }));
   setSession(r.access_token, r.role, r.full_name ?? r.email ?? "");
+  setEmail(r.email ?? email);
   return r;
 }
 export interface MeModule { key: string; can_view: boolean; can_edit: boolean }

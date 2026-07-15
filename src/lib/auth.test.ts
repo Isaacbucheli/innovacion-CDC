@@ -1,7 +1,7 @@
 import { beforeEach, expect, test } from "vitest";
 import {
-  canEdit, canEditModule, canViewModule, clearSession, getModulePerms,
-  getRole, getToken, setModulePerms, setSession,
+  canEdit, canEditModule, canViewModule, clearSession, getEmail, getModulePerms,
+  getRole, getToken, setEmail, setModulePerms, setSession,
 } from "@/lib/auth";
 
 beforeEach(() => localStorage.clear());
@@ -51,4 +51,12 @@ test("clearSession limpia los permisos", () => {
   setModulePerms({ alerts: { can_view: true, can_edit: true } });
   clearSession();
   expect(getModulePerms()).toEqual({});
+});
+
+test("getEmail/setEmail y clearSession", () => {
+  expect(getEmail()).toBe("");
+  setEmail("isaac@bit.ec");
+  expect(getEmail()).toBe("isaac@bit.ec");
+  clearSession();
+  expect(getEmail()).toBe("");
 });

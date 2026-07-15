@@ -3,6 +3,7 @@ import type { Role } from "@/types";
 const TOKEN_KEY = "innovacion_cdc_token";
 const ROLE_KEY = "innovacion_cdc_role";
 const NAME_KEY = "innovacion_cdc_name";
+const EMAIL_KEY = "innovacion_cdc_email";
 const PERMS_KEY = "innovacion_cdc_perms";
 
 export interface ModulePerm { can_view: boolean; can_edit: boolean }
@@ -16,6 +17,14 @@ export function getRole(): Role {
 export function getName(): string {
   return localStorage.getItem(NAME_KEY) || "Usuario BIT";
 }
+/** Correo del usuario en sesión (para detectar "soy yo" en la gestión de usuarios). */
+export function getEmail(): string {
+  return localStorage.getItem(EMAIL_KEY) || "";
+}
+export function setEmail(email: string): void {
+  if (email) localStorage.setItem(EMAIL_KEY, email);
+  else localStorage.removeItem(EMAIL_KEY);
+}
 export function setSession(token: string, role: Role, name: string): void {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(ROLE_KEY, role || "lector");
@@ -25,6 +34,7 @@ export function clearSession(): void {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(NAME_KEY);
+  localStorage.removeItem(EMAIL_KEY);
   localStorage.removeItem(PERMS_KEY);
 }
 export function canEdit(): boolean {
