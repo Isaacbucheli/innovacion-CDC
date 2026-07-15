@@ -12,6 +12,7 @@ import {
 import SearchInput from "@/components/SearchInput";
 import DataTablePagination from "@/components/DataTablePagination";
 import DataTableColumnHeader from "@/components/DataTableColumnHeader";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { impactMeta, filterRecommendations } from "@/lib/waf";
 import { textColumnFilter, labelColumnFilter, globalTextFilter } from "@/lib/columnFilter";
 import type { WafRecommendation } from "@/types";
@@ -51,7 +52,14 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
     return [
     col.accessor("matrix_code", { header: "Código", filterFn: textFilter, cell: (c) => <span className="font-medium">{c.getValue()}</span> }),
     col.accessor("pillar_number", { header: "Pilar", filterFn: pillarFilter, cell: (c) => pillarNames[c.getValue()] ?? c.getValue() }),
-    col.accessor("review_scope_es", { header: "Ámbito", filterFn: textFilter, cell: (c) => <span className="truncate block max-w-[280px]">{c.getValue() ?? "—"}</span> }),
+    col.accessor("review_scope_es", { header: "Ámbito", filterFn: textFilter, cell: (c) => (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="truncate block max-w-[280px] cursor-default">{c.getValue() ?? "—"}</span>
+        </TooltipTrigger>
+        {c.getValue() && <TooltipContent className="whitespace-normal">{c.getValue()}</TooltipContent>}
+      </Tooltip>
+    ) }),
     col.accessor("business_impact", {
       header: "Impacto", filterFn: impactFilter,
       cell: (c) => { const m = impactMeta(c.getValue()); return <span className={`text-xs px-2.5 py-0.5 rounded-full ${m.chip}`}>{m.label}</span>; },
@@ -91,6 +99,7 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
   const pad = dense ? "py-1.5" : "py-3";
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2 items-center">
         <SearchInput
@@ -149,5 +158,6 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
       </div>
       <DataTablePagination table={table} />
     </div>
+    </TooltipProvider>
   );
 }

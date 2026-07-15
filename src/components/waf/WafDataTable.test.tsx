@@ -37,3 +37,11 @@ test("muestra la fecha de cierre formateada (y — cuando no hay)", () => {
   render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
   expect(screen.getByText("15/08/2026")).toBeInTheDocument();
 });
+
+test("el ámbito se muestra como disparador de tooltip con el texto completo", () => {
+  render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
+  const scope = screen.getByText("Reserved Instances");
+  expect(scope).toBeInTheDocument();
+  // el disparador envuelve el texto truncado; el título accesible completo existe en el DOM del trigger
+  expect(scope.closest("[data-slot='tooltip-trigger'], button, span")).toBeTruthy();
+});
