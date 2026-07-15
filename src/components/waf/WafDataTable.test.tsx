@@ -42,6 +42,8 @@ test("el ámbito se muestra como disparador de tooltip con el texto completo", (
   render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
   const scope = screen.getByText("Reserved Instances");
   expect(scope).toBeInTheDocument();
-  // el disparador envuelve el texto truncado; el título accesible completo existe en el DOM del trigger
-  expect(scope.closest("[data-slot='tooltip-trigger'], button, span")).toBeTruthy();
+  // Radix's TooltipTrigger asChild inyecta data-state en el <span> hijo; un span sin
+  // envolver en el trigger nunca tendría este atributo, así que la aserción falla si
+  // el tooltip deja de estar cableado.
+  expect(scope).toHaveAttribute("data-state", "closed");
 });
