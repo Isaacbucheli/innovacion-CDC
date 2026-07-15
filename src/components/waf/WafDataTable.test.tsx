@@ -28,9 +28,15 @@ test("el buscador global filtra por código o ámbito", () => {
 
 test("ofrece el botón de filtro en todas las columnas", () => {
   render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
-  for (const name of ["Código", "Pilar", "Ámbito", "Impacto", "Recursos", "Avance", "Fecha de cierre"]) {
+  for (const name of ["Código", "Pilar", "Ámbito", "Impacto", "Origen", "Recursos", "Avance", "Fecha de cierre"]) {
     expect(screen.getByRole("button", { name: `Filtrar ${name}` })).toBeInTheDocument();
   }
+});
+
+test("muestra la columna Origen con la etiqueta correcta", () => {
+  render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
+  expect(screen.getByText("Advisor")).toBeInTheDocument();
+  expect(screen.getByText("Excel")).toBeInTheDocument();
 });
 
 test("muestra la fecha de cierre formateada (y — cuando no hay)", () => {

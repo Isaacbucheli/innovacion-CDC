@@ -14,6 +14,7 @@ import DataTablePagination from "@/components/DataTablePagination";
 import DataTableColumnHeader from "@/components/DataTableColumnHeader";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { impactMeta, filterRecommendations } from "@/lib/waf";
+import { sourceMeta } from "@/lib/wafSource";
 import { textColumnFilter, labelColumnFilter, globalTextFilter } from "@/lib/columnFilter";
 import type { WafRecommendation } from "@/types";
 
@@ -29,6 +30,8 @@ function fmtDate(iso: string | null): string {
 const textFilter = textColumnFilter<WafRecommendation>;
 // Impacto se filtra contra la etiqueta en español (Alta/Media/Baja), no contra "high/medium/low".
 const impactFilter = labelColumnFilter<WafRecommendation>((raw) => impactMeta(raw as string | null).label);
+// Origen se filtra contra la etiqueta mostrada (Excel/CSV/Advisor), no contra el valor crudo.
+const sourceFilter = labelColumnFilter<WafRecommendation>((raw) => sourceMeta(raw as string | null)?.label ?? "—");
 // Búsqueda global sobre código + ámbito.
 const globalSearch = globalTextFilter<WafRecommendation>((r) => `${r.matrix_code} ${r.review_scope_es ?? ""}`);
 
@@ -63,6 +66,15 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
     col.accessor("business_impact", {
       header: "Impacto", filterFn: impactFilter,
       cell: (c) => { const m = impactMeta(c.getValue()); return <span className={`text-xs px-2.5 py-0.5 rounded-full ${m.chip}`}>{m.label}</span>; },
+    }),
+    col.accessor("source", {
+      header: "Origen", filterFn: sourceFilter,
+      cell: (c) => {
+        const m = sourceMeta(c.getValue());
+        if (!m) return <span className="text-muted-foreground">—</span>;
+        const Icon = m.icon;
+        return <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-full ${m.chip}`}><Icon className="w-3.5 h-3.5" />{m.label}</span>;
+      },
     }),
     col.accessor("resource_count", { header: "Recursos", filterFn: textFilter, sortingFn: "basic", cell: (c) => <span className="tabular-nums">{c.getValue()}</span> }),
     col.accessor("completion_pct", {
