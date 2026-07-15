@@ -4,8 +4,12 @@
     { "route": "/assets/*", "headers": { "cache-control": "public, max-age=31536000, immutable" } }
   ],
   "globalHeaders": {
-    "Content-Security-Policy": "default-src 'self'; connect-src 'self' https://app-optimizacion-costos-api-dotnet.azurewebsites.net; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+    "Content-Security-Policy": "default-src 'self'; connect-src 'self' https://app-optimizacion-costos-api-dotnet.azurewebsites.net; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
     "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "strict-origin-when-cross-origin"
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Permissions-Policy": "geolocation=(), camera=(), microphone=(), payment=(), usb=()",
+    "cache-control": "no-cache, no-store, must-revalidate"
   }
 }
