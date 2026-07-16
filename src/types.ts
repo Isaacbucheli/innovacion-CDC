@@ -426,6 +426,17 @@ export interface WafAdvisorScore {
   pillars: Record<string, number>;
 }
 
+/** Historial del Advisor Score (GET /waf/clients/{id}/advisor-score/history). */
+export interface WafScoreHistoryPoint {
+  date: string;
+  global: number | null;
+  pillars: Record<string, number | null>;
+}
+export interface WafScoreHistory {
+  granularity: string;
+  series: WafScoreHistoryPoint[];
+}
+
 /** Suscripción del cliente (GET /azure/subscriptions?client_id=, backend .NET). */
 export interface ClientSubscription {
   client_subscription_id: number;

@@ -47,6 +47,7 @@ import type {
   WafRecommendation,
   WafRecommendationDetail,
   WafResource,
+  WafScoreHistory,
   WafScoreRefreshResult,
   WafSection,
   WafSummary,
@@ -278,6 +279,8 @@ export const getWafSections = (clientId: number) =>
   request<WafSection[]>(`/waf/clients/${clientId}/sections`);
 export const getWafAdvisorScore = (clientId: number) =>
   request<WafAdvisorScore>(`/waf/clients/${clientId}/advisor-score`);
+export const getWafScoreHistory = (clientId: number, granularity: "day" | "week" | "month" = "month") =>
+  request<WafScoreHistory>(`/waf/clients/${clientId}/advisor-score/history?granularity=${granularity}`);
 export const getWafRecommendations = (clientId: number, pillar?: number) =>
   request<WafRecommendation[]>(
     `/waf/clients/${clientId}/recommendations${pillar ? `?pillar=${pillar}` : ""}`,
