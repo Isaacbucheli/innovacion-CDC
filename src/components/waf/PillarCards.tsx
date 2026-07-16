@@ -1,12 +1,15 @@
 import { Check } from "lucide-react";
-import type { WafSection } from "@/types";
+import type { WafSection, WafScoreHistory } from "@/types";
 import { pillarIcon, scoreColor, computePillarAvance, AZURE_BLUE } from "@/lib/waf";
+import { pillarSeries } from "@/lib/scoreHistory";
+import PillarSparkline from "@/components/waf/PillarSparkline";
 
-export default function PillarCards({ sections, activePillar, onPick, scores }: {
+export default function PillarCards({ sections, activePillar, onPick, scores, history }: {
   sections: WafSection[];
   activePillar: number | null;
   onPick: (pillar: number | null) => void;
   scores: Record<number, number> | null;
+  history?: WafScoreHistory | null;
 }) {
   // Si algún pilar tiene recomendaciones, los pilares vacíos significan "todo aplicado".
   const matrixPopulated = sections.some((x) => x.total_recs > 0);
@@ -53,6 +56,7 @@ export default function PillarCards({ sections, activePillar, onPick, scores }: 
                 <span className="block h-full rounded-full" style={{ width: `${avance}%`, background: AZURE_BLUE }} />
               </div>
               <div className="text-[11px] text-muted-foreground">avance {avance}%</div>
+              {score != null && <PillarSparkline values={pillarSeries(history ?? null, s.section_num)} color={scoreColor(score)} />}
             </div>
           </button>
         );
