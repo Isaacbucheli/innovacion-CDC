@@ -370,6 +370,8 @@ export interface WafRecommendation {
   resource_count: number;
   completion_pct: number;
   remediation_end_date: string | null;
+  is_new: boolean;
+  source: string | null;
 }
 
 export interface WafRecommendationDetail extends WafRecommendation {

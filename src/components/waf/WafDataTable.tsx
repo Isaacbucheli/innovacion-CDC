@@ -3,7 +3,7 @@ import {
   createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
   getSortedRowModel, useReactTable, type SortingState, type ColumnFiltersState, type VisibilityState,
 } from "@tanstack/react-table";
-import { Columns3, Rows3, Rows4 } from "lucide-react";
+import { Columns3, Rows3, Rows4, Eye, EyeOff, Presentation } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +12,9 @@ import {
 import SearchInput from "@/components/SearchInput";
 import DataTablePagination from "@/components/DataTablePagination";
 import DataTableColumnHeader from "@/components/DataTableColumnHeader";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { impactMeta, filterRecommendations } from "@/lib/waf";
+import { sourceMeta } from "@/lib/wafSource";
 import { textColumnFilter, labelColumnFilter, globalTextFilter } from "@/lib/columnFilter";
 import type { WafRecommendation } from "@/types";
 
@@ -28,6 +30,8 @@ function fmtDate(iso: string | null): string {
 const textFilter = textColumnFilter<WafRecommendation>;
 // Impacto se filtra contra la etiqueta en español (Alta/Media/Baja), no contra "high/medium/low".
 const impactFilter = labelColumnFilter<WafRecommendation>((raw) => impactMeta(raw as string | null).label);
+// Origen se filtra contra la etiqueta mostrada (Excel/CSV/Advisor), no contra el valor crudo.
+const sourceFilter = labelColumnFilter<WafRecommendation>((raw) => sourceMeta(raw as string | null)?.label ?? "—");
 // Búsqueda global sobre código + ámbito.
 const globalSearch = globalTextFilter<WafRecommendation>((r) => `${r.matrix_code} ${r.review_scope_es ?? ""}`);
 
@@ -43,18 +47,49 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [dense, setDense] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
+  const [clientMode, setClientMode] = useState(() => localStorage.getItem("waf_client_mode") === "1");
+  function toggleClientMode() {
+    setClientMode((v) => { const nv = !v; localStorage.setItem("waf_client_mode", nv ? "1" : "0"); return nv; });
+  }
   const data = useMemo(() => filterRecommendations(recommendations, { minPct, maxPct }), [recommendations, minPct, maxPct]);
 
   const columns = useMemo(() => {
     // Pilar se filtra contra el NOMBRE del pilar (lo que ve el usuario), no el número.
     const pillarFilter = labelColumnFilter<WafRecommendation>((raw) => pillarNames[raw as number] ?? String(raw ?? ""));
     return [
-    col.accessor("matrix_code", { header: "Código", filterFn: textFilter, cell: (c) => <span className="font-medium">{c.getValue()}</span> }),
+    col.accessor("matrix_code", { header: "Código", filterFn: textFilter, cell: (c) => (
+      <span className="relative inline-block pl-0.5">
+        {c.row.original.is_new && (
+          <svg aria-label="Recomendación nueva" role="img" viewBox="0 0 24 24" fill="none"
+               className="absolute -left-2.5 -top-2 w-3.5 h-3.5 text-primary">
+            <path d="M12 2.5c.4 3.5 1.6 4.7 5.1 5.1-3.5.4-4.7 1.6-5.1 5.1-.4-3.5-1.6-4.7-5.1-5.1C10.4 7.2 11.6 6 12 2.5Z" fill="currentColor"/>
+            <path d="M18.5 13c.2 1.8.8 2.4 2.6 2.6-1.8.2-2.4.8-2.6 2.6-.2-1.8-.8-2.4-2.6-2.6C17.7 15.4 18.3 14.8 18.5 13Z" fill="currentColor"/>
+          </svg>
+        )}
+        <span className="font-medium">{c.getValue()}</span>
+      </span>
+    ) }),
     col.accessor("pillar_number", { header: "Pilar", filterFn: pillarFilter, cell: (c) => pillarNames[c.getValue()] ?? c.getValue() }),
-    col.accessor("review_scope_es", { header: "Ámbito", filterFn: textFilter, cell: (c) => <span className="truncate block max-w-[280px]">{c.getValue() ?? "—"}</span> }),
+    col.accessor("review_scope_es", { header: "Ámbito", filterFn: textFilter, cell: (c) => (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="truncate block max-w-[280px] cursor-default">{c.getValue() ?? "—"}</span>
+        </TooltipTrigger>
+        {c.getValue() && <TooltipContent className="whitespace-normal">{c.getValue()}</TooltipContent>}
+      </Tooltip>
+    ) }),
     col.accessor("business_impact", {
       header: "Impacto", filterFn: impactFilter,
       cell: (c) => { const m = impactMeta(c.getValue()); return <span className={`text-xs px-2.5 py-0.5 rounded-full ${m.chip}`}>{m.label}</span>; },
+    }),
+    col.accessor("source", {
+      header: "Origen", filterFn: sourceFilter,
+      cell: (c) => {
+        const m = sourceMeta(c.getValue());
+        if (!m) return <span className="text-muted-foreground">—</span>;
+        const Icon = m.icon;
+        return <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-full ${m.chip}`}><Icon className="w-3.5 h-3.5" />{m.label}</span>;
+      },
     }),
     col.accessor("resource_count", { header: "Recursos", filterFn: textFilter, sortingFn: "basic", cell: (c) => <span className="tabular-nums">{c.getValue()}</span> }),
     col.accessor("completion_pct", {
@@ -77,7 +112,7 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
 
   const table = useReactTable({
     data, columns,
-    state: { sorting, columnFilters, columnVisibility, globalFilter },
+    state: { sorting, columnFilters, columnVisibility: clientMode ? { ...columnVisibility, source: false } : columnVisibility, globalFilter },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
@@ -91,6 +126,7 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
   const pad = dense ? "py-1.5" : "py-3";
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2 items-center">
         <SearchInput
@@ -102,6 +138,10 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
           aria-label="Buscar recomendaciones"
         />
         <div className="flex gap-2 ml-auto">
+          <Button variant={clientMode ? "default" : "outline"} size="sm" aria-label="Alternar Modo cliente" onClick={toggleClientMode}>
+            {clientMode ? <EyeOff className="w-4 h-4 mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
+            Modo cliente
+          </Button>
           <Button variant="outline" size="sm" aria-label="Cambiar densidad de la tabla" onClick={() => setDense((d) => !d)}>
             {dense ? <Rows4 className="w-4 h-4 mr-1" /> : <Rows3 className="w-4 h-4 mr-1" />}
             {dense ? "Cómoda" : "Compacta"}
@@ -121,6 +161,11 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
           </DropdownMenu>
         </div>
       </div>
+      {clientMode && (
+        <div className="flex items-center gap-2 text-xs rounded-md bg-primary/10 text-primary px-3 py-1.5">
+          <Presentation className="w-3.5 h-3.5" /> Modo cliente activo — Origen oculto.
+        </div>
+      )}
       <div className="rounded-xl border bg-card overflow-hidden">
         <Table>
           <TableHeader>
@@ -149,5 +194,6 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
       </div>
       <DataTablePagination table={table} />
     </div>
+    </TooltipProvider>
   );
 }

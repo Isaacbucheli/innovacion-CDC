@@ -12,6 +12,7 @@ const detail = {
   remediation_start_date: null, remediation_end_date: null,
   projected_bit_effort: null, execution_log: null,
   priority_override: null, internal_notes: null,
+  is_new: false, source: "advisor",
 };
 
 beforeEach(() => vi.clearAllMocks());

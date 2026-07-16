@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getWafAdvisorScore, getWafRecommendations, getWafSections, getWafSummary, listClientsAdmin } from "@/lib/api";
+import { getWafAdvisorScore, getWafRecommendations, getWafSections, getWafSummary, listClientsAdmin, markWafRecommendationRead } from "@/lib/api";
 import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
 import type { ClientAdmin, WafRecommendation, WafSection, WafSummary } from "@/types";
 
@@ -78,5 +78,11 @@ export function useWaf() {
 
   const reloadData = useCallback(() => { if (clientId != null) loadFor(clientId); }, [clientId, loadFor]);
 
-  return { clients, clientId, summary, sections, recommendations, scores, pillarNames, loading, dataLoading, error, selectClient, reloadData };
+  const markRecommendationRead = useCallback((canonicalId: number) => {
+    if (clientId == null) return;
+    setRecommendations((prev) => prev.map((r) => (r.canonical_id === canonicalId ? { ...r, is_new: false } : r)));
+    void markWafRecommendationRead(clientId, canonicalId).catch(() => { /* best-effort: la vista ya se actualizó */ });
+  }, [clientId]);
+
+  return { clients, clientId, summary, sections, recommendations, scores, pillarNames, loading, dataLoading, error, selectClient, reloadData, markRecommendationRead };
 }

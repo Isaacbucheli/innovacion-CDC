@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
 import ClientHeader from "@/components/ClientHeader";
@@ -6,14 +6,10 @@ import WafKpis from "@/components/waf/WafKpis";
 import PillarCards from "@/components/waf/PillarCards";
 import WafDataTable from "@/components/waf/WafDataTable";
 import WafDetailDialog from "@/components/waf/WafDetailDialog";
-import AdvisorSyncStatusPanel from "@/components/waf/AdvisorSyncStatusPanel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useWaf } from "@/hooks/useWaf";
 import { filterRecommendations } from "@/lib/waf";
-import { getWafIngestionRuns } from "@/lib/api";
-import { ADVISOR_SYNC_COMPLETED_EVENT } from "@/lib/advisorSync";
 import WafActions from "@/components/waf/WafActions";
-import type { WafIngestionRun } from "@/types";
 
 // Buckets de avance para el filtro (min/max %). Espejo del patrón de Reservas.
 const AVANCE: Record<string, [number, number]> = {
@@ -26,29 +22,6 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
   const [avance, setAvance] = useState("all");
   const [openId, setOpenId] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [latestRun, setLatestRun] = useState<WafIngestionRun | null>(null);
-
-  // Corrida más reciente del cliente (para el panel de transparencia del sync).
-  // Best-effort: si falla, el panel simplemente no aparece; nunca rompe la vista.
-  const clientId = waf.clientId;
-  useEffect(() => {
-    if (clientId == null) { setLatestRun(null); return; }
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const runs = await getWafIngestionRuns(clientId);
-        if (!cancelled) setLatestRun(runs?.[0] ?? null);
-      } catch { if (!cancelled) setLatestRun(null); }
-    };
-    load();
-    // Refresca el panel cuando termina un sync de Advisor de este cliente.
-    const onCompleted = (event: Event) => {
-      const detail = (event as CustomEvent<{ client_id?: number }>).detail;
-      if (detail?.client_id === clientId) load();
-    };
-    window.addEventListener(ADVISOR_SYNC_COMPLETED_EVENT, onCompleted);
-    return () => { cancelled = true; window.removeEventListener(ADVISOR_SYNC_COMPLETED_EVENT, onCompleted); };
-  }, [clientId]);
 
   const [minPct, maxPct] = AVANCE[avance] ?? AVANCE.all;
   const filtered = filterRecommendations(waf.recommendations, { pillar });
@@ -57,7 +30,7 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
     : 0;
   const highImpact = waf.sections.reduce((s, x) => s + (x.high_recs ?? 0), 0);
 
-  function open(canonicalId: number) { setOpenId(canonicalId); setDialogOpen(true); }
+  function open(canonicalId: number) { setOpenId(canonicalId); setDialogOpen(true); waf.markRecommendationRead(canonicalId); }
 
   return (
     <AppShell title="Recomendaciones" subtitle="Matriz mejoras Azure · Well-Architected" active="waf" onNavigate={onNavigate}
@@ -65,7 +38,6 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
       <BusyOverlay show={waf.loading || waf.dataLoading} title="Cargando recomendaciones" />
       <div className="space-y-5">
         {waf.clientId != null && <WafActions clientId={waf.clientId} onChanged={waf.reloadData} />}
-        {waf.clientId != null && <AdvisorSyncStatusPanel run={latestRun} />}
         <WafKpis summary={waf.summary} avgProgress={avgProgress} highImpact={highImpact} />
         <PillarCards sections={waf.sections} activePillar={pillar} onPick={setPillar} scores={waf.scores} />
         {waf.error && <p className="text-sm text-destructive">{waf.error}</p>}

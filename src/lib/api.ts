@@ -304,6 +304,8 @@ export const addWafComment = (clientId: number, canonicalId: number, comment_tex
   request<{ comment_id: number }>(
     `/waf/clients/${clientId}/recommendations/${canonicalId}/comments`, jsonOpts("POST", { comment_text }),
   );
+export const markWafRecommendationRead = (clientId: number, canonicalId: number) =>
+  request<void>(`/waf/clients/${clientId}/recommendations/${canonicalId}/read`, { method: "POST" });
 
 // ---- WAF: acciones (Slice A) ----
 export const listClientSubscriptions = (clientId: number) =>
