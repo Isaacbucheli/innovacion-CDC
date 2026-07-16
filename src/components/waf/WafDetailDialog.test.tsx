@@ -46,8 +46,11 @@ test("al cambiar de recomendación no muestra la anterior mientras carga", async
   await waitFor(() => expect(screen.getByText("Ahorra")).toBeInTheDocument());
 
   // Cambia a la recomendación 10 (aún cargando): el título de la 9 (código 5.1) NO debe seguir visible.
-  rerender(<WafDetailDialog {...props} canonicalId={10} />);
+  rerender(<WafDetailDialog {...props} canonicalId={10} fallbackTitle="2.4 · VNets" />);
   await waitFor(() => expect(screen.queryByText(/5\.1/)).not.toBeInTheDocument());
+  // El título muestra el fallback de la lista y "Cargando…" aparece una sola vez (sin redundancia).
+  expect(screen.getByText("2.4 · VNets")).toBeInTheDocument();
+  expect(screen.getAllByText(/Cargando/)).toHaveLength(1);
 
   // Al resolver, aparece la 10.
   resolve10({

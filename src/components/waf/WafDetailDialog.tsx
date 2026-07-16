@@ -15,8 +15,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function WafDetailDialog({ clientId, canonicalId, pillarName, open, onOpenChange, onChanged }: {
-  clientId: number; canonicalId: number | null; pillarName: string;
+export default function WafDetailDialog({ clientId, canonicalId, pillarName, fallbackTitle, open, onOpenChange, onChanged }: {
+  clientId: number; canonicalId: number | null; pillarName: string; fallbackTitle?: string;
   open: boolean; onOpenChange: (o: boolean) => void; onChanged: () => void;
 }) {
   const [detail, setDetail] = useState<WafRecommendationDetail | null>(null);
@@ -59,7 +59,7 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, ope
       <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
-            <span>{detail ? `${detail.matrix_code} · ${detail.review_scope_es ?? "Recomendación"}` : "Cargando…"}</span>
+            <span>{detail ? `${detail.matrix_code} · ${detail.review_scope_es ?? "Recomendación"}` : (fallbackTitle ?? "Recomendación")}</span>
           </DialogTitle>
         </DialogHeader>
         {loading || !detail ? (

@@ -29,6 +29,8 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
     ? Math.round(waf.recommendations.reduce((s, r) => s + r.completion_pct, 0) / waf.recommendations.length)
     : 0;
   const highImpact = waf.sections.reduce((s, x) => s + (x.high_recs ?? 0), 0);
+  // Fila abierta (de la lista): permite mostrar el título del detalle al instante, sin esperar la carga.
+  const openRec = openId != null ? waf.recommendations.find((r) => r.canonical_id === openId) : undefined;
 
   function open(canonicalId: number) { setOpenId(canonicalId); setDialogOpen(true); waf.markRecommendationRead(canonicalId); }
 
@@ -58,7 +60,8 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
       <WafDetailDialog
         clientId={waf.clientId ?? 0}
         canonicalId={openId}
-        pillarName={openId != null ? (waf.pillarNames[waf.recommendations.find((r) => r.canonical_id === openId)?.pillar_number ?? 0] ?? "") : ""}
+        pillarName={openRec ? (waf.pillarNames[openRec.pillar_number] ?? "") : ""}
+        fallbackTitle={openRec ? `${openRec.matrix_code} · ${openRec.review_scope_es ?? "Recomendación"}` : undefined}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onChanged={waf.reloadData}
