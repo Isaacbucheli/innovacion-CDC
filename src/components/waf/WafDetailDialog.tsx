@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getWafRecommendation, getWafResources, getWafComments, getWafHistory } from "@/lib/api";
 import { impactMeta } from "@/lib/waf";
@@ -24,25 +24,33 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, ope
   const [comments, setComments] = useState<WafComment[]>([]);
   const [history, setHistory] = useState<WafHistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  // Id de petición: descarta respuestas obsoletas si el usuario abre otra recomendación
+  // antes de que termine la carga anterior (evita que una respuesta vieja pise a la nueva).
+  const reqRef = useRef(0);
 
-  async function loadDetail(cid: number) {
+  async function loadDetail(cid: number, reset: boolean) {
+    const my = ++reqRef.current;
+    // Al cambiar de recomendación se limpia el detalle previo para no mostrar datos viejos
+    // (título/cuerpo) mientras carga el nuevo. En un refresco del mismo detalle no se limpia.
+    if (reset) { setDetail(null); setResources([]); setComments([]); setHistory([]); }
     setLoading(true);
     try {
       const [d, r, c, h] = await Promise.all([
         getWafRecommendation(clientId, cid), getWafResources(clientId, cid),
         getWafComments(clientId, cid), getWafHistory(clientId, cid),
       ]);
+      if (my !== reqRef.current) return; // llegó una petición más nueva: ignora esta
       setDetail(d); setResources(r); setComments(c); setHistory(h);
-    } finally { setLoading(false); }
+    } finally { if (my === reqRef.current) setLoading(false); }
   }
 
   useEffect(() => {
-    if (open && canonicalId != null) loadDetail(canonicalId);
+    if (open && canonicalId != null) loadDetail(canonicalId, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, canonicalId]);
 
   function refreshComments() { if (canonicalId != null) getWafComments(clientId, canonicalId).then(setComments); }
-  function afterTracking() { if (canonicalId != null) loadDetail(canonicalId); onChanged(); }
+  function afterTracking() { if (canonicalId != null) loadDetail(canonicalId, false); onChanged(); }
 
   const m = detail ? impactMeta(detail.business_impact) : null;
 
@@ -51,7 +59,7 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, ope
       <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
-            <span>{detail?.matrix_code} · {detail?.review_scope_es ?? "Recomendación"}</span>
+            <span>{detail ? `${detail.matrix_code} · ${detail.review_scope_es ?? "Recomendación"}` : "Cargando…"}</span>
           </DialogTitle>
         </DialogHeader>
         {loading || !detail ? (
