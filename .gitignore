@@ -15,6 +15,10 @@ dist-ssr
 # Generado en el build desde staticwebapp.config.template.json (R2): fuente única del host = .env.production
 staticwebapp.config.json
 
+# Herramientas locales / artefactos generados (no versionar; importante para repo público)
+.claude/
+graphify-out/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
