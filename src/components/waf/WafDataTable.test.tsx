@@ -26,17 +26,24 @@ test("el buscador global filtra por código o ámbito", () => {
   expect(screen.getByText("Reserved Instances")).toBeInTheDocument();
 });
 
-test("ofrece el botón de filtro en todas las columnas", () => {
+test("ofrece el botón de filtro en las columnas visibles (sin Origen)", () => {
   render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
-  for (const name of ["Código", "Pilar", "Ámbito", "Impacto", "Origen", "Recursos", "Avance", "Fecha de cierre"]) {
+  for (const name of ["Código", "Pilar", "Ámbito", "Impacto", "Recursos", "Avance", "Fecha de cierre"]) {
     expect(screen.getByRole("button", { name: `Filtrar ${name}` })).toBeInTheDocument();
   }
 });
 
-test("muestra la columna Origen con la etiqueta correcta", () => {
+test("la columna Origen está oculta por defecto", () => {
   render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
-  expect(screen.getByText("Advisor")).toBeInTheDocument();
-  expect(screen.getByText("Excel")).toBeInTheDocument();
+  // Las etiquetas de origen (Advisor/Excel) y el botón de filtro de Origen no se muestran.
+  expect(screen.queryByText("Advisor")).not.toBeInTheDocument();
+  expect(screen.queryByText("Excel")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Filtrar Origen" })).not.toBeInTheDocument();
+});
+
+test("no existe el botón Modo cliente", () => {
+  render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
+  expect(screen.queryByRole("button", { name: /Modo cliente/i })).not.toBeInTheDocument();
 });
 
 test("muestra la fecha de cierre formateada (y — cuando no hay)", () => {
@@ -47,29 +54,11 @@ test("muestra la fecha de cierre formateada (y — cuando no hay)", () => {
 test("el ámbito se muestra como disparador de tooltip con el texto completo", () => {
   render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
   const scope = screen.getByText("Reserved Instances");
-  expect(scope).toBeInTheDocument();
-  // Radix's TooltipTrigger asChild inyecta data-state en el <span> hijo; un span sin
-  // envolver en el trigger nunca tendría este atributo, así que la aserción falla si
-  // el tooltip deja de estar cableado.
   expect(scope).toHaveAttribute("data-state", "closed");
 });
 
 test("muestra la chispa Nuevo solo en recomendaciones no vistas", () => {
   render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
-  // rec canonical_id 1 (2.1) es is_new: true; rec 2 (5.1) es is_new: false
   const sparks = screen.getAllByLabelText("Recomendación nueva");
   expect(sparks).toHaveLength(1);
-});
-
-test("Modo cliente oculta la columna Origen y persiste; la chispa Nuevo permanece", () => {
-  localStorage.removeItem("waf_client_mode");
-  const { unmount } = render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
-  expect(screen.getByText("Advisor")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: /Modo cliente/i }));
-  expect(screen.queryByText("Advisor")).not.toBeInTheDocument();
-  expect(screen.getByLabelText("Recomendación nueva")).toBeInTheDocument(); // la chispa NO se oculta
-  expect(localStorage.getItem("waf_client_mode")).toBe("1");
-  unmount();
-  render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
-  expect(screen.queryByText("Advisor")).not.toBeInTheDocument(); // persistió
 });
