@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { pillarSeries, sparklinePoints, lastDelta, formatHistoryLabel } from "@/lib/scoreHistory";
+import { pillarSeries, sparklineCoords, sparklinePoints, lastDelta, formatHistoryLabel, historyLabels } from "@/lib/scoreHistory";
 import type { WafScoreHistory } from "@/types";
 
 const H: WafScoreHistory = {
@@ -27,6 +27,26 @@ describe("sparklinePoints", () => {
   test("devuelve '' con menos de 2 puntos válidos", () => {
     expect(sparklinePoints([null, 50], 100, 20)).toBe("");
     expect(sparklinePoints([], 100, 20)).toBe("");
+  });
+});
+
+describe("sparklineCoords", () => {
+  test("coordenadas con value/index, Y invertida, >=2 válidos", () => {
+    expect(sparklineCoords([0, 100], 100, 20, 0)).toEqual([
+      { x: 0, y: 20, value: 0, index: 0 },
+      { x: 100, y: 0, value: 100, index: 1 },
+    ]);
+  });
+  test("[] con menos de 2 válidos", () => {
+    expect(sparklineCoords([null, 50], 100, 20)).toEqual([]);
+    expect(sparklineCoords([], 100, 20)).toEqual([]);
+  });
+});
+
+describe("historyLabels", () => {
+  test("una etiqueta por punto de la serie; [] si no hay historial", () => {
+    expect(historyLabels(H)).toEqual(["May 26", "Jun 26"]);
+    expect(historyLabels(null)).toEqual([]);
   });
 });
 

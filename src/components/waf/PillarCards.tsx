@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import type { WafSection, WafScoreHistory } from "@/types";
 import { pillarIcon, scoreColor, computePillarAvance, AZURE_BLUE } from "@/lib/waf";
-import { pillarSeries } from "@/lib/scoreHistory";
+import { pillarSeries, historyLabels } from "@/lib/scoreHistory";
 import PillarSparkline from "@/components/waf/PillarSparkline";
 
 export default function PillarCards({ sections, activePillar, onPick, scores, history }: {
@@ -13,6 +13,8 @@ export default function PillarCards({ sections, activePillar, onPick, scores, hi
 }) {
   // Si algún pilar tiene recomendaciones, los pilares vacíos significan "todo aplicado".
   const matrixPopulated = sections.some((x) => x.total_recs > 0);
+  // Etiquetas de mes de la serie histórica (mismas para todos los pilares; alineadas por índice).
+  const labels = historyLabels(history ?? null);
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
       {sections.map((s) => {
@@ -56,7 +58,7 @@ export default function PillarCards({ sections, activePillar, onPick, scores, hi
                 <span className="block h-full rounded-full" style={{ width: `${avance}%`, background: AZURE_BLUE }} />
               </div>
               <div className="text-[11px] text-muted-foreground">avance {avance}%</div>
-              {score != null && <PillarSparkline values={pillarSeries(history ?? null, s.section_num)} color={scoreColor(score)} />}
+              {score != null && <PillarSparkline values={pillarSeries(history ?? null, s.section_num)} labels={labels} color={scoreColor(score)} />}
             </div>
           </button>
         );
