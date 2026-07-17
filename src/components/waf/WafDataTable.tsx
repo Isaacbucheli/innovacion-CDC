@@ -55,6 +55,10 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
 
   const [scopeEn, setScopeEn] = useState<Map<string, string>>(new Map());
   const [translating, setTranslating] = useState(false);
+  const scopeKey = useMemo(
+    () => data.map((r) => r.review_scope_es ?? "").join("|"),
+    [data],
+  );
 
   useEffect(() => {
     if (!english) return;
@@ -71,7 +75,8 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
       })
       .finally(() => { if (!cancelled) setTranslating(false); });
     return () => { cancelled = true; };
-  }, [english, data, onEnglishChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [english, scopeKey, onEnglishChange]);
 
   const columns = useMemo(() => {
     // Pilar se filtra contra el NOMBRE del pilar (lo que ve el usuario), no el número.
