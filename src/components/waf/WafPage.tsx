@@ -41,7 +41,7 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
       <div className="space-y-5">
         {waf.clientId != null && <WafActions clientId={waf.clientId} onChanged={waf.reloadData} pillarNames={waf.pillarNames} />}
         <WafKpis summary={waf.summary} avgProgress={avgProgress} highImpact={highImpact} />
-        <PillarCards sections={waf.sections} activePillar={pillar} onPick={setPillar} scores={waf.scores} />
+        <PillarCards sections={waf.sections} activePillar={pillar} onPick={setPillar} scores={waf.scores} history={waf.history} />
         {waf.error && <p className="text-sm text-destructive">{waf.error}</p>}
         <div className="flex items-center justify-end gap-2">
           <span className="text-xs text-muted-foreground">Avance</span>

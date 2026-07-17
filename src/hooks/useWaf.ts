@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getWafAdvisorScore, getWafRecommendations, getWafSections, getWafSummary, listClientsAdmin, markWafRecommendationRead } from "@/lib/api";
+import { getWafAdvisorScore, getWafRecommendations, getWafScoreHistory, getWafSections, getWafSummary, listClientsAdmin, markWafRecommendationRead } from "@/lib/api";
 import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
-import type { ClientAdmin, WafRecommendation, WafSection, WafSummary } from "@/types";
+import type { ClientAdmin, WafRecommendation, WafScoreHistory, WafSection, WafSummary } from "@/types";
 
 export function useWaf() {
   const [clients, setClients] = useState<ClientAdmin[]>([]);
@@ -10,6 +10,7 @@ export function useWaf() {
   const [sections, setSections] = useState<WafSection[]>([]);
   const [recommendations, setRecommendations] = useState<WafRecommendation[]>([]);
   const [scores, setScores] = useState<Record<number, number> | null>(null);
+  const [history, setHistory] = useState<WafScoreHistory | null>(null);
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
   const [error, setError] = useState("");
@@ -51,9 +52,13 @@ export function useWaf() {
         }
       } catch { sc = null; }
       if (mountedRef.current) setScores(sc);
+      // Histórico mensual para las sparklines de las tarjetas; best-effort.
+      let hist: WafScoreHistory | null = null;
+      try { hist = await getWafScoreHistory(cid, "month"); } catch { hist = null; }
+      if (mountedRef.current) setHistory(hist);
     } catch (e) {
       if (!mountedRef.current) return;
-      setSummary(null); setSections([]); setRecommendations([]); setScores(null);
+      setSummary(null); setSections([]); setRecommendations([]); setScores(null); setHistory(null);
       setError(e instanceof Error ? e.message : "Error al cargar WAF");
     } finally {
       if (mountedRef.current) setDataLoading(false);
@@ -61,7 +66,7 @@ export function useWaf() {
   }, []);
 
   useEffect(() => {
-    if (clientId == null) { setSummary(null); setSections([]); setRecommendations([]); setScores(null); return; }
+    if (clientId == null) { setSummary(null); setSections([]); setRecommendations([]); setScores(null); setHistory(null); return; }
     loadFor(clientId);
   }, [clientId, loadFor]);
 
@@ -84,5 +89,5 @@ export function useWaf() {
     void markWafRecommendationRead(clientId, canonicalId).catch(() => { /* best-effort: la vista ya se actualizó */ });
   }, [clientId]);
 
-  return { clients, clientId, summary, sections, recommendations, scores, pillarNames, loading, dataLoading, error, selectClient, reloadData, markRecommendationRead };
+  return { clients, clientId, summary, sections, recommendations, scores, history, pillarNames, loading, dataLoading, error, selectClient, reloadData, markRecommendationRead };
 }

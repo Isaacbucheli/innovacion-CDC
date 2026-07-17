@@ -7,6 +7,7 @@ vi.mock("@/lib/api", () => ({
   getWafSections: vi.fn(async () => [{ section_num: 5, section_name: "Costos", total_recs: 1, total_resources: 2, avg_progress: 10, high_recs: 1, medium_recs: 0 }]),
   getWafRecommendations: vi.fn(async () => [{ canonical_id: 9, matrix_code: "5.1", pillar_number: 5, review_scope_es: "x", business_impact: "High", resource_count: 2, completion_pct: 10 }]),
   getWafAdvisorScore: vi.fn(async () => ({ has_connection: true, pillars: { "5": 60 } })),
+  getWafScoreHistory: vi.fn(async () => ({ granularity: "month", series: [] })),
   markWafRecommendationRead: vi.fn(async () => undefined),
 }));
 
@@ -20,5 +21,6 @@ describe("useWaf", () => {
     expect(result.current.clientId).toBe(3);
     expect(result.current.pillarNames[5]).toBe("Costos");
     await waitFor(() => expect(result.current.scores?.[5]).toBe(60));
+    expect(result.current.history).toEqual({ granularity: "month", series: [] });
   });
 });
