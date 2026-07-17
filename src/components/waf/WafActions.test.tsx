@@ -11,16 +11,18 @@ vi.mock("@/lib/api", () => ({
   refreshWafAdvisorScore: vi.fn(async () => ({ message: "ok", clients_total: 1, clients_refreshed: 1, clients_failed: 0, results: [] })),
   previewWafExcel: vi.fn(async () => ({ file_name: "m.xlsx", client_id: 3, rows_total: 0, rows_matched: 0, rows_needs_review: 0, ai_enabled: true, rows: [] })),
   applyWafExcel: vi.fn(),
+  getWafScoreHistory: vi.fn(async () => ({ granularity: "month", series: [] })),
 }));
-vi.mock("@/lib/auth", () => ({ canEdit: () => true, canEditModule: vi.fn(() => true), getRole: () => "admin" }));
+vi.mock("@/lib/auth", () => ({ canEdit: () => true, canEditModule: vi.fn(() => true), getRole: vi.fn(() => "admin") }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); });
-// Mis tests de gating mutan la implementación de canEditModule; clearAllMocks no borra
-// implementaciones, así que la restauro para no contaminar los tests hermanos.
+// Mis tests de gating mutan las implementaciones de canEditModule/getRole; clearAllMocks no borra
+// implementaciones, así que las restauro para no contaminar los tests hermanos.
 afterEach(async () => {
-  const { canEditModule } = await import("@/lib/auth");
+  const { canEditModule, getRole } = await import("@/lib/auth");
   vi.mocked(canEditModule).mockImplementation(() => true);
+  vi.mocked(getRole).mockReturnValue("admin");
 });
 
 test("muestra el primario, Exportar y Opciones; Exportar descarga", async () => {
@@ -43,6 +45,32 @@ test("Consultar Advisor: selecciona, encola y guarda el job para el bloqueo glob
   await waitFor(() => expect(runWafAdvisorSync).toHaveBeenCalledWith(3, { subscriptions: ["sub-A"], timeout_seconds_per_subscription: 600 }));
   expect(JSON.parse(localStorage.getItem("innovacion_cdc_advisor_sync_job") || "null")).toEqual({ clientId: 3, jobId: 7 });
   expect(onChanged).not.toHaveBeenCalled();
+});
+
+test("un lector (sin edición) ve Opciones con solo Histórico del score", async () => {
+  const { canEditModule, getRole } = await import("@/lib/auth");
+  vi.mocked(canEditModule).mockImplementation(() => false);
+  vi.mocked(getRole).mockReturnValue("lector");
+  const { default: WafActions } = await import("@/components/waf/WafActions");
+  render(<WafActions clientId={3} onChanged={vi.fn()} pillarNames={{}} />);
+  expect(screen.queryByRole("button", { name: /consultar advisor/i })).not.toBeInTheDocument();
+  const opcionesBtn = screen.getByRole("button", { name: /opciones/i });
+  fireEvent.pointerDown(opcionesBtn, { button: 0, ctrlKey: false });
+  fireEvent.click(opcionesBtn);
+  expect(await screen.findByText(/histórico del score/i)).toBeInTheDocument();
+  expect(screen.queryByText(/importar/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/consolidar duplicados/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/actualizar advisor score/i)).not.toBeInTheDocument();
+});
+
+test("Histórico del score en Opciones abre el panel", async () => {
+  const { default: WafActions } = await import("@/components/waf/WafActions");
+  render(<WafActions clientId={3} onChanged={vi.fn()} pillarNames={{}} />);
+  const opcionesBtn = screen.getByRole("button", { name: /opciones/i });
+  fireEvent.pointerDown(opcionesBtn, { button: 0, ctrlKey: false });
+  fireEvent.click(opcionesBtn);
+  fireEvent.click(await screen.findByText(/histórico del score/i));
+  expect(await screen.findByText(/histórico del advisor score/i)).toBeInTheDocument();
 });
 
 test("Consolidar duplicados llama a la API y refresca", async () => {

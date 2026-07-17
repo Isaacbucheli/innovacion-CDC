@@ -110,27 +110,33 @@ export default function WafActions({ clientId, onChanged, pillarNames }: { clien
       <Button variant="outline" size="sm" disabled={busy} onClick={doExport}>
         <Download className="w-4 h-4 mr-1" /> Exportar Excel
       </Button>
-      <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
-        <LineChart className="w-4 h-4 mr-1" /> Histórico
-      </Button>
-      {(editable || editableIngestions) && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" disabled={busy}>
-              <MoreHorizontal className="w-4 h-4 mr-1" /> Opciones
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Cargar datos</DropdownMenuLabel>
-            {editableIngestions && <DropdownMenuItem onClick={() => setCsvOpen(true)}>Importar Advisor CSV</DropdownMenuItem>}
-            {editable && <DropdownMenuItem onClick={() => setExcelOpen(true)}>Importar matriz Excel</DropdownMenuItem>}
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Mantenimiento</DropdownMenuLabel>
-            {editable && <DropdownMenuItem onClick={() => setConsOpen(true)}><GitMerge className="w-4 h-4 mr-2" />Consolidar duplicados</DropdownMenuItem>}
-            {isAdmin && <DropdownMenuItem onClick={() => setScoreOpen(true)}><RefreshCw className="w-4 h-4 mr-2" />Actualizar Advisor Score</DropdownMenuItem>}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+      {/* "Opciones" siempre visible: "Histórico" es lectura (todos), los demás ítems van gateados. */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" disabled={busy}>
+            <MoreHorizontal className="w-4 h-4 mr-1" /> Opciones
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setHistoryOpen(true)}><LineChart className="w-4 h-4 mr-2" />Histórico del score</DropdownMenuItem>
+          {(editableIngestions || editable) && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Cargar datos</DropdownMenuLabel>
+              {editableIngestions && <DropdownMenuItem onClick={() => setCsvOpen(true)}>Importar Advisor CSV</DropdownMenuItem>}
+              {editable && <DropdownMenuItem onClick={() => setExcelOpen(true)}>Importar matriz Excel</DropdownMenuItem>}
+            </>
+          )}
+          {(editable || isAdmin) && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Mantenimiento</DropdownMenuLabel>
+              {editable && <DropdownMenuItem onClick={() => setConsOpen(true)}><GitMerge className="w-4 h-4 mr-2" />Consolidar duplicados</DropdownMenuItem>}
+              {isAdmin && <DropdownMenuItem onClick={() => setScoreOpen(true)}><RefreshCw className="w-4 h-4 mr-2" />Actualizar Advisor Score</DropdownMenuItem>}
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
       <AdvisorSyncDialog open={syncOpen} clientId={clientId} busy={busy} onOpenChange={setSyncOpen} onConfirm={doSync} />
       <ImportCsvDialog open={csvOpen} clientId={clientId} busy={busy} onOpenChange={setCsvOpen} onConfirm={doCsv} />
       <ConsolidateDialog open={consOpen} busy={busy} onOpenChange={setConsOpen} onConfirm={doConsolidate} />
