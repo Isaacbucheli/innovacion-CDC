@@ -287,6 +287,9 @@ export const getWafRecommendations = (clientId: number, pillar?: number) =>
   );
 export const getWafRecommendation = (clientId: number, canonicalId: number) =>
   request<WafRecommendationDetail>(`/waf/clients/${clientId}/recommendations/${canonicalId}`);
+// Descartar (soft-delete) una recomendación para el cliente. DELETE con motivo opcional.
+export const dismissWafRecommendation = (clientId: number, canonicalId: number, reason = "Descartada por decisión del cliente") =>
+  request<{ message: string }>(`/waf/clients/${clientId}/recommendations/${canonicalId}`, jsonOpts("DELETE", { reason }));
 export const getWafResources = (clientId: number, canonicalId: number) =>
   request<WafResource[]>(`/waf/clients/${clientId}/recommendations/${canonicalId}/resources`);
 export const getWafComments = (clientId: number, canonicalId: number) =>

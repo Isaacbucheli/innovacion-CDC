@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { Ban } from "lucide-react";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { getWafRecommendation, getWafResources, getWafComments, getWafHistory } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { getWafRecommendation, getWafResources, getWafComments, getWafHistory, dismissWafRecommendation } from "@/lib/api";
 import { impactMeta } from "@/lib/waf";
+import { canEditModule } from "@/lib/auth";
+import ConfirmDelete from "@/components/ConfirmDelete";
 import type { WafRecommendationDetail, WafResource, WafComment, WafHistoryEntry } from "@/types";
 import TrackingForm from "@/components/waf/TrackingForm";
 import Comments from "@/components/waf/Comments";
@@ -24,6 +29,8 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
   const [comments, setComments] = useState<WafComment[]>([]);
   const [history, setHistory] = useState<WafHistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const editable = canEditModule("waf");
   // Id de petición: descarta respuestas obsoletas si el usuario abre otra recomendación
   // antes de que termine la carga anterior (evita que una respuesta vieja pise a la nueva).
   const reqRef = useRef(0);
@@ -52,6 +59,19 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
   function refreshComments() { if (canonicalId != null) getWafComments(clientId, canonicalId).then(setComments); }
   function afterTracking() { if (canonicalId != null) loadDetail(canonicalId, false); onChanged(); }
 
+  async function doDismiss() {
+    if (canonicalId == null) return;
+    try {
+      await dismissWafRecommendation(clientId, canonicalId);
+      setConfirmOpen(false);
+      onOpenChange(false);
+      onChanged();
+      toast.success("Recomendación descartada para este cliente.");
+    } catch (e) {
+      toast.error(`No se pudo descartar: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   const m = detail ? impactMeta(detail.business_impact) : null;
 
   return (
@@ -66,10 +86,16 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
           <p className="text-sm text-muted-foreground py-8 text-center">Cargando…</p>
         ) : (
           <div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-accent text-accent-foreground">{pillarName}</span>
               {m && <span className={`text-xs px-2.5 py-0.5 rounded-full ${m.chip}`}>Impacto {m.label}</span>}
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-secondary text-muted-foreground">{detail.resource_count} recursos</span>
+              {editable && (
+                <Button variant="outline" size="sm" className="ml-auto text-destructive hover:text-destructive"
+                  onClick={() => setConfirmOpen(true)}>
+                  <Ban className="w-4 h-4 mr-1" /> Descartar
+                </Button>
+              )}
             </div>
 
             <Section title="Resumen">
@@ -123,6 +149,15 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
             </Section>
           </div>
         )}
+        <ConfirmDelete
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          label={detail?.matrix_code ?? "esta recomendación"}
+          title="¿Descartar recomendación?"
+          description={<>Esta recomendación se descartará para este cliente y no volverá a mostrarse aunque Advisor, CSV o Excel la importen de nuevo.</>}
+          confirmLabel="Descartar"
+          onConfirm={doDismiss}
+        />
       </DialogContent>
     </Dialog>
   );
