@@ -320,6 +320,9 @@ export const addWafComment = (clientId: number, canonicalId: number, comment_tex
   );
 export const markWafRecommendationRead = (clientId: number, canonicalId: number) =>
   request<void>(`/waf/clients/${clientId}/recommendations/${canonicalId}/read`, { method: "POST" });
+export const translateWafTexts = (items: { key: string; text: string }[]) =>
+  request<{ items: { key: string; text: string }[] }>("/waf/translate", jsonOpts("POST", { target: "en", items }))
+    .then((r) => r.items);
 
 // ---- WAF: acciones (Slice A) ----
 export const listClientSubscriptions = (clientId: number) =>
