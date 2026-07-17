@@ -22,6 +22,7 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
   const [avance, setAvance] = useState("all");
   const [openId, setOpenId] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [english, setEnglish] = useState(false);
 
   const [minPct, maxPct] = AVANCE[avance] ?? AVANCE.all;
   const filtered = filterRecommendations(waf.recommendations, { pillar });
@@ -55,7 +56,7 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
             </SelectContent>
           </Select>
         </div>
-        <WafDataTable recommendations={filtered} pillarNames={waf.pillarNames} minPct={minPct} maxPct={maxPct} onOpen={open} />
+        <WafDataTable recommendations={filtered} pillarNames={waf.pillarNames} minPct={minPct} maxPct={maxPct} onOpen={open} english={english} onEnglishChange={setEnglish} />
       </div>
       <WafDetailDialog
         clientId={waf.clientId ?? 0}
@@ -65,6 +66,7 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onChanged={waf.reloadData}
+        english={english}
       />
     </AppShell>
   );

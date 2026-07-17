@@ -3,6 +3,15 @@ import { expect, test, vi } from "vitest";
 import WafDataTable from "@/components/waf/WafDataTable";
 import type { WafRecommendation } from "@/types";
 
+vi.mock("@/lib/wafTranslate", () => ({
+  translateToEnglish: vi.fn(async (texts: string[]) => {
+    const m = new Map<string, string>();
+    for (const t of texts) if (t?.trim()) m.set(t, `EN(${t})`);
+    return m;
+  }),
+  clearTranslationCache: vi.fn(),
+}));
+
 const recs: WafRecommendation[] = [
   { canonical_id: 1, matrix_code: "2.1", pillar_number: 2, review_scope_es: "MFA admins", business_impact: "High", resource_count: 18, completion_pct: 20, remediation_end_date: "2026-08-15", is_new: true, source: "advisor" },
   { canonical_id: 2, matrix_code: "5.1", pillar_number: 5, review_scope_es: "Reserved Instances", business_impact: "High", resource_count: 31, completion_pct: 10, remediation_end_date: null, is_new: false, source: "excel" },
@@ -61,4 +70,17 @@ test("muestra la chispa Nuevo solo en recomendaciones no vistas", () => {
   render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
   const sparks = screen.getAllByLabelText("Recomendación nueva");
   expect(sparks).toHaveLength(1);
+});
+
+test("muestra el botón Inglés y notifica el toggle", () => {
+  const onEnglishChange = vi.fn();
+  render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} english={false} onEnglishChange={onEnglishChange} />);
+  fireEvent.click(screen.getByRole("button", { name: /Inglés/i }));
+  expect(onEnglishChange).toHaveBeenCalledWith(true);
+});
+
+test("con inglés activo traduce el ámbito de la lista", async () => {
+  render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} english onEnglishChange={vi.fn()} />);
+  expect(await screen.findByText("EN(MFA admins)")).toBeInTheDocument();
+  expect(screen.getByText("EN(Reserved Instances)")).toBeInTheDocument();
 });

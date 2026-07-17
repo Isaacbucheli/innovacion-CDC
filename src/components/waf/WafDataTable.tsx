@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
   getSortedRowModel, useReactTable, type SortingState, type ColumnFiltersState, type VisibilityState,
 } from "@tanstack/react-table";
-import { Columns3, Rows3, Rows4 } from "lucide-react";
+import { Columns3, Rows3, Rows4, Languages } from "lucide-react";
+import { toast } from "sonner";
+import { translateToEnglish } from "@/lib/wafTranslate";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,12 +37,14 @@ const sourceFilter = labelColumnFilter<WafRecommendation>((raw) => sourceMeta(ra
 // Búsqueda global sobre código + ámbito.
 const globalSearch = globalTextFilter<WafRecommendation>((r) => `${r.matrix_code} ${r.review_scope_es ?? ""}`);
 
-export default function WafDataTable({ recommendations, pillarNames, minPct, maxPct, onOpen }: {
+export default function WafDataTable({ recommendations, pillarNames, minPct, maxPct, onOpen, english = false, onEnglishChange }: {
   recommendations: WafRecommendation[];
   pillarNames: Record<number, string>;
   minPct: number;
   maxPct: number;
   onOpen: (canonicalId: number) => void;
+  english?: boolean;
+  onEnglishChange?: (v: boolean) => void;
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -48,6 +52,26 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
   const [dense, setDense] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
   const data = useMemo(() => filterRecommendations(recommendations, { minPct, maxPct }), [recommendations, minPct, maxPct]);
+
+  const [scopeEn, setScopeEn] = useState<Map<string, string>>(new Map());
+  const [translating, setTranslating] = useState(false);
+
+  useEffect(() => {
+    if (!english) return;
+    const scopes = data.map((r) => r.review_scope_es ?? "").filter((s) => s.trim() !== "");
+    if (scopes.length === 0) return;
+    let cancelled = false;
+    setTranslating(true);
+    translateToEnglish(scopes)
+      .then((map) => { if (!cancelled) setScopeEn(map); })
+      .catch(() => {
+        if (cancelled) return;
+        onEnglishChange?.(false);
+        toast.error("No se pudo traducir. Verifica que la IA esté configurada.");
+      })
+      .finally(() => { if (!cancelled) setTranslating(false); });
+    return () => { cancelled = true; };
+  }, [english, data, onEnglishChange]);
 
   const columns = useMemo(() => {
     // Pilar se filtra contra el NOMBRE del pilar (lo que ve el usuario), no el número.
@@ -66,14 +90,18 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
       </span>
     ) }),
     col.accessor("pillar_number", { header: "Pilar", filterFn: pillarFilter, cell: (c) => pillarNames[c.getValue()] ?? c.getValue() }),
-    col.accessor("review_scope_es", { header: "Ámbito", filterFn: textFilter, cell: (c) => (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="truncate block max-w-[280px] cursor-default">{c.getValue() ?? "—"}</span>
-        </TooltipTrigger>
-        {c.getValue() && <TooltipContent className="whitespace-normal">{c.getValue()}</TooltipContent>}
-      </Tooltip>
-    ) }),
+    col.accessor("review_scope_es", { header: "Ámbito", filterFn: textFilter, cell: (c) => {
+      const es = c.getValue();
+      const shown = english && es ? (scopeEn.get(es) ?? es) : es;
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="truncate block max-w-[280px] cursor-default">{shown ?? "—"}</span>
+          </TooltipTrigger>
+          {shown && <TooltipContent className="whitespace-normal">{shown}</TooltipContent>}
+        </Tooltip>
+      );
+    } }),
     col.accessor("business_impact", {
       header: "Impacto", filterFn: impactFilter,
       cell: (c) => { const m = impactMeta(c.getValue()); return <span className={`text-xs px-2.5 py-0.5 rounded-full ${m.chip}`}>{m.label}</span>; },
@@ -104,7 +132,7 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
       cell: (c) => <span className="tabular-nums text-xs text-muted-foreground">{fmtDate(c.getValue())}</span>,
     }),
     ];
-  }, [pillarNames]);
+  }, [pillarNames, english, scopeEn]);
 
   const table = useReactTable({
     data, columns,
@@ -134,6 +162,11 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
           aria-label="Buscar recomendaciones"
         />
         <div className="flex gap-2 ml-auto">
+          <Button variant={english ? "default" : "outline"} size="sm" aria-label="Alternar idioma inglés"
+            onClick={() => onEnglishChange?.(!english)} disabled={translating}>
+            <Languages className="w-4 h-4 mr-1" />
+            {translating ? "Traduciendo…" : "Inglés"}
+          </Button>
           <Button variant="outline" size="sm" aria-label="Cambiar densidad de la tabla" onClick={() => setDense((d) => !d)}>
             {dense ? <Rows4 className="w-4 h-4 mr-1" /> : <Rows3 className="w-4 h-4 mr-1" />}
             {dense ? "Cómoda" : "Compacta"}
