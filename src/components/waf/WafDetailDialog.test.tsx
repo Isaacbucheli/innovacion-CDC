@@ -16,6 +16,15 @@ vi.mock("@/lib/api", () => ({
   addWafComment: vi.fn(async () => ({ comment_id: 1 })),
 }));
 
+vi.mock("@/lib/wafTranslate", () => ({
+  translateToEnglish: vi.fn(async (texts: string[]) => {
+    const m = new Map<string, string>();
+    for (const t of texts) if (t?.trim()) m.set(t, `EN(${t})`);
+    return m;
+  }),
+  clearTranslationCache: vi.fn(),
+}));
+
 test("carga y muestra el detalle (resumen + recursos)", async () => {
   const { default: WafDetailDialog } = await import("@/components/waf/WafDetailDialog");
   render(<WafDetailDialog clientId={3} canonicalId={9} pillarName="Costos" open onOpenChange={() => {}} onChanged={() => {}} />);
@@ -61,4 +70,12 @@ test("al cambiar de recomendación no muestra la anterior mientras carga", async
     execution_log: null, priority_override: null, internal_notes: null,
   });
   await waitFor(() => expect(screen.getByText("Gobernanza")).toBeInTheDocument());
+});
+
+test("con inglés activo traduce el contenido curado", async () => {
+  const { default: WafDetailDialog } = await import("@/components/waf/WafDetailDialog");
+  render(<WafDetailDialog clientId={3} canonicalId={9} pillarName="Costos" open english onOpenChange={() => {}} onChanged={() => {}} />);
+  await waitFor(() => expect(screen.getByText("EN(Ahorra)")).toBeInTheDocument());
+  expect(screen.getByText("EN(Aprobar)")).toBeInTheDocument();
+  expect(screen.getByText("EN(Comprar)")).toBeInTheDocument();
 });

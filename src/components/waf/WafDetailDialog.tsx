@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { getWafRecommendation, getWafResources, getWafComments, getWafHistory, dismissWafRecommendation } from "@/lib/api";
 import { impactMeta } from "@/lib/waf";
+import { translateToEnglish } from "@/lib/wafTranslate";
 import { canEditModule } from "@/lib/auth";
 import ConfirmDelete from "@/components/ConfirmDelete";
 import type { WafRecommendationDetail, WafResource, WafComment, WafHistoryEntry } from "@/types";
@@ -20,9 +21,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function WafDetailDialog({ clientId, canonicalId, pillarName, fallbackTitle, open, onOpenChange, onChanged }: {
+export default function WafDetailDialog({ clientId, canonicalId, pillarName, fallbackTitle, open, onOpenChange, onChanged, english = false }: {
   clientId: number; canonicalId: number | null; pillarName: string; fallbackTitle?: string;
-  open: boolean; onOpenChange: (o: boolean) => void; onChanged: () => void;
+  open: boolean; onOpenChange: (o: boolean) => void; onChanged: () => void; english?: boolean;
 }) {
   const [detail, setDetail] = useState<WafRecommendationDetail | null>(null);
   const [resources, setResources] = useState<WafResource[]>([]);
@@ -56,6 +57,23 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, canonicalId]);
 
+  const [tr, setTr] = useState<{ scope?: string; benefit?: string; client?: string; bit?: string }>({});
+  useEffect(() => {
+    if (!english || !detail) { setTr({}); return; }
+    let cancelled = false;
+    const fields = [detail.review_scope_es, detail.benefit_es, detail.client_action_es, detail.bit_action_es].map((x) => x ?? "");
+    translateToEnglish(fields)
+      .then((map) => {
+        if (cancelled) return;
+        const g = (v: string | null) => (v ? map.get(v) : undefined);
+        setTr({ scope: g(detail.review_scope_es), benefit: g(detail.benefit_es), client: g(detail.client_action_es), bit: g(detail.bit_action_es) });
+      })
+      .catch(() => { /* silencioso: mantiene el español */ });
+    return () => { cancelled = true; };
+  }, [english, detail]);
+
+  const pick = (en: string | undefined, es: string | null) => (english ? (en ?? es) : es) ?? "—";
+
   function refreshComments() { if (canonicalId != null) getWafComments(clientId, canonicalId).then(setComments); }
   function afterTracking() { if (canonicalId != null) loadDetail(canonicalId, false); onChanged(); }
 
@@ -79,7 +97,7 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
       <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
-            <span>{detail ? `${detail.matrix_code} · ${detail.review_scope_es ?? "Recomendación"}` : (fallbackTitle ?? "Recomendación")}</span>
+            <span>{detail ? `${detail.matrix_code} · ${(english ? (tr.scope ?? detail.review_scope_es) : detail.review_scope_es) ?? "Recomendación"}` : (fallbackTitle ?? "Recomendación")}</span>
           </DialogTitle>
         </DialogHeader>
         {loading || !detail ? (
@@ -100,9 +118,9 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
 
             <Section title="Resumen">
               <div className="space-y-3 text-sm">
-                <div><div className="text-muted-foreground text-xs mb-0.5">Beneficio</div>{detail.benefit_es ?? "—"}</div>
-                <div><div className="text-muted-foreground text-xs mb-0.5">Acción del cliente</div>{detail.client_action_es ?? "—"}</div>
-                <div><div className="text-muted-foreground text-xs mb-0.5">Acción Business IT</div>{detail.bit_action_es ?? "—"}</div>
+                <div><div className="text-muted-foreground text-xs mb-0.5">Beneficio</div>{pick(tr.benefit, detail.benefit_es)}</div>
+                <div><div className="text-muted-foreground text-xs mb-0.5">Acción del cliente</div>{pick(tr.client, detail.client_action_es)}</div>
+                <div><div className="text-muted-foreground text-xs mb-0.5">Acción Business IT</div>{pick(tr.bit, detail.bit_action_es)}</div>
               </div>
             </Section>
 
