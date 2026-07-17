@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Download, MoreHorizontal, CloudUpload, GitMerge, RefreshCw } from "lucide-react";
+import { Download, MoreHorizontal, CloudUpload, GitMerge, RefreshCw, LineChart } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,13 +11,14 @@ import ImportCsvDialog from "@/components/waf/ImportCsvDialog";
 import ConsolidateDialog from "@/components/waf/ConsolidateDialog";
 import AdvisorScoreDialog from "@/components/waf/AdvisorScoreDialog";
 import ExcelImportDialog from "@/components/waf/ExcelImportDialog";
+import ScoreHistorySheet from "@/components/waf/ScoreHistorySheet";
 import { uploadWafIngestion, downloadFromApi, consolidateWafDuplicates, refreshWafAdvisorScore } from "@/lib/api";
 import { ADVISOR_SYNC_COMPLETED_EVENT, startAdvisorSyncJob } from "@/lib/advisorSync";
 import { canEditModule, getRole } from "@/lib/auth";
 
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
 
-export default function WafActions({ clientId, onChanged }: { clientId: number; onChanged: () => void }) {
+export default function WafActions({ clientId, onChanged, pillarNames }: { clientId: number; onChanged: () => void; pillarNames: Record<number, string> }) {
   const editable = canEditModule("waf");
   const editableIngestions = canEditModule("waf-ingestions");
   const isAdmin = getRole() === "admin";
@@ -28,6 +29,7 @@ export default function WafActions({ clientId, onChanged }: { clientId: number; 
   const [consOpen, setConsOpen] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [excelOpen, setExcelOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     const completed = (event: Event) => {
@@ -108,6 +110,9 @@ export default function WafActions({ clientId, onChanged }: { clientId: number; 
       <Button variant="outline" size="sm" disabled={busy} onClick={doExport}>
         <Download className="w-4 h-4 mr-1" /> Exportar Excel
       </Button>
+      <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
+        <LineChart className="w-4 h-4 mr-1" /> Histórico
+      </Button>
       {(editable || editableIngestions) && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -131,6 +136,7 @@ export default function WafActions({ clientId, onChanged }: { clientId: number; 
       <ConsolidateDialog open={consOpen} busy={busy} onOpenChange={setConsOpen} onConfirm={doConsolidate} />
       <AdvisorScoreDialog open={scoreOpen} busy={busy} onOpenChange={setScoreOpen} onConfirm={doScoreRefresh} />
       <ExcelImportDialog open={excelOpen} clientId={clientId} onOpenChange={setExcelOpen} onChanged={onChanged} />
+      <ScoreHistorySheet clientId={clientId} open={historyOpen} onOpenChange={setHistoryOpen} pillarNames={pillarNames} />
     </div>
   );
 }

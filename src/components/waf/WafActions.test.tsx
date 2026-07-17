@@ -26,7 +26,7 @@ afterEach(async () => {
 test("muestra el primario, Exportar y Opciones; Exportar descarga", async () => {
   const { default: WafActions } = await import("@/components/waf/WafActions");
   const { downloadFromApi } = await import("@/lib/api");
-  render(<WafActions clientId={3} onChanged={vi.fn()} />);
+  render(<WafActions clientId={3} onChanged={vi.fn()} pillarNames={{}} />);
   expect(screen.getByRole("button", { name: /consultar advisor/i })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: /exportar excel/i }));
   await waitFor(() => expect(downloadFromApi).toHaveBeenCalled());
@@ -36,7 +36,7 @@ test("Consultar Advisor: selecciona, encola y guarda el job para el bloqueo glob
   const { default: WafActions } = await import("@/components/waf/WafActions");
   const { runWafAdvisorSync } = await import("@/lib/api");
   const onChanged = vi.fn();
-  render(<WafActions clientId={3} onChanged={onChanged} />);
+  render(<WafActions clientId={3} onChanged={onChanged} pillarNames={{}} />);
   fireEvent.click(screen.getByRole("button", { name: /consultar advisor/i }));
   await waitFor(() => expect(screen.getByText("Producción")).toBeInTheDocument());
   fireEvent.click(screen.getByRole("button", { name: /^consultar$/i }));
@@ -49,7 +49,7 @@ test("Consolidar duplicados llama a la API y refresca", async () => {
   const { default: WafActions } = await import("@/components/waf/WafActions");
   const { consolidateWafDuplicates } = await import("@/lib/api");
   const onChanged = vi.fn();
-  render(<WafActions clientId={3} onChanged={onChanged} />);
+  render(<WafActions clientId={3} onChanged={onChanged} pillarNames={{}} />);
   const opcionesBtn = screen.getByRole("button", { name: /opciones/i });
   fireEvent.pointerDown(opcionesBtn, { button: 0, ctrlKey: false });
   fireEvent.click(opcionesBtn);
@@ -64,7 +64,7 @@ test("Actualizar Advisor Score llama a la API y refresca", async () => {
   const { default: WafActions } = await import("@/components/waf/WafActions");
   const { refreshWafAdvisorScore } = await import("@/lib/api");
   const onChanged = vi.fn();
-  render(<WafActions clientId={3} onChanged={onChanged} />);
+  render(<WafActions clientId={3} onChanged={onChanged} pillarNames={{}} />);
   const opcionesBtn = screen.getByRole("button", { name: /opciones/i });
   fireEvent.pointerDown(opcionesBtn, { button: 0, ctrlKey: false });
   fireEvent.click(opcionesBtn);
@@ -77,7 +77,7 @@ test("Actualizar Advisor Score llama a la API y refresca", async () => {
 
 test("Importar matriz Excel abre el diálogo de preview", async () => {
   const { default: WafActions } = await import("@/components/waf/WafActions");
-  render(<WafActions clientId={3} onChanged={vi.fn()} />);
+  render(<WafActions clientId={3} onChanged={vi.fn()} pillarNames={{}} />);
   const opcionesBtn = screen.getByRole("button", { name: /opciones/i });
   fireEvent.pointerDown(opcionesBtn, { button: 0, ctrlKey: false });
   fireEvent.click(opcionesBtn);
@@ -89,7 +89,7 @@ test("Importar Advisor CSV sigue el permiso de waf-ingestions, no el de waf", as
   const { canEditModule } = await import("@/lib/auth");
   vi.mocked(canEditModule).mockImplementation((key: string) => key === "waf");
   const { default: WafActions } = await import("@/components/waf/WafActions");
-  render(<WafActions clientId={3} onChanged={vi.fn()} />);
+  render(<WafActions clientId={3} onChanged={vi.fn()} pillarNames={{}} />);
   const opcionesBtn = screen.getByRole("button", { name: /opciones/i });
   fireEvent.pointerDown(opcionesBtn, { button: 0, ctrlKey: false });
   fireEvent.click(opcionesBtn);
@@ -101,7 +101,7 @@ test("con solo permiso de waf-ingestions, el dropdown Opciones aparece y permite
   const { canEditModule } = await import("@/lib/auth");
   vi.mocked(canEditModule).mockImplementation((key: string) => key === "waf-ingestions");
   const { default: WafActions } = await import("@/components/waf/WafActions");
-  render(<WafActions clientId={3} onChanged={vi.fn()} />);
+  render(<WafActions clientId={3} onChanged={vi.fn()} pillarNames={{}} />);
   expect(screen.queryByRole("button", { name: /consultar advisor/i })).not.toBeInTheDocument();
   const opcionesBtn = screen.getByRole("button", { name: /opciones/i });
   fireEvent.pointerDown(opcionesBtn, { button: 0, ctrlKey: false });
