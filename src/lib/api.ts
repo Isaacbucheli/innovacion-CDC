@@ -70,10 +70,18 @@ import type {
 import { clearSession, getToken, setEmail, setSession } from "@/lib/auth";
 
 // Backend ÚNICO de la plataforma: la API .NET. En DEV se usa el proxy de Vite (/api → API .NET local).
-// En prod manda VITE_API_BASE_URL, con fallback al App Service de la API.
+// En prod el host sale de VITE_API_BASE_URL, cuya fuente ÚNICA es .env.production (ver
+// scripts/gen-swa-config.mjs, que usa el mismo valor para el connect-src del CSP). Sin fallback
+// hardcodeado a propósito: si faltara, preferimos fallar claro y no apuntar a un host silencioso.
 export function apiBase(): string {
   if (import.meta.env.DEV) return "/api";
-  return (import.meta.env.VITE_API_BASE_URL as string) || "https://app-optimizacion-costos-api-dotnet.azurewebsites.net";
+  const base = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (!base) {
+    throw new Error(
+      "VITE_API_BASE_URL no está definido en el build de producción (revisa .env.production).",
+    );
+  }
+  return base;
 }
 
 export async function request<T>(path: string, opts: RequestInit = {}, base: string = apiBase()): Promise<T> {

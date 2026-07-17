@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Generado en el build desde staticwebapp.config.template.json (R2): fuente única del host = .env.production
+staticwebapp.config.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
