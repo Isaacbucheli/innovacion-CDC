@@ -71,7 +71,7 @@ export default function PillarSparkline({ values, labels, color }: {
                 className="absolute z-10 -translate-x-1/2 -translate-y-full rounded bg-foreground px-1.5 py-0.5 text-[9px] font-semibold text-background whitespace-nowrap pointer-events-none"
                 style={{ left: pct(act.x, W), top: pct(act.y, H) }}
               >
-                {labels?.[act.index] ? `${labels[act.index]} · ` : ""}{act.value}%
+                {labels?.[act.index] ? `${labels[act.index]} · ` : ""}{Math.round(act.value)}%
               </div>
             </>
           )}
