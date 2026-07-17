@@ -27,6 +27,23 @@ test("guarda el seguimiento llamando a la API", async () => {
   expect(onSaved).toHaveBeenCalled();
 });
 
+test("muestra el historial de la bitácora en un desplegable colapsable", async () => {
+  const { default: TrackingForm } = await import("@/components/waf/TrackingForm");
+  const logHistory = [
+    { history_id: 2, field_changed: "execution_log", old_value: "v1", new_value: "Compra de RI para SQL MI", changed_by: "Ana", changed_at: "2026-07-17T12:00:00Z" },
+    { history_id: 1, field_changed: "execution_log", old_value: null, new_value: "v1", changed_by: "Ana", changed_at: "2026-07-16T12:00:00Z" },
+  ];
+  render(<TrackingForm clientId={3} canonicalId={9} detail={detail} onSaved={vi.fn()} logHistory={logHistory} />);
+  expect(screen.getByText("Historial (2)")).toBeInTheDocument();
+  expect(screen.getByText("Compra de RI para SQL MI")).toBeInTheDocument();
+});
+
+test("sin historial de bitácora no muestra el desplegable", async () => {
+  const { default: TrackingForm } = await import("@/components/waf/TrackingForm");
+  render(<TrackingForm clientId={3} canonicalId={9} detail={detail} onSaved={vi.fn()} />);
+  expect(screen.queryByText(/^Historial \(/)).not.toBeInTheDocument();
+});
+
 test("envia la fecha de cierre capturada en el formulario", async () => {
   const { default: TrackingForm } = await import("@/components/waf/TrackingForm");
   const { updateWafTracking } = await import("@/lib/api");

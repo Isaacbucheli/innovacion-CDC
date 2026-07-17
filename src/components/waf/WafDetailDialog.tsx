@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { getWafRecommendation, getWafResources, getWafComments, getWafHistory, dismissWafRecommendation } from "@/lib/api";
-import { impactMeta } from "@/lib/waf";
+import { impactMeta, wafHistoryFieldLabel, wafHistoryValue } from "@/lib/waf";
 import { translateToEnglish } from "@/lib/wafTranslate";
 import { canEditModule } from "@/lib/auth";
 import ConfirmDelete from "@/components/ConfirmDelete";
@@ -126,7 +126,8 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
             </Section>
 
             <Section title="Seguimiento">
-              <TrackingForm clientId={clientId} canonicalId={detail.canonical_id} detail={detail} onSaved={afterTracking} />
+              <TrackingForm clientId={clientId} canonicalId={detail.canonical_id} detail={detail} onSaved={afterTracking}
+                logHistory={history.filter((h) => h.field_changed === "execution_log")} />
             </Section>
 
             <Section title={`Recursos asociados (${resources.length})`}>
@@ -158,11 +159,16 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
             <Section title="Historial de cambios">
               {history.length === 0 ? <p className="text-sm text-muted-foreground">Sin cambios registrados.</p> : (
                 <ul className="text-sm text-muted-foreground space-y-1.5">
-                  {history.map((h) => (
-                    <li key={h.history_id}>
-                      <span className="text-foreground">{h.field_changed}</span> {h.old_value ?? "—"} → {h.new_value ?? "—"} · {h.changed_by ?? "—"} · {new Date(h.changed_at).toLocaleDateString("es-EC")}
-                    </li>
-                  ))}
+                  {history.map((h) => {
+                    const showValues = (h.old_value ?? "") !== "" || (h.new_value ?? "") !== "";
+                    return (
+                      <li key={h.history_id}>
+                        <span className="text-foreground">{wafHistoryFieldLabel(h.field_changed)}</span>
+                        {showValues && <>: {wafHistoryValue(h.field_changed, h.old_value)} → {wafHistoryValue(h.field_changed, h.new_value)}</>}
+                        {" · "}{h.changed_by ?? "—"} · {new Date(h.changed_at).toLocaleDateString("es-EC")}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </Section>

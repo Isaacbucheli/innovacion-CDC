@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterRecommendations, validateTracking, impactMeta, pillarColor, pillarIcon, scoreColor, advisorSyncSummary, computePillarAvance, excelRowAction, defaultApproved, buildApplyItem, excelSummary, reviewStatusMeta, filterCatalog } from "@/lib/waf";
+import { filterRecommendations, validateTracking, impactMeta, pillarColor, pillarIcon, scoreColor, advisorSyncSummary, computePillarAvance, excelRowAction, defaultApproved, buildApplyItem, excelSummary, reviewStatusMeta, filterCatalog, wafHistoryFieldLabel, wafHistoryValue } from "@/lib/waf";
 import { azIcon } from "@/lib/azureIcons";
 import type { WafRecommendation, WafAdvisorSyncResult, WafExcelPreviewRow, WafExcelApplyResult, WafCanonical } from "@/types";
 
@@ -32,6 +32,30 @@ describe("validateTracking", () => {
   });
   it("rechaza fecha inválida", () => {
     expect(validateTracking({ completion_pct: 10, remediation_start_date: "no-fecha" })).toHaveProperty("remediation_start_date");
+  });
+});
+
+describe("wafHistoryFieldLabel", () => {
+  it("traduce campos conocidos a nombres amigables", () => {
+    expect(wafHistoryFieldLabel("completion_pct")).toBe("Avance");
+    expect(wafHistoryFieldLabel("execution_log")).toBe("Bitácora de ejecución");
+    expect(wafHistoryFieldLabel("remediation_end_date")).toBe("Fecha de cierre");
+  });
+  it("cae a un formato legible para campos desconocidos", () => {
+    expect(wafHistoryFieldLabel("some_new_field")).toBe("Some new field");
+  });
+});
+
+describe("wafHistoryValue", () => {
+  it("formatea avance, prioridad y fechas; deja el texto crudo", () => {
+    expect(wafHistoryValue("completion_pct", "20")).toBe("20%");
+    expect(wafHistoryValue("priority_override", "1")).toBe("Alta");
+    expect(wafHistoryValue("remediation_end_date", "2026-08-15")).toBe("15/08/2026");
+    expect(wafHistoryValue("execution_log", "Compra de RI")).toBe("Compra de RI");
+  });
+  it("muestra — cuando no hay valor", () => {
+    expect(wafHistoryValue("internal_notes", null)).toBe("—");
+    expect(wafHistoryValue("execution_log", "")).toBe("—");
   });
 });
 

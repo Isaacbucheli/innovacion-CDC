@@ -8,12 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { updateWafTracking } from "@/lib/api";
 import { validateTracking } from "@/lib/waf";
 import { canEditModule } from "@/lib/auth";
-import type { WafRecommendationDetail, WafTrackingUpdate } from "@/types";
+import type { WafRecommendationDetail, WafTrackingUpdate, WafHistoryEntry } from "@/types";
 
 const PRIORITY = [{ v: "1", l: "Alta" }, { v: "2", l: "Media" }, { v: "3", l: "Baja" }];
 
-export default function TrackingForm({ clientId, canonicalId, detail, onSaved }: {
+export default function TrackingForm({ clientId, canonicalId, detail, onSaved, logHistory = [] }: {
   clientId: number; canonicalId: number; detail: WafRecommendationDetail; onSaved: () => void;
+  logHistory?: WafHistoryEntry[];
 }) {
   const editable = canEditModule("waf");
   const [pct, setPct] = useState(detail.completion_pct ?? 0);
@@ -85,6 +86,23 @@ export default function TrackingForm({ clientId, canonicalId, detail, onSaved }:
       <div className="space-y-1.5">
         <Label htmlFor="log">Bitácora de ejecución</Label>
         <Textarea id="log" rows={2} value={log} disabled={!editable} onChange={(e) => setLog(e.target.value)} />
+        {logHistory.length > 0 && (
+          <details className="mt-0.5">
+            <summary className="text-xs text-muted-foreground cursor-pointer select-none hover:text-foreground w-fit">
+              Historial ({logHistory.length})
+            </summary>
+            <ul className="mt-1.5 space-y-2 max-h-40 overflow-y-auto rounded-md border border-border bg-muted/30 px-2.5 py-2">
+              {logHistory.map((h) => (
+                <li key={h.history_id} className="text-xs">
+                  <div className="text-muted-foreground">
+                    {new Date(h.changed_at).toLocaleDateString("es-EC")} · {h.changed_by ?? "—"}
+                  </div>
+                  <div className="whitespace-pre-wrap text-foreground">{h.new_value ?? "—"}</div>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="notes">Notas internas</Label>

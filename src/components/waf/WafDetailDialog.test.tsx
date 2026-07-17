@@ -32,6 +32,19 @@ test("carga y muestra el detalle (resumen + recursos)", async () => {
   expect(screen.getByText("vm-01")).toBeInTheDocument();
 });
 
+test("el historial de cambios usa nombres amigables y valores formateados", async () => {
+  const api = await import("@/lib/api");
+  (api.getWafHistory as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+    { history_id: 1, field_changed: "completion_pct", old_value: "10", new_value: "20", changed_by: "Ana", changed_at: "2026-07-17T12:00:00Z" },
+  ]);
+  const { default: WafDetailDialog } = await import("@/components/waf/WafDetailDialog");
+  render(<WafDetailDialog clientId={3} canonicalId={9} pillarName="Costos" open onOpenChange={() => {}} onChanged={() => {}} />);
+  await waitFor(() => expect(screen.getByText("Avance")).toBeInTheDocument());
+  expect(screen.queryByText(/completion_pct/)).not.toBeInTheDocument();
+  const entry = screen.getByText("Avance").closest("li")!;
+  expect(entry).toHaveTextContent("10% → 20%"); // valores formateados en el historial
+});
+
 test("al cambiar de recomendación no muestra la anterior mientras carga", async () => {
   const api = await import("@/lib/api");
   const { default: WafDetailDialog } = await import("@/components/waf/WafDetailDialog");
