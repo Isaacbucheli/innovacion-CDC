@@ -59,7 +59,8 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
 
   const [tr, setTr] = useState<{ scope?: string; benefit?: string; client?: string; bit?: string }>({});
   useEffect(() => {
-    if (!english || !detail) { setTr({}); return; }
+    setTr({}); // limpia la traducción del detalle anterior antes de traducir el nuevo
+    if (!english || !detail) return;
     let cancelled = false;
     const fields = [detail.review_scope_es, detail.benefit_es, detail.client_action_es, detail.bit_action_es].map((x) => x ?? "");
     translateToEnglish(fields)
