@@ -11,16 +11,21 @@ export function pillarSeries(history: WafScoreHistory | null, pillar: number): (
 // Coordenada de un punto válido escalada al viewBox (Y invertida: 0 abajo, 100 arriba).
 export interface SparkCoord { x: number; y: number; value: number; index: number }
 
-// Coordenadas (x,y) de los puntos válidos. X uniforme por índice sobre la longitud total
-// (los nulls dejan hueco pero no rompen la escala). [] si hay <2 válidos.
+// Coordenadas (x,y) de los puntos válidos. La X se ancla al primer y último punto CON dato,
+// de modo que la línea abarque todo el ancho: sin ese anclaje, un pilar con nulls iniciales
+// (empezó a puntuar más tarde que el eje compartido) dibujaba la línea "cortada", arrancando a
+// mitad de la tarjeta. Los huecos intermedios se conservan proporcionalmente al índice. `index`
+// queda con el índice ORIGINAL para que el tooltip siga alineado con las etiquetas. [] si hay <2 válidos.
 export function sparklineCoords(values: (number | null)[], width: number, height: number, pad = 2): SparkCoord[] {
   const valid = values.map((v, i) => ({ v, i })).filter((p): p is { v: number; i: number } => p.v != null);
   if (valid.length < 2) return [];
-  const n = values.length - 1 || 1;
+  const firstIdx = valid[0].i;
+  const lastIdx = valid[valid.length - 1].i;
+  const range = lastIdx - firstIdx || 1;
   const span = height - pad * 2;
   return valid.map((p) => {
     const clamped = Math.max(0, Math.min(100, p.v));
-    return { x: (p.i / n) * width, y: pad + (1 - clamped / 100) * span, value: p.v, index: p.i };
+    return { x: ((p.i - firstIdx) / range) * width, y: pad + (1 - clamped / 100) * span, value: p.v, index: p.i };
   });
 }
 

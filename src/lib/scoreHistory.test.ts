@@ -41,6 +41,18 @@ describe("sparklineCoords", () => {
     expect(sparklineCoords([null, 50], 100, 20)).toEqual([]);
     expect(sparklineCoords([], 100, 20)).toEqual([]);
   });
+  test("nulls iniciales no 'cortan' la línea: se ancla al primer válido (x=0)", () => {
+    // Antes [null,50,100] arrancaba a mitad (x=50); ahora abarca todo el ancho.
+    expect(sparklineCoords([null, 50, 100], 100, 20, 0)).toEqual([
+      { x: 0, y: 10, value: 50, index: 1 },
+      { x: 100, y: 0, value: 100, index: 2 },
+    ]);
+  });
+  test("hueco intermedio: se conserva proporcional al índice; index queda original (tooltip alineado)", () => {
+    const c = sparklineCoords([40, null, 60, 80], 90, 10, 0);
+    expect(c.map((p) => p.x)).toEqual([0, 60, 90]); // i=0→0, i=2→(2/3)*90=60, i=3→90
+    expect(c.map((p) => p.index)).toEqual([0, 2, 3]);
+  });
 });
 
 describe("historyLabels", () => {
