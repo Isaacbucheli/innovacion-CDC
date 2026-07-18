@@ -16,6 +16,19 @@ describe("PillarSparkline", () => {
     expect(container.firstChild).toBeNull();
   });
 
+  test("tendencia: subida ▲, bajada ▼ y sin cambio neutro ±0 (no flecha verde)", () => {
+    // .container aísla cada render (getByTestId busca en todo document.body y chocaría).
+    const up = render(<PillarSparkline values={[40, 45]} color="#123456" />).container;
+    expect(up.textContent).toContain("▲ +5");
+
+    const down = render(<PillarSparkline values={[80.4, 76]} color="#123456" />).container;
+    expect(down.textContent).toContain("▼ -4.4");
+
+    const flat = render(<PillarSparkline values={[78, 78]} color="#123456" />).container;
+    expect(flat.textContent).toContain("±0");
+    expect(flat.textContent).not.toContain("▲"); // 0 no muestra flecha de subida
+  });
+
   test("al pasar el mouse sobre un punto muestra tooltip mes · score", () => {
     const { getAllByTestId, getByRole } = render(
       <PillarSparkline values={[40, 45]} labels={["May 26", "Jun 26"]} color="#123456" />,

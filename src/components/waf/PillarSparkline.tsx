@@ -27,6 +27,13 @@ export default function PillarSparkline({ values, labels, color }: {
   const act = active != null ? coords.find((c) => c.index === active) : undefined;
   const pct = (v: number, total: number) => `${(v / total) * 100}%`;
 
+  // Chip de tendencia: 3 estados. Un delta 0 se muestra NEUTRO (gris, "±0"), no como una
+  // flecha verde de subida — así no engaña al cliente cuando el score quedó igual.
+  const trend = delta == null ? null : {
+    cls: delta === 0 ? "text-muted-foreground" : delta > 0 ? "text-[#5a7016] dark:text-[#a9c46a]" : "text-red-600 dark:text-red-400",
+    label: delta === 0 ? "±0" : `${delta > 0 ? "▲ +" : "▼ "}${delta}`,
+  };
+
   return (
     <div data-testid="pillar-sparkline" className="mt-2 pt-2 border-t border-dashed border-border">
       <div className="flex items-end gap-2">
@@ -76,9 +83,9 @@ export default function PillarSparkline({ values, labels, color }: {
             </>
           )}
         </div>
-        {delta != null && (
-          <span className={`shrink-0 text-[10px] font-semibold tabular-nums ${delta >= 0 ? "text-[#5a7016] dark:text-[#a9c46a]" : "text-red-600 dark:text-red-400"}`}>
-            {delta >= 0 ? "▲" : "▼"} {delta >= 0 ? "+" : ""}{delta}
+        {trend && (
+          <span className={`shrink-0 text-[10px] font-semibold tabular-nums ${trend.cls}`}>
+            {trend.label}
           </span>
         )}
       </div>
