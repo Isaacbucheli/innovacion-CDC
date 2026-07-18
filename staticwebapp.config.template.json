@@ -4,7 +4,7 @@
     { "route": "/assets/*", "headers": { "cache-control": "public, max-age=31536000, immutable" } }
   ],
   "globalHeaders": {
-    "Content-Security-Policy": "default-src 'self'; connect-src 'self' __API_BASE_URL__; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+    "Content-Security-Policy": "default-src 'self'; connect-src 'self' __API_BASE_URL__; img-src 'self' data: blob:; script-src 'self'; style-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
