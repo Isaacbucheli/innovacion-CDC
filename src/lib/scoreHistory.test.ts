@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { pillarSeries, sparklineCoords, sparklinePoints, lastDelta, formatHistoryLabel, historyLabels } from "@/lib/scoreHistory";
+import { pillarSeries, sparklineCoords, sparklinePoints, lastDelta, formatHistoryLabel, historyLabels, needsCurrentColumn, reconciledAxis, reconcilePillarSeries } from "@/lib/scoreHistory";
 import type { WafScoreHistory } from "@/types";
 
 const H: WafScoreHistory = {
@@ -65,5 +65,61 @@ describe("formatHistoryLabel", () => {
   test("mes → 'Mmm YY'; otros → 'd/m'", () => {
     expect(formatHistoryLabel("2026-06-01", "month")).toBe("Jun 26");
     expect(formatHistoryLabel("2026-06-15", "day")).toBe("15/6");
+  });
+});
+
+describe("needsCurrentColumn", () => {
+  const jul18 = new Date(2026, 6, 18); // mes 6 = julio (0-based)
+  test("false si el último punto es el mes actual", () => {
+    const h: WafScoreHistory = { granularity: "month", series: [{ date: "2026-07-01", global: 76, pillars: {} }] };
+    expect(needsCurrentColumn(h, jul18)).toBe(false);
+  });
+  test("true si el último punto es un mes anterior", () => {
+    const h: WafScoreHistory = { granularity: "month", series: [{ date: "2026-06-01", global: 80, pillars: {} }] };
+    expect(needsCurrentColumn(h, jul18)).toBe(true);
+  });
+  test("true si no hay histórico", () => {
+    expect(needsCurrentColumn(null, jul18)).toBe(true);
+    expect(needsCurrentColumn({ granularity: "month", series: [] }, jul18)).toBe(true);
+  });
+});
+
+describe("reconciledAxis", () => {
+  const jul18 = new Date(2026, 6, 18);
+  test("reemplaza (no añade) cuando el histórico ya tiene el mes actual", () => {
+    const h: WafScoreHistory = { granularity: "month", series: [
+      { date: "2026-06-01", global: 80, pillars: {} },
+      { date: "2026-07-01", global: 76, pillars: {} },
+    ] };
+    expect(reconciledAxis(h, jul18)).toEqual({ labels: ["Jun 26", "Jul 26"], appendCurrent: false });
+  });
+  test("añade columna 'actual' cuando falta el mes de hoy", () => {
+    const h: WafScoreHistory = { granularity: "month", series: [{ date: "2026-06-01", global: 80, pillars: {} }] };
+    expect(reconciledAxis(h, jul18)).toEqual({ labels: ["Jun 26", "Jul 26"], appendCurrent: true });
+  });
+});
+
+describe("reconcilePillarSeries", () => {
+  test("reemplaza el último punto con el score en vivo (cierra en el headline)", () => {
+    expect(reconcilePillarSeries([80.4, 76], 84, false)).toEqual([80.4, 84]);
+  });
+  test("añade el score en vivo como punto actual", () => {
+    expect(reconcilePillarSeries([80.4, 76], 84, true)).toEqual([80.4, 76, 84]);
+  });
+  test("deja la serie intacta si no hay score en vivo", () => {
+    expect(reconcilePillarSeries([80.4, 76], null, false)).toEqual([80.4, 76]);
+  });
+  test("serie vacía + score vivo → un solo punto", () => {
+    expect(reconcilePillarSeries([], 84, false)).toEqual([84]);
+  });
+});
+
+describe("escenario de la tarjeta (headline 84 vs histórico 76)", () => {
+  test("el sparkline cierra en el headline y la tendencia se corrige", () => {
+    const base = [80.4, 76];      // jun, jul (mensual de Azure, rezagado)
+    const live = 84;              // lastRefreshedScore = headline
+    const rec = reconcilePillarSeries(base, live, false);
+    expect(rec[rec.length - 1]).toBe(live); // el gráfico termina en el mismo valor del headline
+    expect(lastDelta(rec)).toBe(3.6);       // ▲ +3.6 (antes mostraba ▼ -4.4)
   });
 });

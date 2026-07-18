@@ -51,3 +51,51 @@ export function historyLabels(history: WafScoreHistory | null, granularity = "mo
   if (!history) return [];
   return history.series.map((p) => formatHistoryLabel(p.date, granularity));
 }
+
+// --- Reconciliación del sparkline con el score EN VIVO -----------------------------
+// La tarjeta muestra el score en vivo (lastRefreshedScore) como headline, pero el sparkline
+// sale del timeSeries mensual de Azure, que va rezagado (el bucket del mes actual no alcanza
+// aún al score vivo). Para que headline, último punto y tendencia cuenten la misma historia,
+// cerramos el sparkline en el score en vivo: reemplazamos el punto del período actual, o lo
+// añadimos como columna "actual" si el histórico todavía no lo tiene.
+
+// Clave de período para comparar el último punto del histórico contra "hoy".
+function periodKey(y: number, m: number, d: number, granularity: string): string {
+  return granularity === "month" ? `${y}-${m}` : `${y}-${m}-${d}`;
+}
+
+// ¿Falta en el histórico el punto del período actual? (true también si no hay histórico).
+export function needsCurrentColumn(history: WafScoreHistory | null, now: Date, granularity = "month"): boolean {
+  if (!history || history.series.length === 0) return true;
+  const last = history.series[history.series.length - 1].date;
+  const [ly, lm, ld] = last.split("-").map(Number);
+  if (!ly || !lm) return true;
+  const nowKey = periodKey(now.getFullYear(), now.getMonth() + 1, now.getDate(), granularity);
+  return periodKey(ly, lm, ld ?? 1, granularity) !== nowKey;
+}
+
+// Etiquetas del eje + si hay que añadir una columna "actual" para anclar el score en vivo.
+// Determinista salvo por `now` (inyectable para tests).
+export function reconciledAxis(history: WafScoreHistory | null, now: Date, granularity = "month"): { labels: string[]; appendCurrent: boolean } {
+  const labels = historyLabels(history, granularity);
+  const appendCurrent = needsCurrentColumn(history, now, granularity);
+  if (appendCurrent) {
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    labels.push(formatHistoryLabel(`${y}-${m}-${d}`, granularity));
+  }
+  return { labels, appendCurrent };
+}
+
+// Serie de un pilar reconciliada: termina en el score EN VIVO (el headline de la tarjeta).
+// `live=null` deja la serie intacta. `appendCurrent` decide reemplazar el último punto (mismo
+// período que hoy) o añadir uno nuevo (el histórico aún no tiene el período actual).
+export function reconcilePillarSeries(base: (number | null)[], live: number | null, appendCurrent: boolean): (number | null)[] {
+  if (live == null) return base;
+  if (appendCurrent) return [...base, live];
+  if (base.length === 0) return [live];
+  const out = base.slice();
+  out[out.length - 1] = live;
+  return out;
+}
