@@ -833,3 +833,32 @@ export interface MonthlyReport {
   sections?: Record<string, boolean>;
   [key: string]: unknown;
 }
+
+// ---- Informe: vista gerencial (dashboard ejecutivo) ----
+export interface SemaforoDomain {
+  dominio: string; etiqueta: string; estado: string; lectura: string; criterio: string;
+  detalle?: Record<string, unknown>;
+}
+export interface Semaforo {
+  umbral_presion: number; estado_general: string; dominios: SemaforoDomain[];
+}
+export interface ExecutiveNarrative {
+  titular?: string; sintesis?: string; lectura_dominios?: Record<string, string>;
+  generated_at?: string; generated_by?: string;
+}
+export interface ExecutivePayload {
+  client?: { name?: string | null }; period?: ReportPeriod;
+  semaforo?: Semaforo; narrative?: ExecutiveNarrative | null; status?: string;
+}
+export interface ActionPlanItem {
+  item_id?: number; prioridad: string; hallazgo: string; accion?: string | null;
+  responsable?: string | null; estado: string; orden?: number; updated_by?: string | null;
+}
+export interface ActionPlanItemWrite {
+  prioridad: string; hallazgo: string; accion: string | null;
+  responsable: string | null; estado: string; orden: number;
+}
+export interface ActionPlanResponse {
+  items: ActionPlanItem[]; defaults: ActionPlanItem[]; can_edit: boolean;
+  estados: string[]; prioridades: string[];
+}

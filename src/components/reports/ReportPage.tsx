@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { FileText, RefreshCw } from "lucide-react";
+import { FileText, RefreshCw, LayoutDashboard } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
 import ClientHeader from "@/components/ClientHeader";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ReportView from "@/components/reports/ReportView";
+import ExecutiveDashboard from "@/components/reports/ExecutiveDashboard";
 import { listClientsAdmin, listReports, getMonthlyReport, generateReport } from "@/lib/api";
 import { getRole } from "@/lib/auth";
 import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
@@ -28,6 +29,7 @@ export default function ReportPage({ onNavigate }: { onNavigate?: (key: string) 
   const [loading, setLoading] = useState(true);
   const [loadingReport, setLoadingReport] = useState(false);
   const [genMsg, setGenMsg] = useState("");
+  const [view, setView] = useState<"report" | "executive">("report");
   const mounted = useRef(true);
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -66,6 +68,9 @@ export default function ReportPage({ onNavigate }: { onNavigate?: (key: string) 
       .catch((e) => { if (mounted.current) { setReport(null); toast.error(msg(e)); } })
       .finally(() => mounted.current && setLoadingReport(false));
   }, [clientId, year, month, entry?.status]);
+
+  // Si el periodo/cliente deja de tener informe, volvemos a la vista de informe (no dashboard vacío).
+  useEffect(() => { if (!report) setView("report"); }, [report]);
 
   function selectClient(id: number) { writeActiveClient(id); setClientId(id); setReport(null); }
 
@@ -130,6 +135,11 @@ export default function ReportPage({ onNavigate }: { onNavigate?: (key: string) 
               {entry ? "Regenerar" : "Generar informe"}
             </Button>
           )}
+          {report && !generating && view === "report" && (
+            <Button size="sm" variant="outline" onClick={() => setView("executive")}>
+              <LayoutDashboard className="w-4 h-4 mr-1" />Vista gerencial
+            </Button>
+          )}
         </div>
 
         {/* Chips: informes disponibles */}
@@ -163,7 +173,9 @@ export default function ReportPage({ onNavigate }: { onNavigate?: (key: string) 
         ) : loadingReport ? (
           <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">Cargando informe…</div>
         ) : report && clientId != null ? (
-          <ReportView report={report} clientId={clientId} year={year} month={month} />
+          view === "executive"
+            ? <ExecutiveDashboard report={report} clientId={clientId} year={year} month={month} canEdit={canEdit} onBack={() => setView("report")} />
+            : <ReportView report={report} clientId={clientId} year={year} month={month} />
         ) : (
           <div className="rounded-xl border bg-card p-10 text-center">
             <FileText className="w-7 h-7 mx-auto mb-3 text-muted-foreground" />

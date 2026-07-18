@@ -54,6 +54,12 @@ import type {
   WafTrackingUpdate,
   ReportList,
   MonthlyReport,
+  ExecutivePayload,
+  Semaforo,
+  ExecutiveNarrative,
+  ActionPlanResponse,
+  ActionPlanItem,
+  ActionPlanItemWrite,
   GenerateReportResponse,
   ReservationsResponse,
   ReservationConsumer,
@@ -230,6 +236,24 @@ export async function fetchClientLogoObjectUrl(id: number, base: string = apiBas
   const blob = await res.blob();
   return URL.createObjectURL(blob);
 }
+
+// ---- Informe: vista gerencial (dashboard ejecutivo) ----
+const rpBase = (clientId: number, year: number, month: number) => `/reports/clients/${clientId}/${year}/${month}`;
+export const getExecutive = (clientId: number, year: number, month: number) =>
+  request<ExecutivePayload>(`${rpBase(clientId, year, month)}/executive`);
+export const generateExecutiveNarrative = (clientId: number, year: number, month: number) =>
+  request<{ semaforo: Semaforo; narrative: ExecutiveNarrative }>(`${rpBase(clientId, year, month)}/executive/narrative`, { method: "POST" });
+export const getActionPlan = (clientId: number, year: number, month: number) =>
+  request<ActionPlanResponse>(`${rpBase(clientId, year, month)}/action-plan`);
+export const seedActionPlan = (clientId: number, year: number, month: number) =>
+  request<{ items: ActionPlanItem[] }>(`${rpBase(clientId, year, month)}/action-plan/seed`, { method: "POST" });
+export const createActionItem = (clientId: number, year: number, month: number, body: ActionPlanItemWrite) =>
+  request<{ items: ActionPlanItem[] }>(`${rpBase(clientId, year, month)}/action-plan`, jsonOpts("POST", body));
+export const updateActionItem = (clientId: number, year: number, month: number, itemId: number, body: ActionPlanItemWrite) =>
+  request<{ items: ActionPlanItem[] }>(`${rpBase(clientId, year, month)}/action-plan/${itemId}`, jsonOpts("PUT", body));
+export const deleteActionItem = (clientId: number, year: number, month: number, itemId: number) =>
+  request<{ items: ActionPlanItem[] }>(`${rpBase(clientId, year, month)}/action-plan/${itemId}`, { method: "DELETE" });
+
 export const listAnalyses = () => request<AnalysisSummary[]>("/analysis");
 export const ensureCurrentAnalysis = (clientId: number) =>
   request<AnalysisSummary>(`/analysis/client/${clientId}/current`, { method: "POST" });
