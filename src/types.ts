@@ -659,6 +659,10 @@ export interface SubscriptionSyncResult {
   credential_name?: string | null;
   status: "ok" | "partial" | "error";
   error?: string | null;
+  // Fidelidad con el portal de Advisor (2026-07-21). Ausentes en corridas antiguas.
+  defender_check?: "ok" | "unavailable" | null;
+  defender_resolved_skipped?: number | null;
+  suppressed_skipped?: number | null;
 }
 export interface WafIngestionRun {
   run_id: number;

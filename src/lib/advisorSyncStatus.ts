@@ -58,3 +58,19 @@ export function overallSyncStatus(results: SubscriptionSyncResult[]): SyncStatus
   if (results.some((r) => r.status === "partial")) return "partial";
   return "ok";
 }
+
+/**
+ * Nota de transparencia: cuántos ítems omitió el sync para cuadrar con la vista
+ * "Activas" del portal de Advisor (ya resueltas según Defender y pospuestas/
+ * descartadas en Azure). Null si no se omitió nada o la corrida es antigua.
+ */
+export function syncOmittedNote(r: SubscriptionSyncResult): string | null {
+  const parts: string[] = [];
+  const resolved = r.defender_resolved_skipped ?? 0;
+  const suppressed = r.suppressed_skipped ?? 0;
+  if (resolved > 0) parts.push(`${resolved} ya resuelta${resolved === 1 ? "" : "s"} según Defender`);
+  if (suppressed > 0) parts.push(`${suppressed} pospuesta${suppressed === 1 ? "" : "s"}/descartada${suppressed === 1 ? "" : "s"} en Azure`);
+  if (parts.length === 0) return null;
+  const total = resolved + suppressed;
+  return `${total} omitida${total === 1 ? "" : "s"} (${parts.join(" · ")}) para cuadrar con el portal de Advisor`;
+}

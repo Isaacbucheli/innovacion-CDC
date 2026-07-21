@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { usePagedRows } from "@/hooks/usePagedRows";
 import { listClientsAdmin, getWafIngestionRuns } from "@/lib/api";
 import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
-import { humanizeSyncError, subStatusLabel, subStatusTone, type SyncTone } from "@/lib/advisorSyncStatus";
+import { humanizeSyncError, subStatusLabel, subStatusTone, syncOmittedNote, type SyncTone } from "@/lib/advisorSyncStatus";
 import type { ClientAdmin, WafIngestionRun } from "@/types";
 
 const COLS = 9;
@@ -111,6 +111,9 @@ export default function IngestionsPage({ onNavigate }: { onNavigate?: (key: stri
                                   {s.credential_name && <span className="text-muted-foreground">({s.credential_name})</span>}
                                   {s.status !== "ok" && (
                                     <span className="text-muted-foreground">— {humanizeSyncError(s.status, s.error)}</span>
+                                  )}
+                                  {syncOmittedNote(s) && (
+                                    <span className="text-muted-foreground">— {syncOmittedNote(s)}</span>
                                   )}
                                 </li>
                               ))}

@@ -1,8 +1,39 @@
 import { describe, expect, test } from "vitest";
 import {
-  humanizeSyncError, overallSyncStatus, subStatusLabel, subStatusTone,
+  humanizeSyncError, overallSyncStatus, subStatusLabel, subStatusTone, syncOmittedNote,
 } from "@/lib/advisorSyncStatus";
 import type { SubscriptionSyncResult } from "@/types";
+
+const subResult = (extra: Partial<SubscriptionSyncResult> = {}): SubscriptionSyncResult => ({
+  subscription_id: "sub-1", subscription_name: "Sub Uno", status: "ok", ...extra,
+});
+
+describe("syncOmittedNote", () => {
+  test("sin campos (corrida antigua) o en cero → null", () => {
+    expect(syncOmittedNote(subResult())).toBeNull();
+    expect(syncOmittedNote(subResult({ defender_resolved_skipped: 0, suppressed_skipped: 0 }))).toBeNull();
+  });
+
+  test("resueltas según Defender → nota con conteo y motivo", () => {
+    const note = syncOmittedNote(subResult({ defender_resolved_skipped: 4 }));
+    expect(note).toContain("4 omitidas");
+    expect(note).toContain("ya resueltas según Defender");
+    expect(note).toContain("portal de Advisor");
+  });
+
+  test("suprimidas y resueltas se combinan y suman", () => {
+    const note = syncOmittedNote(subResult({ defender_resolved_skipped: 4, suppressed_skipped: 2 }));
+    expect(note).toContain("6 omitidas");
+    expect(note).toContain("ya resueltas según Defender");
+    expect(note).toContain("pospuestas/descartadas en Azure");
+  });
+
+  test("singular bien formado", () => {
+    const note = syncOmittedNote(subResult({ suppressed_skipped: 1 }));
+    expect(note).toContain("1 omitida (");
+    expect(note).toContain("1 pospuesta/descartada en Azure");
+  });
+});
 
 describe("subStatusLabel / subStatusTone", () => {
   test("mapea los tres estados a etiqueta amigable", () => {
