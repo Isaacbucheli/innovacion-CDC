@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Download, MoreHorizontal, CloudUpload, GitMerge, RefreshCw, LineChart } from "lucide-react";
+import { Download, MoreHorizontal, CloudUpload, GitMerge, RefreshCw, LineChart, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import ConsolidateDialog from "@/components/waf/ConsolidateDialog";
 import AdvisorScoreDialog from "@/components/waf/AdvisorScoreDialog";
 import ExcelImportDialog from "@/components/waf/ExcelImportDialog";
 import ScoreHistorySheet from "@/components/waf/ScoreHistorySheet";
+import SecurityManagementDialog from "@/components/waf/SecurityManagementDialog";
 import { uploadWafIngestion, downloadFromApi, consolidateWafDuplicates, refreshWafAdvisorScore } from "@/lib/api";
 import { ADVISOR_SYNC_COMPLETED_EVENT, startAdvisorSyncJob } from "@/lib/advisorSync";
 import { canEditModule, getRole } from "@/lib/auth";
@@ -30,6 +31,7 @@ export default function WafActions({ clientId, onChanged, pillarNames }: { clien
   const [scoreOpen, setScoreOpen] = useState(false);
   const [excelOpen, setExcelOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [secOpen, setSecOpen] = useState(false);
 
   useEffect(() => {
     const completed = (event: Event) => {
@@ -132,6 +134,7 @@ export default function WafActions({ clientId, onChanged, pillarNames }: { clien
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Mantenimiento</DropdownMenuLabel>
               {editable && <DropdownMenuItem onClick={() => setConsOpen(true)}><GitMerge className="w-4 h-4 mr-2" />Consolidar duplicados</DropdownMenuItem>}
+              {editable && <DropdownMenuItem onClick={() => setSecOpen(true)}><ShieldCheck className="w-4 h-4 mr-2" />Gestión de Vulnerabilidades…</DropdownMenuItem>}
               {isAdmin && <DropdownMenuItem onClick={() => setScoreOpen(true)}><RefreshCw className="w-4 h-4 mr-2" />Actualizar Advisor Score</DropdownMenuItem>}
             </>
           )}
@@ -143,6 +146,7 @@ export default function WafActions({ clientId, onChanged, pillarNames }: { clien
       <AdvisorScoreDialog open={scoreOpen} busy={busy} onOpenChange={setScoreOpen} onConfirm={doScoreRefresh} />
       <ExcelImportDialog open={excelOpen} clientId={clientId} onOpenChange={setExcelOpen} onChanged={onChanged} />
       <ScoreHistorySheet clientId={clientId} open={historyOpen} onOpenChange={setHistoryOpen} pillarNames={pillarNames} />
+      <SecurityManagementDialog clientId={clientId} open={secOpen} onOpenChange={setSecOpen} onChanged={onChanged} />
     </div>
   );
 }

@@ -309,6 +309,10 @@ export const getWafSummary = (clientId: number) =>
   request<WafSummary>(`/waf/clients/${clientId}/summary`);
 export const getWafSections = (clientId: number) =>
   request<WafSection[]>(`/waf/clients/${clientId}/sections`);
+export const getWafSecurityManagement = (clientId: number) =>
+  request<{ managed_externally: boolean; note: string }>(`/waf/clients/${clientId}/security-management`);
+export const setWafSecurityManagement = (clientId: number, managed_externally: boolean, note: string) =>
+  request<{ message: string }>(`/waf/clients/${clientId}/security-management`, jsonOpts("PUT", { managed_externally, note }));
 export const getWafAdvisorScore = (clientId: number) =>
   request<WafAdvisorScore>(`/waf/clients/${clientId}/advisor-score`);
 export const getWafScoreHistory = (clientId: number, granularity: "day" | "week" | "month" = "month") =>
