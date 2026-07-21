@@ -359,6 +359,10 @@ export interface WafSection {
   avg_progress: number;
   high_recs: number;
   medium_recs: number;
+  // Seguridad gestionada externamente (Gestión de Vulnerabilidades): la tarjeta conserva el score
+  // pero oculta el conteo y muestra esta nota.
+  managed_externally?: boolean;
+  managed_note?: string | null;
 }
 
 export interface WafRecommendation {

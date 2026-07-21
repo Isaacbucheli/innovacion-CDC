@@ -1,8 +1,10 @@
-import { Check } from "lucide-react";
+import { useState } from "react";
+import { Check, ShieldCheck, Info } from "lucide-react";
 import type { WafSection, WafScoreHistory } from "@/types";
 import { pillarIcon, scoreColor, computePillarAvance, AZURE_BLUE } from "@/lib/waf";
 import { pillarSeries, reconciledAxis, reconcilePillarSeries } from "@/lib/scoreHistory";
 import PillarSparkline from "@/components/waf/PillarSparkline";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 export default function PillarCards({ sections, activePillar, onPick, scores, history }: {
   sections: WafSection[];
@@ -24,6 +26,14 @@ export default function PillarCards({ sections, activePillar, onPick, scores, hi
         const active = activePillar === s.section_num;
         const score = scores ? scores[s.section_num] : undefined;
         const avance = computePillarAvance(s.total_recs, s.avg_progress, matrixPopulated);
+        // Pilar gestionado externamente (Gestión de Vulnerabilidades): tarjeta no interactiva con
+        // score + nota + diálogo, sin conteo (filtrar por él daría tabla vacía).
+        if (s.managed_externally) {
+          return (
+            <ManagedSecurityCard key={s.section_num} section={s} score={score}
+              history={history} labels={labels} appendCurrent={appendCurrent} />
+          );
+        }
         return (
           <button
             key={s.section_num}
@@ -66,6 +76,58 @@ export default function PillarCards({ sections, activePillar, onPick, scores, hi
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/** Tarjeta del pilar cuya seguridad se gestiona externamente: score + nota + diálogo (sin conteo). */
+function ManagedSecurityCard({ section: s, score, history, labels, appendCurrent }: {
+  section: WafSection;
+  score: number | undefined;
+  history?: WafScoreHistory | null;
+  labels: string[];
+  appendCurrent: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const note = s.managed_note || "La seguridad de este cliente se gestiona externamente.";
+  return (
+    <div className="text-left rounded-xl border p-3 flex flex-col gap-2 border-border bg-card">
+      <div className="flex items-start justify-between gap-2">
+        <img src={pillarIcon(s.section_num)} alt="" aria-hidden className="w-7 h-7 object-contain" />
+      </div>
+      <div className="text-sm font-medium leading-snug min-h-[2.5rem]">{s.section_name}</div>
+      {score != null && (
+        <div className="pl-2.5 border-l-[3px]" style={{ borderColor: scoreColor(score) }}>
+          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Score</div>
+          <div className="text-xl font-bold tabular-nums leading-tight">{score}%</div>
+        </div>
+      )}
+      <div className="mt-auto flex flex-col gap-2 pt-1">
+        <div className="text-[11px] text-muted-foreground inline-flex items-start gap-1">
+          <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#5a7016] dark:text-[#a9c46a]" />
+          <span>{note}</span>
+        </div>
+        <button type="button" onClick={() => setOpen(true)} aria-label="Detalle de seguridad gestionada"
+          className="self-start text-[11px] inline-flex items-center gap-1 text-primary hover:underline">
+          <Info className="w-3 h-3" /> ¿Por qué?
+        </button>
+        {score != null && (
+          <PillarSparkline values={reconcilePillarSeries(pillarSeries(history ?? null, s.section_num), score, appendCurrent)} labels={labels} color={scoreColor(score)} />
+        )}
+      </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Seguridad gestionada por otro servicio</DialogTitle>
+            <DialogDescription>
+              Las recomendaciones de seguridad de este cliente no se listan aquí porque se atienden
+              mediante el servicio de Gestión de Vulnerabilidades. El puntaje (score) del pilar se
+              mantiene como referencia.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{note}</p>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
