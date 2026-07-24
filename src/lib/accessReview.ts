@@ -15,6 +15,7 @@ export function scopeLabel(level: string): string {
     case "subscription": return "Suscripción";
     case "resource_group": return "Resource group";
     case "resource": return "Recurso";
+    case "root": return "Directorio (root)";
     default: return level;
   }
 }
