@@ -1,6 +1,6 @@
 import {
   Coins, Award, Sparkles, History, Wallet, FileText, CalendarClock, Bell,
-  Building2, Users, Boxes, Radar, ShieldCheck, type LucideIcon,
+  Building2, Users, Boxes, Radar, ShieldCheck, UserCheck, type LucideIcon,
 } from "lucide-react";
 
 import { azIcon } from "@/lib/azureIcons";
@@ -41,6 +41,7 @@ export const MODULE_GROUPS: ModuleGroup[] = [
     // No existe SVG "policy" en assets/azure-icons → se usa el de resource-groups (gobierno/gestión).
     { key: "policies", label: "Catálogo de políticas", desc: "Línea base de Azure Policy para gobierno, seguridad y FinOps.", icon: ShieldCheck, azureIcon: AZ("resource-groups") },
     { key: "consultants", label: "Asignación de consultores", desc: "Clientes por consultor, backups, carga y reasignación.", icon: Users, azureIcon: AZ("users") },
+    { key: "access-review", label: "Revisión de accesos", desc: "Accesos y permisos RBAC del tenant del cliente.", icon: UserCheck },
   ] },
   { group: "Administración", items: [
     { key: "clientes", label: "Clientes", desc: "Alta, credenciales Azure y datos de clientes.", icon: Building2, adminOnly: true },
