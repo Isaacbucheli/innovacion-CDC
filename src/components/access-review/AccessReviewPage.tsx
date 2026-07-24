@@ -146,12 +146,17 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const runId = useRef(0);
   const mounted = useRef(true);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstDias = useRef(true);
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   const clearPoll = useCallback(() => {
     if (pollTimer.current) { clearInterval(pollTimer.current); pollTimer.current = null; }
+  }, []);
+
+  const clearDebounce = useCallback(() => {
+    if (debounceTimer.current) { clearTimeout(debounceTimer.current); debounceTimer.current = null; }
   }, []);
 
   // Carga (o recarga silenciosa) del snapshot. Si el estado devuelto es queued/running arranca
@@ -198,11 +203,12 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     }).catch((e) => toast.error(msg(e))).finally(() => setLoading(false));
   }, []);
 
-  // Recarga completa al cambiar de cliente (limpia el polling anterior al desmontar/cambiar).
+  // Recarga completa al cambiar de cliente (limpia el polling anterior y cualquier debounce
+  // de umbral pendiente del cliente previo al desmontar/cambiar — evita el race de cliente obsoleto).
   useEffect(() => {
     if (clientId == null) return;
     load(clientId, dias);
-    return () => clearPoll();
+    return () => { clearPoll(); clearDebounce(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, load]);
 
@@ -210,8 +216,12 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   useEffect(() => {
     if (firstDias.current) { firstDias.current = false; return; }
     if (clientId == null) return;
-    const t = setTimeout(() => load(clientId, dias, { silent: true }), 500);
-    return () => clearTimeout(t);
+    clearDebounce();
+    debounceTimer.current = setTimeout(() => {
+      debounceTimer.current = null;
+      load(clientId, dias, { silent: true });
+    }, 500);
+    return clearDebounce;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dias]);
 
@@ -249,9 +259,9 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     if (!historyOpen || clientId == null) return;
     setRunsLoading(true);
     listAccessReviewRuns(clientId)
-      .then(setRuns)
+      .then((data) => { if (mounted.current) setRuns(data); })
       .catch((e) => toast.error(`No se pudo cargar el historial: ${msg(e)}`))
-      .finally(() => setRunsLoading(false));
+      .finally(() => { if (mounted.current) setRunsLoading(false); });
   }, [historyOpen, clientId]);
 
   const status = resp?.status ?? "none";
