@@ -67,12 +67,22 @@ function runStatusChip(s: AccessReviewRun["status"]) {
   }
 }
 
-function Kpi({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent: string }) {
+// `muted` degrada la tarjeta a un estado neutro ("no medido") cuando la corrida no tiene el dato
+// completo (ver graphIncomplete/inactivityIncomplete más abajo): nada de verde/rojo sobre un 0
+// que en realidad nunca se llegó a medir. `hint` es un title nativo, sin componente nuevo.
+function Kpi({ icon, label, value, accent, muted, hint }: {
+  icon: React.ReactNode; label: string; value: string; accent: string; muted?: boolean; hint?: string;
+}) {
   return (
-    <div className="rounded-xl border bg-background p-4">
-      <div className="w-8 h-8 rounded-lg grid place-items-center mb-2" style={{ background: `${accent}22`, color: accent }}>{icon}</div>
+    <div className="rounded-xl border bg-background p-4" title={hint}>
+      <div
+        className={`w-8 h-8 rounded-lg grid place-items-center mb-2 ${muted ? "bg-muted text-muted-foreground" : ""}`}
+        style={muted ? undefined : { background: `${accent}22`, color: accent }}
+      >
+        {icon}
+      </div>
       <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="text-2xl font-bold tabular-nums tracking-tight mt-0.5">{value}</div>
+      <div className={`text-2xl font-bold tabular-nums tracking-tight mt-0.5 ${muted ? "text-muted-foreground" : ""}`}>{value}</div>
     </div>
   );
 }
@@ -272,6 +282,22 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const globalAdmins = useMemo(() => resp?.global_admins ?? [], [resp]);
   const guests = useMemo(() => resp?.guests ?? [], [resp]);
   const servicePrincipals = useMemo(() => assignments.filter((a) => a.principal_type === "ServicePrincipal"), [assignments]);
+  const credentials = useMemo(() => resp?.credentials ?? [], [resp]);
+
+  // Zonas de la corrida no medidas: si el Graph no se pudo leer del todo (sin consent, Lighthouse
+  // sin permisos ARM-only, error) o la corrida completa terminó en "error", los indicadores que
+  // vienen de Entra ID (MFA, cuentas habilitadas/deshabilitadas, Global Admins, guests) no reflejan
+  // datos reales — deben mostrarse como "no medido", nunca como un 0 verde.
+  const graphIncomplete = useMemo(
+    () => status === "error" || credentials.some((c) => c.graph_status === "sin_consent" || c.graph_status === "no_aplica" || c.graph_status === "error"),
+    [status, credentials],
+  );
+  // La inactividad además depende del "último inicio de sesión", que requiere licencia Entra ID P1;
+  // sin ella (aunque el resto de Graph haya funcionado) esa cifra puntual tampoco está medida.
+  const inactivityIncomplete = useMemo(
+    () => graphIncomplete || credentials.some((c) => c.graph_status === "sin_licencia_p1"),
+    [graphIncomplete, credentials],
+  );
 
   // ---- KPIs (point 4) ----
   const gaCount = resp?.kpis?.global_admins ?? 0;
@@ -412,7 +438,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     initialState: { pagination: { pageSize: 10 } },
   });
 
-  const badCredentials = (resp?.credentials ?? []).filter((c) => c.arm_status !== "ok" || c.graph_status !== "ok");
+  const badCredentials = credentials.filter((c) => c.arm_status !== "ok" || c.graph_status !== "ok");
 
   return (
     <AppShell title="Revisión de accesos" subtitle="Accesos y permisos RBAC del tenant del cliente"
@@ -453,12 +479,34 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
 
         {!loading && clientId != null && !isRunning && hasSnapshot && (
           <>
+            {status !== "ok" && (
+              <p
+                className={`text-sm rounded-lg border px-3 py-2 ${
+                  status === "error"
+                    ? "text-red-700 dark:text-red-400 border-red-300 dark:border-red-800"
+                    : "text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800"
+                }`}
+              >
+                Esta corrida está incompleta: los indicadores de Entra ID (MFA, cuentas, administradores e invitados) no reflejan datos completos. Revisa el estado por credencial más abajo.
+              </p>
+            )}
+
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-              <Kpi icon={<Crown className="w-4 h-4" />} label="Global Admins" value={String(gaCount)} accent={gaAccent} />
-              <Kpi icon={<ShieldOff className="w-4 h-4" />} label="Sin MFA" value={String(sinMfa)} accent={sinMfa > 0 ? "#a53b35" : "#70b043"} />
-              <Kpi icon={<UserX className="w-4 h-4" />} label="Deshabilitadas con RBAC" value={String(deshabilitadas)} accent={deshabilitadas > 0 ? "#a53b35" : "#70b043"} />
-              <Kpi icon={<Clock3 className="w-4 h-4" />} label="Inactivas con RBAC" value={String(inactivas)} accent={inactivas > 0 ? "#a53b35" : "#70b043"} />
-              <Kpi icon={<UserCog className="w-4 h-4" />} label="Guests inactivos c/permisos" value={String(guestsAlert)} accent={guestsAlert > 0 ? "#a53b35" : "#70b043"} />
+              <Kpi icon={<Crown className="w-4 h-4" />} label="Global Admins"
+                value={graphIncomplete ? "n/d" : String(gaCount)} accent={gaAccent} muted={graphIncomplete}
+                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : undefined} />
+              <Kpi icon={<ShieldOff className="w-4 h-4" />} label="Sin MFA"
+                value={graphIncomplete ? "n/d" : String(sinMfa)} accent={sinMfa > 0 ? "#a53b35" : "#70b043"} muted={graphIncomplete}
+                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : undefined} />
+              <Kpi icon={<UserX className="w-4 h-4" />} label="Deshabilitadas con RBAC"
+                value={graphIncomplete ? "n/d" : String(deshabilitadas)} accent={deshabilitadas > 0 ? "#a53b35" : "#70b043"} muted={graphIncomplete}
+                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : undefined} />
+              <Kpi icon={<Clock3 className="w-4 h-4" />} label="Inactivas con RBAC"
+                value={inactivityIncomplete ? "n/d" : String(inactivas)} accent={inactivas > 0 ? "#a53b35" : "#70b043"} muted={inactivityIncomplete}
+                hint={inactivityIncomplete ? "No medido: requiere licencia Entra ID P1 para el último inicio de sesión." : undefined} />
+              <Kpi icon={<UserCog className="w-4 h-4" />} label="Guests inactivos c/permisos"
+                value={graphIncomplete ? "n/d" : String(guestsAlert)} accent={guestsAlert > 0 ? "#a53b35" : "#70b043"} muted={graphIncomplete}
+                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : undefined} />
               <Kpi icon={<Layers className="w-4 h-4" />} label="Asignaciones" value={String(totalAsign)} accent="#a3c243" />
             </div>
 
