@@ -5,7 +5,7 @@ import {
   getSortedRowModel, useReactTable, type SortingState, type Table as RTTable,
 } from "@tanstack/react-table";
 import {
-  Crown, ShieldOff, UserX, Clock3, UserCog, Layers, MoreHorizontal, RefreshCw, Download, History, Loader2,
+  Crown, ShieldOff, UserX, Clock3, UserCog, Layers, MoreHorizontal, RefreshCw, Download, History, Loader2, X,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
@@ -25,7 +25,7 @@ import {
 import {
   listClientsAdmin, getAccessReview, syncAccessReview, listAccessReviewRuns, downloadFromApi,
 } from "@/lib/api";
-import { mfaChip, scopeLabel, graphStatusLabel, assignmentAlert } from "@/lib/accessReview";
+import { mfaChip, scopeLabel, graphStatusLabel, assignmentAlert, daysSince } from "@/lib/accessReview";
 import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
 import { canEditModule } from "@/lib/auth";
 import type {
@@ -70,11 +70,14 @@ function runStatusChip(s: AccessReviewRun["status"]) {
 // `muted` degrada la tarjeta a un estado neutro ("no medido") cuando la corrida no tiene el dato
 // completo (ver graphIncomplete/inactivityIncomplete más abajo): nada de verde/rojo sobre un 0
 // que en realidad nunca se llegó a medir. `hint` es un title nativo, sin componente nuevo.
-function Kpi({ icon, label, value, accent, muted, hint }: {
+// Con `onClick` la tarjeta se vuelve botón (filtra la tabla correspondiente); en estado muted
+// no hay clic porque el dato no está medido y filtrar por él no significa nada.
+function Kpi({ icon, label, value, accent, muted, hint, onClick, active }: {
   icon: React.ReactNode; label: string; value: string; accent: string; muted?: boolean; hint?: string;
+  onClick?: () => void; active?: boolean;
 }) {
-  return (
-    <div className="rounded-xl border bg-background p-4" title={hint}>
+  const inner = (
+    <>
       <div
         className={`w-8 h-8 rounded-lg grid place-items-center mb-2 ${muted ? "bg-muted text-muted-foreground" : ""}`}
         style={muted ? undefined : { background: `${accent}22`, color: accent }}
@@ -83,7 +86,14 @@ function Kpi({ icon, label, value, accent, muted, hint }: {
       </div>
       <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className={`text-2xl font-bold tabular-nums tracking-tight mt-0.5 ${muted ? "text-muted-foreground" : ""}`}>{value}</div>
-    </div>
+    </>
+  );
+  if (!onClick || muted) return <div className="rounded-xl border bg-background p-4" title={hint}>{inner}</div>;
+  return (
+    <button type="button" onClick={onClick} title={hint} aria-pressed={active}
+      className={`rounded-xl border bg-background p-4 text-left transition-colors cursor-pointer hover:border-primary/60 ${active ? "border-primary ring-1 ring-primary" : ""}`}>
+      {inner}
+    </button>
   );
 }
 
@@ -140,6 +150,17 @@ const mfaCell = (m: AccessAssignment["mfa_status"] | AccessGuest["mfa_status"] |
 
 const nameCell = (displayName: string | null, fallbackId: string) =>
   displayName ? <span className="font-medium">{displayName}</span> : <span className="font-mono text-xs">{fallbackId}</span>;
+
+// Filtros que aplican las tarjetas KPI sobre la tabla de Asignaciones. Replican el criterio de
+// AccessReviewKpiCalculator (API): solo usuarios; el KPI cuenta cuentas únicas, así que la tabla
+// puede mostrar más filas que el número de la tarjeta (una cuenta con N roles = N asignaciones).
+type KpiAssignFilter = "sin_mfa" | "deshabilitadas" | "inactivas";
+
+const KPI_FILTER_LABEL: Record<KpiAssignFilter, string> = {
+  sin_mfa: "Sin MFA (internos)",
+  deshabilitadas: "Deshabilitadas con RBAC",
+  inactivas: "Inactivas con RBAC",
+};
 
 export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: string) => void }) {
   const editable = canEditModule("access-review");
@@ -235,7 +256,11 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dias]);
 
-  function selectClient(id: number) { writeActiveClient(id); setClientId(id); }
+  // Al cambiar de cliente se descarta el drill-down de tarjetas (es estado del snapshot anterior).
+  function selectClient(id: number) {
+    writeActiveClient(id); setClientId(id);
+    setKpiFilter(null); setGuestsOnlyAlert(false);
+  }
 
   async function doSync() {
     if (clientId == null) return;
@@ -314,6 +339,27 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const [fScope, setFScope] = useState("all");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
 
+  // ---- Drill-down desde las tarjetas KPI ----
+  const [tab, setTab] = useState("assignments");
+  const [kpiFilter, setKpiFilter] = useState<KpiAssignFilter | null>(null);
+  const [guestsOnlyAlert, setGuestsOnlyAlert] = useState(false);
+
+  // Clic en tarjeta: lleva a la pestaña correspondiente y aplica el filtro del indicador
+  // (clic de nuevo sobre la tarjeta activa lo quita).
+  function toggleKpiFilter(f: KpiAssignFilter) {
+    setTab("assignments");
+    setKpiFilter((prev) => (prev === f ? null : f));
+  }
+  function toggleGuestsAlert() {
+    setTab("guests");
+    setGuestsOnlyAlert((prev) => !prev);
+  }
+  // Tarjeta "Asignaciones": muestra la tabla completa (limpia todos los filtros).
+  function showAllAssignments() {
+    setTab("assignments");
+    setKpiFilter(null); setQ(""); setFScope("all"); setOnlyAlerts(false);
+  }
+
   const scopeLevels = useMemo(
     () => [...new Set(assignments.map((a) => a.scope_level))].sort((a, b) => a.localeCompare(b)),
     [assignments],
@@ -322,6 +368,15 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const filteredAssignments = useMemo(() => {
     const term = q.trim().toLowerCase();
     return assignments.filter((a) => {
+      if (kpiFilter) {
+        if (a.principal_type !== "User") return false;
+        if (kpiFilter === "sin_mfa" && !(a.user_type !== "Guest" && a.mfa_status === "disabled")) return false;
+        if (kpiFilter === "deshabilitadas" && a.account_enabled !== false) return false;
+        if (kpiFilter === "inactivas") {
+          const d = daysSince(a.last_sign_in);
+          if (d === null || d <= dias) return false;
+        }
+      }
       if (term) {
         const hay = `${a.display_name ?? a.principal_object_id} ${a.login ?? ""} ${a.role_name} ${a.scope}`.toLowerCase();
         if (!hay.includes(term)) return false;
@@ -330,7 +385,16 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
       if (onlyAlerts && !assignmentAlert(a, dias)) return false;
       return true;
     });
-  }, [assignments, q, fScope, onlyAlerts, dias]);
+  }, [assignments, q, fScope, onlyAlerts, dias, kpiFilter]);
+
+  // Mismo criterio que el KPI "guests_inactivos_con_permisos": inactivo sobre el umbral Y con roles RBAC.
+  const filteredGuests = useMemo(() => {
+    if (!guestsOnlyAlert) return guests;
+    return guests.filter((g) => {
+      const d = daysSince(g.last_sign_in);
+      return d !== null && d > dias && !!g.roles_in_subs;
+    });
+  }, [guests, guestsOnlyAlert, dias]);
 
   // ---- Columnas (memoizadas, sin dependencias de estado externo) ----
   const assignColumns = useMemo(() => [
@@ -431,7 +495,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
 
   const [guestSorting, setGuestSorting] = useState<SortingState>([]);
   const guestTable = useReactTable({
-    data: guests, columns: guestColumns,
+    data: filteredGuests, columns: guestColumns,
     state: { sorting: guestSorting }, onSortingChange: setGuestSorting,
     enableColumnFilters: false,
     getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel(),
@@ -494,20 +558,26 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
               <Kpi icon={<Crown className="w-4 h-4" />} label="Global Admins"
                 value={graphIncomplete ? "n/d" : String(gaCount)} accent={gaAccent} muted={graphIncomplete}
-                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : undefined} />
+                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : "Clic para ver la pestaña Global Admins"}
+                onClick={() => setTab("admins")} active={tab === "admins"} />
               <Kpi icon={<ShieldOff className="w-4 h-4" />} label="Sin MFA"
                 value={graphIncomplete ? "n/d" : String(sinMfa)} accent={sinMfa > 0 ? "#a53b35" : "#70b043"} muted={graphIncomplete}
-                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : undefined} />
+                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : "Clic para filtrar las asignaciones de internos sin MFA"}
+                onClick={() => toggleKpiFilter("sin_mfa")} active={kpiFilter === "sin_mfa"} />
               <Kpi icon={<UserX className="w-4 h-4" />} label="Deshabilitadas con RBAC"
                 value={graphIncomplete ? "n/d" : String(deshabilitadas)} accent={deshabilitadas > 0 ? "#a53b35" : "#70b043"} muted={graphIncomplete}
-                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : undefined} />
+                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : "Clic para filtrar las asignaciones de cuentas deshabilitadas"}
+                onClick={() => toggleKpiFilter("deshabilitadas")} active={kpiFilter === "deshabilitadas"} />
               <Kpi icon={<Clock3 className="w-4 h-4" />} label="Inactivas con RBAC"
                 value={inactivityIncomplete ? "n/d" : String(inactivas)} accent={inactivas > 0 ? "#a53b35" : "#70b043"} muted={inactivityIncomplete}
-                hint={inactivityIncomplete ? "No medido: requiere licencia Entra ID P1 para el último inicio de sesión." : undefined} />
+                hint={inactivityIncomplete ? "No medido: requiere licencia Entra ID P1 para el último inicio de sesión." : "Clic para filtrar las asignaciones de cuentas inactivas"}
+                onClick={() => toggleKpiFilter("inactivas")} active={kpiFilter === "inactivas"} />
               <Kpi icon={<UserCog className="w-4 h-4" />} label="Guests inactivos c/permisos"
                 value={graphIncomplete ? "n/d" : String(guestsAlert)} accent={guestsAlert > 0 ? "#a53b35" : "#70b043"} muted={graphIncomplete}
-                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : undefined} />
-              <Kpi icon={<Layers className="w-4 h-4" />} label="Asignaciones" value={String(totalAsign)} accent="#a3c243" />
+                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : "Clic para filtrar los guests inactivos con permisos"}
+                onClick={toggleGuestsAlert} active={guestsOnlyAlert} />
+              <Kpi icon={<Layers className="w-4 h-4" />} label="Asignaciones" value={String(totalAsign)} accent="#a3c243"
+                hint="Clic para ver todas las asignaciones (limpia los filtros)" onClick={showAllAssignments} />
             </div>
 
             {badCredentials.length > 0 && (
@@ -555,7 +625,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
               </div>
             </div>
 
-            <Tabs defaultValue="assignments">
+            <Tabs value={tab} onValueChange={setTab}>
               <TabsList>
                 <TabsTrigger value="assignments">Asignaciones</TabsTrigger>
                 <TabsTrigger value="admins">Global Admins</TabsTrigger>
@@ -577,6 +647,14 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                     <input type="checkbox" checked={onlyAlerts} onChange={(e) => setOnlyAlerts(e.target.checked)} className="accent-primary h-4 w-4" />
                     Solo con alertas
                   </label>
+                  {kpiFilter && (
+                    <button type="button" onClick={() => setKpiFilter(null)}
+                      className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+                      aria-label={`Quitar filtro ${KPI_FILTER_LABEL[kpiFilter]}`}>
+                      {KPI_FILTER_LABEL[kpiFilter]}
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
                   <div className="text-xs text-muted-foreground ml-auto">
                     {assignments.length ? `${filteredAssignments.length} de ${assignments.length} asignaciones` : ""}
                   </div>
@@ -592,8 +670,22 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                 <DataTableBlock table={adminTable} emptyText="No se encontraron Global Administrators." />
               </TabsContent>
 
-              <TabsContent value="guests">
-                <DataTableBlock table={guestTable} emptyText="No se encontraron cuentas guest." />
+              <TabsContent value="guests" className="space-y-3">
+                {guestsOnlyAlert && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button type="button" onClick={() => setGuestsOnlyAlert(false)}
+                      className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+                      aria-label="Quitar filtro Guests inactivos con permisos">
+                      Guests inactivos con permisos
+                      <X className="w-3 h-3" />
+                    </button>
+                    <div className="text-xs text-muted-foreground ml-auto">
+                      {guests.length ? `${filteredGuests.length} de ${guests.length} guests` : ""}
+                    </div>
+                  </div>
+                )}
+                <DataTableBlock table={guestTable}
+                  emptyText={guestsOnlyAlert && guests.length ? "Sin guests inactivos con permisos sobre el umbral actual." : "No se encontraron cuentas guest."} />
               </TabsContent>
 
               <TabsContent value="sp">
