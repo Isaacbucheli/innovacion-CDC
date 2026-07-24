@@ -148,8 +148,19 @@ const mfaCell = (m: AccessAssignment["mfa_status"] | AccessGuest["mfa_status"] |
   return chip(c.cls, c.text);
 };
 
-const nameCell = (displayName: string | null, fallbackId: string) =>
-  displayName ? <span className="font-medium">{displayName}</span> : <span className="font-mono text-xs">{fallbackId}</span>;
+const nameCell = (displayName: string | null, fallbackId: string, orphan = false) =>
+  displayName ? <span className="font-medium">{displayName}</span> : (
+    <span className="inline-flex items-center gap-2 flex-wrap">
+      <span className="font-mono text-xs">{fallbackId}</span>
+      {orphan && (
+        <span
+          title="Asignación RBAC a un principal que ya no existe en Entra ID (en el portal aparece como 'Identity not found'). Acceso residual: conviene eliminarla."
+          className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300">
+          Eliminado de Entra ID
+        </span>
+      )}
+    </span>
+  );
 
 // Filtros que aplican las tarjetas KPI sobre la tabla de Asignaciones. Replican el criterio de
 // AccessReviewKpiCalculator (API): solo usuarios; el KPI cuenta cuentas únicas, así que la tabla
@@ -328,6 +339,14 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     [graphIncomplete, credentials],
   );
 
+  // Asignación huérfana: el principal ya no existe en Entra ID ("Identity not found" en el portal).
+  // Solo se afirma con la fase Graph completa: si Graph falló, un nombre vacío significa "no
+  // resuelto", no "eliminado". Las filas derivadas (vía grupo) vienen de miembros vivos.
+  const isOrphanAssignment = useCallback(
+    (a: AccessAssignment) => !graphIncomplete && !a.display_name && !a.via_group_id,
+    [graphIncomplete],
+  );
+
   // ---- KPIs (point 4) ----
   const gaCount = resp?.kpis?.global_admins ?? 0;
   const gaSinMfa = resp?.kpis?.global_admins_sin_mfa ?? 0;
@@ -386,10 +405,10 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
         if (!hay.includes(term)) return false;
       }
       if (fScope !== "all" && a.scope_level !== fScope) return false;
-      if (onlyAlerts && !assignmentAlert(a, dias)) return false;
+      if (onlyAlerts && !assignmentAlert(a, dias) && !isOrphanAssignment(a)) return false;
       return true;
     });
-  }, [assignments, q, fScope, onlyAlerts, dias, kpiFilter]);
+  }, [assignments, q, fScope, onlyAlerts, dias, kpiFilter, isOrphanAssignment]);
 
   // Mismo criterio que el KPI "guests_inactivos_con_permisos": inactivo sobre el umbral Y con roles RBAC.
   const filteredGuests = useMemo(() => {
@@ -408,7 +427,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     colAssign.accessor((a) => principalTypeLabel(a.principal_type), { id: "principal_type", header: "Tipo" }),
     colAssign.accessor((a) => a.display_name || a.principal_object_id, {
       id: "display_name", header: "Nombre",
-      cell: (c) => nameCell(c.row.original.display_name, c.row.original.principal_object_id),
+      cell: (c) => nameCell(c.row.original.display_name, c.row.original.principal_object_id, isOrphanAssignment(c.row.original)),
     }),
     colAssign.accessor((a) => a.login ?? "", { id: "login", header: "Correo/Login", cell: (c) => c.getValue() || "—" }),
     colAssign.accessor((a) => a.via_group_name || a.via_group_id || "", {
@@ -422,7 +441,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     }),
     colAssign.accessor((a) => a.last_sign_in ?? "", { id: "last_sign_in", header: "Último login", cell: (c) => dateOrDash(c.row.original.last_sign_in) }),
     colAssign.accessor((a) => a.mfa_status ?? "", { id: "mfa", header: "MFA", cell: (c) => mfaCell(c.row.original.mfa_status) }),
-  ], []);
+  ], [isOrphanAssignment]);
 
   const spColumns = useMemo(() => [
     colAssign.accessor((a) => a.subscription_name || a.subscription_id, { id: "subscription", header: "Suscripción" }),
@@ -430,7 +449,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     colAssign.accessor((a) => scopeLabel(a.scope_level), { id: "scope_level", header: "Nivel de scope" }),
     colAssign.accessor((a) => a.display_name || a.principal_object_id, {
       id: "display_name", header: "Nombre",
-      cell: (c) => nameCell(c.row.original.display_name, c.row.original.principal_object_id),
+      cell: (c) => nameCell(c.row.original.display_name, c.row.original.principal_object_id, isOrphanAssignment(c.row.original)),
     }),
     colAssign.accessor((a) => a.via_group_name || a.via_group_id || "", {
       id: "via_group", header: "Vía grupo",
@@ -441,7 +460,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
         return "—";
       },
     }),
-  ], []);
+  ], [isOrphanAssignment]);
 
   const adminColumns = useMemo(() => [
     colAdmin.accessor((a) => a.display_name || a.object_id, {
@@ -671,7 +690,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                 <DataTableBlock
                   table={assignTable}
                   emptyText={assignments.length ? "Sin asignaciones que coincidan con los filtros." : "Este cliente no tiene asignaciones RBAC activas registradas."}
-                  rowClassName={(a) => (assignmentAlert(a, dias) ? "bg-red-50 dark:bg-red-950/30" : "")}
+                  rowClassName={(a) => (assignmentAlert(a, dias) || isOrphanAssignment(a) ? "bg-red-50 dark:bg-red-950/30" : "")}
                 />
               </TabsContent>
 
