@@ -29,6 +29,8 @@ import { applyMarginToResults, applyMarginToScenarios } from "@/lib/margin";
 import { categoryOf } from "@/lib/finops";
 import { runCalculation } from "@/lib/costActions";
 import { pollPowerHistory, powerToastMessage } from "@/lib/powerHistory";
+import { hasImportIssues, summarizeImportResult } from "@/lib/importInventory";
+import type { ImportSummary } from "@/lib/importInventory";
 import {
   clearPriceCache,
   downloadFromApi,
@@ -96,6 +98,8 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
   const [excelDialogOpen, setExcelDialogOpen] = useState(false);
   const [manualRow, setManualRow] = useState<CostResult | null>(null);
   const [lookups, setLookups] = useState<FinOpsLookups | null>(null);
+  // Persiste (no es un toast) hasta la próxima importación: recursos que quedaron FUERA del análisis.
+  const [importIssues, setImportIssues] = useState<ImportSummary | null>(null);
 
   // Al cambiar de cliente, los nombres de suscripción cambian: resetear el filtro.
   useEffect(() => {
@@ -270,12 +274,26 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
     if (!analysis) return;
     setBusyMsg({ title: "Importando inventario", detail: "Leyendo recursos del cliente en Azure…" });
     setBusy(true);
+    setImportIssues(null); // la corrida anterior queda obsoleta en cuanto arranca una nueva
     try {
-      await importInventory(analysis.analysis_id, {
+      const result = await importInventory(analysis.analysis_id, {
         services: services.map((s) => s.service_key),
         replace_existing: replaceExisting,
       });
-      toast.success("Inventario importado correctamente.");
+      const summary = summarizeImportResult(result);
+      if (hasImportIssues(summary)) {
+        // NO es un éxito silencioso: hay recursos (p. ej. una cuenta de storage) que quedaron
+        // fuera del análisis. El toast avisa; el detalle persiste debajo para poder actuar.
+        setImportIssues(summary);
+        const skipped = summary.errors.length + summary.warnings.length;
+        toast.warning(
+          `Inventario importado: ${summary.totalImported} recurso(s), pero ${skipped} quedaron FUERA del análisis. Revisa el detalle debajo de los botones.`,
+        );
+      } else {
+        toast.success(
+          `Inventario importado correctamente${summary.totalImported ? ` (${summary.totalImported} recursos).` : "."}`,
+        );
+      }
       setImportOpen(false);
       reloadInventory();
     } catch (e) {
@@ -357,6 +375,33 @@ export default function CostsPage({ onNavigate }: { onNavigate?: (s: string) => 
               />
             )}
           </div>
+
+          {importIssues && hasImportIssues(importIssues) && (
+            <div
+              role="alert"
+              className="mb-4 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2.5 text-sm text-amber-900 dark:text-amber-200 space-y-1.5"
+            >
+              <p className="font-medium">
+                Importación con recursos fuera del análisis: se importaron {importIssues.totalImported}, pero{" "}
+                {importIssues.errors.length + importIssues.warnings.length} recurso(s)/cuenta(s) NO entraron y no
+                tendrán costo calculado. Revisa cada caso antes de continuar:
+              </p>
+              <ul className="list-disc pl-5 space-y-1">
+                {importIssues.errors.map((e, i) => (
+                  <li key={`err-${i}`}>
+                    <span className="font-medium">{e.serviceLabel}</span>
+                    {e.credentialId != null ? ` (credencial ${e.credentialId})` : ""}: {e.message}
+                  </li>
+                ))}
+                {importIssues.warnings.map((w, i) => (
+                  <li key={`warn-${i}`}>
+                    <span className="font-medium">{w.serviceLabel}</span>
+                    {w.credentialId != null ? ` (credencial ${w.credentialId})` : ""}: {w.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {marginPct > 0 && (
             <div className="mb-3">
