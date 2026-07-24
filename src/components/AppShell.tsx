@@ -47,6 +47,7 @@ const MENU: Group[] = [
       { label: "Catálogo de alertas", section: "alerts" },
       { label: "Catálogo de políticas", section: "policies" },
       { label: "Asignación de consultores", section: "consultants" },
+      { label: "Revisión de accesos", section: "access-review" },
     ],
   },
   {

@@ -24,6 +24,7 @@ const ServiceCatalogPage = lazy(() => import("@/components/services/ServiceCatal
 const CatalogPage = lazy(() => import("@/components/CatalogPage"));
 const PolicyCatalogPage = lazy(() => import("@/components/PolicyCatalogPage"));
 const ConsultantsPage = lazy(() => import("@/components/ConsultantsPage"));
+const AccessReviewPage = lazy(() => import("@/components/access-review/AccessReviewPage"));
 const NoAccessPage = lazy(() => import("@/components/NoAccessPage"));
 
 const SECTION_KEY = "innovacion_cdc_section";
@@ -83,6 +84,8 @@ function SectionView({ section, recent, onNavigate }: {
     <PolicyCatalogPage onNavigate={onNavigate} />
   ) : section === "consultants" ? (
     <ConsultantsPage onNavigate={onNavigate} />
+  ) : section === "access-review" ? (
+    <AccessReviewPage onNavigate={onNavigate} />
   ) : (
     <HomePage recent={recent} onNavigate={onNavigate} />
   );
