@@ -72,6 +72,8 @@ import type {
   OptScan,
   OptScanSummary,
   FindingState,
+  AccessReviewResponse,
+  AccessReviewRun,
 } from "@/types";
 import { clearSession, getToken, setEmail, setSession } from "@/lib/auth";
 
@@ -522,6 +524,15 @@ export const getReservationUtilization = (clientId: number, credentialId: number
 export const getReservationConsumers = (clientId: number, credentialId: number, reservationId: string, days = 30) =>
   request<{ consumers: ReservationConsumer[]; source: string; count: number; days: number }>(
     `/cdc/clients/${clientId}/reservation-consumers?credential_id=${credentialId}&reservation_id=${encodeURIComponent(reservationId)}&days=${days}`);
+
+// ---- Revisión de accesos (Gestión CDC) ----
+export const getAccessReview = (clientId: number, inactivityDays = 90) =>
+  request<AccessReviewResponse>(`/cdc/clients/${clientId}/access-review?inactivity_days=${inactivityDays}`);
+export const syncAccessReview = (clientId: number) =>
+  request<{ run_id?: number; status: string }>(`/cdc/clients/${clientId}/access-review/sync`, { method: "POST" });
+export const listAccessReviewRuns = (clientId: number) =>
+  request<AccessReviewRun[]>(`/cdc/clients/${clientId}/access-review/runs`);
+// Export Excel: usar downloadFromApi(`/cdc/clients/${id}/access-review/export?inactivity_days=${d}`, fileName)
 
 // ---- Sesión Azure de usuario (Lighthouse: device code + selección de suscripciones) ----
 export async function startAzureUserSession(): Promise<AzureUserSession> {

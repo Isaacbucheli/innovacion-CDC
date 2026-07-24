@@ -870,3 +870,88 @@ export interface ActionPlanResponse {
   items: ActionPlanItem[]; defaults: ActionPlanItem[]; can_edit: boolean;
   estados: string[]; prioridades: string[];
 }
+
+// ── Revisión de accesos (Gestión CDC) ──────────────────────
+export interface AccessReviewKpis {
+  total_asignaciones: number;
+  global_admins: number;
+  global_admins_sin_mfa: number;
+  internos_sin_mfa: number;
+  cuentas_deshabilitadas: number;
+  cuentas_inactivas: number;
+  guests_total: number;
+  guests_inactivos: number;
+  guests_inactivos_con_permisos: number;
+  service_principals: number;
+}
+
+export interface AccessCredentialStatus {
+  credential_id: number;
+  credential_name: string | null;
+  arm_status: "ok" | "error";
+  graph_status: "ok" | "sin_consent" | "sin_licencia_p1" | "error" | "no_aplica";
+  detail: string | null;
+}
+
+export interface AccessAssignment {
+  subscription_id: string;
+  subscription_name: string | null;
+  scope: string;
+  scope_level: "management_group" | "subscription" | "resource_group" | "resource" | "root";
+  role_name: string;
+  principal_object_id: string;
+  principal_type: "User" | "Group" | "ServicePrincipal";
+  display_name: string | null;
+  login: string | null;
+  user_type: "Member" | "Guest" | null;
+  via_group_id: string | null;
+  via_group_name: string | null;
+  account_enabled: boolean | null;
+  last_sign_in: string | null;
+  mfa_status: "enabled" | "disabled" | "unavailable" | null;
+}
+
+export interface AccessGuest {
+  object_id: string;
+  display_name: string | null;
+  email: string | null;
+  external_domain: string | null;
+  account_enabled: boolean;
+  external_state: string | null;
+  created_at_azure: string | null;
+  last_sign_in: string | null;
+  roles_in_subs: string | null;
+  mfa_status: "enabled" | "disabled" | "unavailable" | null;
+}
+
+export interface AccessGlobalAdmin {
+  object_id: string;
+  display_name: string | null;
+  upn: string | null;
+  user_type: string | null;
+  account_enabled: boolean | null;
+  last_sign_in: string | null;
+  mfa_status: "enabled" | "disabled" | "unavailable" | null;
+}
+
+export interface AccessReviewRun {
+  run_id: number;
+  status: "queued" | "running" | "ok" | "partial" | "error";
+  started_at: string | null;
+  finished_at: string | null;
+  error: string | null;
+  requested_by: string | null;
+}
+
+export interface AccessReviewResponse {
+  status: "none" | "queued" | "running" | "ok" | "partial" | "error";
+  run_id?: number;
+  started_at?: string | null;
+  finished_at?: string | null;
+  inactivity_days?: number;
+  kpis?: AccessReviewKpis;
+  credentials?: AccessCredentialStatus[];
+  assignments?: AccessAssignment[];
+  guests?: AccessGuest[];
+  global_admins?: AccessGlobalAdmin[];
+}
