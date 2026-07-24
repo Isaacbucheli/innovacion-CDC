@@ -15,6 +15,8 @@ export const SERVICE_LABELS: Record<string, string> = {
   cosmos: "Cosmos DB",
   redis: "Azure Cache for Redis",
   public_ip: "IPs públicas",
+  snapshots: "Snapshots de discos",
+  storage_files: "Storage (Azure Files)",
   storage: "Storage Account",
 };
 
@@ -30,6 +32,8 @@ export const SERVICE_ICONS: Record<string, string> = {
   cosmos: azIcon("cosmos-db"),
   redis: azIcon("redis"),
   public_ip: azIcon("public-ip"),
+  snapshots: azIcon("managed-disks"),
+  storage_files: azIcon("storage-account"),
   storage: azIcon("storage-account"),
 };
 
