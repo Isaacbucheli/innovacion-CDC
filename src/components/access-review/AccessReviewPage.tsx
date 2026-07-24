@@ -276,13 +276,17 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     }
   }
 
+  const [exporting, setExporting] = useState(false);
   async function doExport() {
     if (clientId == null) return;
+    setExporting(true);
     try {
       await downloadFromApi(`/cdc/clients/${clientId}/access-review/export?inactivity_days=${dias}`, "revision-accesos.xlsx");
       toast.success("Excel de revisión de accesos descargado.");
     } catch (e) {
       toast.error(`Error exportando Excel: ${msg(e)}`);
+    } finally {
+      if (mounted.current) setExporting(false);
     }
   }
 
@@ -509,6 +513,11 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
       active="access-review" onNavigate={onNavigate}
       headerRight={<ClientHeader clients={clients} clientId={clientId} onSelect={selectClient} disabled={loading} />}>
       <BusyOverlay show={loading} title="Cargando revisión de accesos" />
+      {/* Mismo patrón que "Generando informe" (ReportPage): la sincronización y el export son
+          operaciones largas → overlay de marca que bloquea la interacción hasta terminar. */}
+      <BusyOverlay show={!loading && (syncing || isRunning)} title="Sincronizando accesos"
+        detail="Puede tardar unos minutos según el tamaño del tenant; esta vista se actualiza sola." />
+      <BusyOverlay show={exporting} title="Generando Excel" detail="Preparando revision-accesos.xlsx…" />
       <div className="space-y-5">
         {message && <p className="text-sm text-muted-foreground border-l-2 border-border pl-3">{message}</p>}
 
