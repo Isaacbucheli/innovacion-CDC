@@ -26,7 +26,7 @@ describe("summarizeImportResult", () => {
           warnings: [
             {
               credential_id: 6,
-              warning: "stgazbdasrobprem: fileshares no consultados (HttpRequestException); cuenta omitida del análisis",
+              warning: "stgejemplo01: fileshares no consultados (HttpRequestException); cuenta omitida del análisis",
             },
           ],
         },
@@ -40,7 +40,7 @@ describe("summarizeImportResult", () => {
       service: "storage_files",
       serviceLabel: "Storage (Azure Files)",
       credentialId: 6,
-      message: "stgazbdasrobprem: fileshares no consultados (HttpRequestException); cuenta omitida del análisis",
+      message: "stgejemplo01: fileshares no consultados (HttpRequestException); cuenta omitida del análisis",
     });
   });
 
