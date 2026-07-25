@@ -296,8 +296,34 @@ export const getPowerHistoryStatus = (analysisId: number) =>
   request<PowerHistoryJobStatus>(`/analysis/${analysisId}/power-history/status`);
 export const clearPriceCache = () =>
   request<{ removed_rows?: number; message?: string }>(`/prices/refresh-all`, { method: "POST" });
+/** Entrada de error/warning dentro del resumen por-servicio de una importación de inventario. */
+export interface ImportInventoryIssue {
+  credential_id?: number;
+  error?: string;
+  warning?: string;
+}
+
+/** Resumen de un servicio dentro de la respuesta de importación de inventario. */
+export interface ImportInventoryServiceSummary {
+  imported: number;
+  insert_errors: number;
+  errors?: ImportInventoryIssue[];
+  warnings?: ImportInventoryIssue[];
+}
+
+/**
+ * Respuesta de POST /azure/import/inventory/{analysisId}. `summary` es por servicio (service_key);
+ * `warnings` es la única señal de que un recurso (p. ej. una cuenta de storage) quedó FUERA del
+ * análisis (permiso ARM, listado truncado, etc.) — nunca debe descartarse silenciosamente.
+ */
+export interface ImportInventoryResult {
+  message: string;
+  analysis_id: number;
+  summary: Record<string, ImportInventoryServiceSummary>;
+}
+
 export const importInventory = (analysisId: number, body: { services: string[]; replace_existing: boolean }) =>
-  request<unknown>(`/azure/import/inventory/${analysisId}`, jsonOpts("POST", body));
+  request<ImportInventoryResult>(`/azure/import/inventory/${analysisId}`, jsonOpts("POST", body));
 export const getInventorySummary = (analysisId: number) =>
   request<InventoryRow[]>(`/azure/import/inventory/${analysisId}/summary`);
 export const generateExcel = (analysisId: number, marginPct?: number) =>
