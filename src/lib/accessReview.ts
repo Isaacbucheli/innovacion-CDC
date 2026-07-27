@@ -45,6 +45,26 @@ export function roleClassChip(c: AccessRoleClass): string {
   }
 }
 
+/** Etiqueta corta para la columna Privilegio de la tabla de Cuentas: "Owner (otorga accesos)" en una
+ *  celda parte el texto en tres líneas. La etiqueta larga sigue usándose en Asignaciones y en el
+ *  panel de detalle, donde hay ancho. */
+export function roleClassShortLabel(c: AccessRoleClass): string {
+  return c === "owner" ? "Owner" : roleClassLabel(c);
+}
+
+/** Techo de privilegio de una cuenta: la clase más grave con al menos una asignación. Los conteos por
+ *  clase los agrega el backend; acá solo se elige el mayor para no mostrar cuatro columnas numéricas
+ *  que casi siempre están en cero. `null` = sin clasificar (corrida anterior a la clasificación). */
+export function accountPrivilege(a: Pick<AccessAccount,
+  "owner" | "otorga_accesos" | "escritura_total" | "escritura_servicio" | "lectura">): AccessRoleClass {
+  if (a.owner > 0) return "owner";
+  if (a.otorga_accesos > 0) return "otorga_accesos";
+  if (a.escritura_total > 0) return "escritura_total";
+  if (a.escritura_servicio > 0) return "escritura_servicio";
+  if (a.lectura > 0) return "lectura";
+  return null;
+}
+
 /** "n/d" cuando el eje no se midió: nunca afirmar "Interna" sin dato de directorio. */
 export function externalLabel(v: boolean | null): string {
   if (v === null) return "n/d";
@@ -120,6 +140,24 @@ export function findingIsOpen(f: AccessFinding): boolean {
   return f.evaluable && !f.accepted && (f.affected_accounts > 0 || f.affected_assignments > 0);
 }
 
+/** Dos especies de hallazgo que el panel presenta con pesos distintos, y el discriminador ya viene en
+ *  el payload: con principals afectados hay culpables concretos que se arreglan hoy ("Cuenta externa
+ *  con privilegio elevado"); con la lista vacía es una propiedad estructural del tenant, medida contra
+ *  un umbral ("2968 asignaciones a nivel de recurso"), que es un proyecto de meses. Mostrarlas con el
+ *  mismo peso afirma que son igual de urgentes. */
+export function findingIsActionable(f: AccessFinding): boolean {
+  return f.affected_principals.length > 0;
+}
+
+/** Concordancia de número: el panel decía "1 cuentas · 1 asignaciones". */
+export function cuentasLabel(n: number): string {
+  return n === 1 ? "1 cuenta" : `${n} cuentas`;
+}
+
+export function asignacionesLabel(n: number): string {
+  return n === 1 ? "1 asignación" : `${n} asignaciones`;
+}
+
 // ── Decisión por acceso (bloque 3) ─────────────────────────
 // La decisión la calcula y persiste el backend; acá solo se presenta.
 
@@ -170,6 +208,17 @@ export function decisionSummary(a: Pick<AccessAccount,
   if (a.decision_revocar > 0) parts.push(`${a.decision_revocar} revocar`);
   if (a.decision_justificado > 0) parts.push(`${a.decision_justificado} justificado`);
   return parts.length > 0 ? parts.join(" · ") : "—";
+}
+
+/** Avance de la revisión de una cuenta: "3 de 8". Cuando nadie decidió nada devuelve "—" y no
+ *  "8 pendientes": si ninguna cuenta está decidida, esa columna repite el mismo texto en cada fila y
+ *  el ruido queda con formato de dato. El desglose completo va al panel de detalle. */
+export function decisionProgress(a: Pick<AccessAccount,
+  "decision_pendientes" | "decision_mantener" | "decision_revocar" | "decision_justificado">): string {
+  const decididas = a.decision_mantener + a.decision_revocar + a.decision_justificado;
+  const total = decididas + a.decision_pendientes;
+  if (decididas === 0 || total === 0) return "—";
+  return `${decididas} de ${total}`;
 }
 
 /** Roles presentes en la corrida, para el filtro por rol. */

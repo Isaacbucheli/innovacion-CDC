@@ -1,14 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  createColumnHelper, flexRender, getCoreRowModel, getExpandedRowModel, getPaginationRowModel,
-  getSortedRowModel, useReactTable, type ExpandedState, type RowSelectionState, type SortingState,
+  createColumnHelper, flexRender, getCoreRowModel, getPaginationRowModel,
+  getSortedRowModel, useReactTable, type RowSelectionState, type SortingState,
   type Table as RTTable,
 } from "@tanstack/react-table";
 import {
-  Crown, ShieldOff, UserX, Clock3, UserCog, Layers, MoreHorizontal, RefreshCw, Download, History, Loader2, X,
-  Users, ShieldAlert, KeyRound, Globe, Wrench, ChevronRight, ChevronDown, Filter, ClipboardCheck,
-  Sparkles,
+  Layers, MoreHorizontal, RefreshCw, Download, History, Loader2, X,
+  ShieldAlert, KeyRound, Globe, Wrench, ChevronRight, Filter, Sparkles, AlignJustify,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
@@ -35,8 +34,10 @@ import {
 } from "@/lib/api";
 import {
   mfaChip, scopeLabel, graphStatusLabel, assignmentAlert, daysSince, principalTypeLabel,
-  roleClassLabel, roleClassChip, externalLabel, externalChip, viaLabel, livesInTenant, distinctRoles,
-  decisionChip, decisionLabel, decisionSummary, decisionTitle, environmentLabel, environmentChip,
+  roleClassLabel, roleClassChip, roleClassShortLabel, accountPrivilege, externalLabel, externalChip,
+  viaLabel, livesInTenant, distinctRoles,
+  decisionChip, decisionLabel, decisionProgress, decisionSummary, decisionTitle,
+  environmentLabel, environmentChip,
 } from "@/lib/accessReview";
 import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
 import { canEditModule } from "@/lib/auth";
@@ -106,12 +107,13 @@ function Counter({ icon, label, value, accent, muted, hint, onClick, active }: {
 
 // Bloque de tabla reutilizado por las 5 pestañas (mismo esqueleto que ReservationsPage: Table + DataTableColumnHeader
 // + DataTablePagination). `rowClassName` es opcional: Asignaciones y Cuentas lo usan para resaltar filas con
-// alerta. `subRow` lo usa solo Cuentas: al expandir, lista las asignaciones de esa cuenta sin sacar al
-// consultor de la tabla (un diálogo le haría perder el contexto de la lista).
-function DataTableBlock<T>({ table, emptyText, rowClassName, subRow }: {
+// alerta. `onRowClick` lo usa Cuentas: la fila entera abre el panel de detalle de la cuenta. `dense`
+// es el control de densidad de la vista (cómoda / compacta): solo cambia el padding de las filas.
+function DataTableBlock<T>({ table, emptyText, rowClassName, onRowClick, dense }: {
   table: RTTable<T>; emptyText: string; rowClassName?: (row: T) => string;
-  subRow?: (row: T) => React.ReactNode;
+  onRowClick?: (row: T) => void; dense?: boolean;
 }) {
+  const cellPad = dense ? "py-1.5" : "py-3";
   return (
     <div className="space-y-3">
       <div className="rounded-xl border bg-card overflow-hidden">
@@ -140,20 +142,13 @@ function DataTableBlock<T>({ table, emptyText, rowClassName, subRow }: {
                 </TableCell>
               </TableRow>
             ) : table.getRowModel().rows.map((row) => (
-              <React.Fragment key={row.id}>
-                <TableRow className={rowClassName?.(row.original) ?? ""}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-3">{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                  ))}
-                </TableRow>
-                {subRow && row.getIsExpanded() && (
-                  <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableCell colSpan={row.getVisibleCells().length} className="py-3">
-                      {subRow(row.original)}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </React.Fragment>
+              <TableRow key={row.id}
+                className={`${rowClassName?.(row.original) ?? ""} ${onRowClick ? "cursor-pointer" : ""}`}
+                onClick={onRowClick ? () => onRowClick(row.original) : undefined}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id} className={cellPad}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                ))}
+              </TableRow>
             ))}
           </TableBody>
         </Table>
@@ -209,6 +204,19 @@ const KPI_FILTER_LABEL: Record<KpiAssignFilter, string> = {
   owner: "Asignaciones Owner",
   personalizados: "Roles personalizados",
 };
+
+/** Densidad de las tablas: preferencia de quien revisa, no del cliente. */
+const DENSITY_KEY = "cdc:access-review:density";
+
+/** Campo del panel de detalle: etiqueta micro arriba, valor abajo. */
+function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-sm">{children}</div>
+    </div>
+  );
+}
 
 /** Filtros que los contadores aplican sobre la tabla de Cuentas. */
 type KpiAccountFilter = "externas" | "owners_externos";
@@ -405,13 +413,6 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
       : status === "error" || credentials.some((c) => c.graph_status === "sin_consent" || c.graph_status === "no_aplica" || c.graph_status === "error"),
     [resp?.graph_complete, status, credentials],
   );
-  // La inactividad además depende del "último inicio de sesión", que requiere licencia Entra ID P1;
-  // sin ella (aunque el resto de Graph haya funcionado) esa cifra puntual tampoco está medida.
-  const inactivityIncomplete = useMemo(
-    () => graphIncomplete || credentials.some((c) => c.graph_status === "sin_licencia_p1"),
-    [graphIncomplete, credentials],
-  );
-
   // Asignación huérfana: el principal ya no existe en Entra ID ("Identity not found" en el portal).
   // Solo se afirma con la fase Graph completa: si Graph falló, un nombre vacío significa "no
   // resuelto", no "eliminado". Las filas derivadas (vía grupo) vienen de miembros vivos.
@@ -425,21 +426,14 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   );
 
   // ---- KPIs (point 4) ----
-  const gaCount = resp?.kpis?.global_admins ?? 0;
-  const gaSinMfa = resp?.kpis?.global_admins_sin_mfa ?? 0;
-  const gaAccent = gaSinMfa > 0 ? "#a53b35" : gaCount > 5 ? "#d9a82a" : "#70b043";
-  const sinMfa = resp?.kpis?.internos_sin_mfa ?? 0;
-  const deshabilitadas = resp?.kpis?.cuentas_deshabilitadas ?? 0;
-  const inactivas = resp?.kpis?.cuentas_inactivas ?? 0;
-  const guestsAlert = resp?.kpis?.guests_inactivos_con_permisos ?? 0;
   const totalAsign = resp?.kpis?.total_asignaciones ?? 0;
+  // Las usa el titular ejecutivo del panel de hallazgos (no los contadores).
   const cuentasUnicas = resp?.kpis?.cuentas_unicas ?? 0;
+  const pendientes = resp?.kpis?.pendientes_de_revisar ?? 0;
   const pctElevadas = resp?.kpis?.pct_elevadas ?? 0;
   const owners = resp?.kpis?.owners ?? 0;
   const externas = resp?.kpis?.cuentas_externas ?? 0;
-  const ownersExternos = resp?.kpis?.owners_externos ?? 0;
   const rolesCustom = resp?.kpis?.roles_personalizados ?? 0;
-  const pendientes = resp?.kpis?.pendientes_de_revisar ?? 0;
 
   // ---- Filtros de negocio sobre Asignaciones (point 7) ----
   const [q, setQ] = useState("");
@@ -473,10 +467,6 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     setTab("assignments");
     setKpiFilter((prev) => (prev === f ? null : f));
   }
-  function toggleGuestsAlert() {
-    setTab("guests");
-    setGuestsOnlyAlert((prev) => !prev);
-  }
   function toggleAccountFilter(f: KpiAccountFilter) {
     setTab("accounts");
     setAccountFilter((prev) => (prev === f ? null : f));
@@ -506,16 +496,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   // Contador "Pendientes": la cola de trabajo. Lleva a Asignaciones con el filtro de decisión en
   // "Pendientes" y limpia el filtro de otros contadores (cruzar dos criterios daría una tabla vacía
   // sin explicación).
-  function togglePendientes() {
-    setTab("assignments");
-    setKpiFilter(null);
-    setFDecision((prev) => (prev === "pendiente" ? "all" : "pendiente"));
-  }
   // Contador "Cuentas": tabla completa de cuentas.
-  function showAllAccounts() {
-    setTab("accounts");
-    setAccountFilter(null); setQAccount(""); setFindingFilter(null);
-  }
   // Clic en "Ver cuentas" de un hallazgo. Se limpia el filtro de contadores: combinar dos criterios
   // sin avisar daría una tabla vacía sin explicación.
   function drillDownFinding(f: AccessFinding) {
@@ -605,59 +586,115 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     });
   }, [guests, guestsOnlyAlert, dias]);
 
+  // Panel de detalle de una cuenta: lo que ya no cabe (ni conviene) en la tabla. Reemplaza a la
+  // expansión en línea — dos formas de ver el mismo detalle competían entre sí, y la expansión no
+  // podía crecer sin volver a apretar la tabla.
+  const [detailAccount, setDetailAccount] = useState<AccessAccount | null>(null);
+
+  // Densidad de las tablas (cómoda / compacta). Es preferencia de la persona, no del cliente: se
+  // guarda en localStorage y se aplica a las cinco pestañas.
+  const [dense, setDense] = useState(() => localStorage.getItem(DENSITY_KEY) === "compacta");
+  function toggleDensity() {
+    setDense((prev) => {
+      const next = !prev;
+      localStorage.setItem(DENSITY_KEY, next ? "compacta" : "comoda");
+      return next;
+    });
+  }
+
   // ---- Columnas (memoizadas, sin dependencias de estado externo) ----
+  // Cuentas: seis columnas. Con trece, "Databricks Resource Provider" se partía en tres líneas y
+  // "Scope más amplio" se cortaba a la derecha. Lo que salió (tipo, correo, subs, scope, vía, MFA y
+  // el desglose numérico por clase de rol) está completo en el panel de detalle de la fila: nada se
+  // perdió, solo dejó de competir por ancho.
   const accountColumns = useMemo(() => [
-    colAccount.display({
-      id: "expander",
-      header: "",
-      cell: (c) => (
-        <button type="button" onClick={c.row.getToggleExpandedHandler()}
-          aria-label={c.row.getIsExpanded() ? "Ocultar asignaciones" : "Ver asignaciones"}
-          aria-expanded={c.row.getIsExpanded()}
-          className="text-muted-foreground hover:text-foreground cursor-pointer">
-          {c.row.getIsExpanded() ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-        </button>
-      ),
-    }),
     colAccount.accessor((a) => a.display_name || a.login || a.principal_object_id, {
       id: "cuenta", header: "Cuenta",
       cell: (c) => {
         const a = c.row.original;
+        const primary = a.display_name || a.login || a.principal_object_id;
+        // Segunda línea: el correo cuando lo hay y, si no, la especie del principal (un grupo o un
+        // service principal no tienen UPN, y saber qué es cambia cómo se lee la fila).
+        const secondary = a.display_name && a.login ? a.login : principalTypeLabel(a.principal_type);
         return (
-          <span className="inline-flex items-center gap-2 flex-wrap">
-            {a.display_name
-              ? <span className="font-medium">{a.display_name}</span>
-              : <span className="font-mono text-xs">{a.login || a.principal_object_id}</span>}
-            {a.orphan && (
-              <span title="El principal ya no existe en Entra ID (en el portal aparece como 'Identity not found'). Acceso residual: conviene eliminar la asignación."
-                className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300">
-                Eliminado de Entra ID
+          <div className="min-w-0 max-w-[300px]">
+            <div className="flex items-center gap-2 min-w-0">
+              <span title={primary}
+                className={`truncate whitespace-nowrap ${a.display_name ? "font-medium" : "font-mono text-xs"}`}>
+                {primary}
               </span>
-            )}
-          </span>
+              {a.orphan && (
+                <span title="El principal ya no existe en Entra ID (en el portal aparece como 'Identity not found'). Acceso residual: conviene eliminar la asignación."
+                  className="shrink-0 text-xs px-2 py-0.5 rounded-full whitespace-nowrap bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300">
+                  Eliminado de Entra ID
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground truncate whitespace-nowrap" title={secondary}>
+              {secondary}
+            </div>
+          </div>
         );
       },
     }),
-    colAccount.accessor((a) => a.login ?? "", { id: "login", header: "Correo/Login", cell: (c) => c.getValue() || "—" }),
-    colAccount.accessor((a) => principalTypeLabel(a.principal_type), { id: "tipo", header: "Tipo" }),
     colAccount.accessor((a) => a.is_external === null ? 2 : a.is_external ? 1 : 0, {
       id: "externa", header: "Origen",
       cell: (c) => chip(externalChip(c.row.original.is_external), externalLabel(c.row.original.is_external)),
     }),
     colAccount.accessor("total_assignments", { header: "Accesos", cell: (c) => <span className="tabular-nums">{c.getValue()}</span> }),
-    // Resumen de decisiones de la cuenta: el detalle por acceso está en Asignaciones.
-    colAccount.accessor((a) => a.decision_pendientes, {
-      id: "decision", header: "Decisión",
-      cell: (c) => <span className="text-xs">{decisionSummary(c.row.original)}</span>,
+    // Techo de privilegio en un solo chip, en lugar de cuatro columnas numéricas que casi siempre
+    // están en cero. El orden de gravedad y los conteos los da el backend (accountPrivilege solo
+    // elige el mayor). Ordena por gravedad, no alfabéticamente.
+    colAccount.accessor((a) => {
+      const p = accountPrivilege(a);
+      return p === "owner" ? 0 : p === "otorga_accesos" ? 1 : p === "escritura_total" ? 2
+        : p === "escritura_servicio" ? 3 : p === "lectura" ? 4 : 5;
+    }, {
+      id: "privilegio", header: "Privilegio",
+      cell: (c) => {
+        const a = c.row.original;
+        if (a.total_assignments === 0) return <span className="text-muted-foreground">—</span>;
+        const p = accountPrivilege(a);
+        return <span className="whitespace-nowrap">{chip(roleClassChip(p), roleClassShortLabel(p))}</span>;
+      },
     }),
-    colAccount.accessor("owner", { header: "Owner", cell: (c) => <span className="tabular-nums">{c.getValue() || "—"}</span> }),
-    colAccount.accessor("otorga_accesos", { header: "Otorga", cell: (c) => <span className="tabular-nums">{c.getValue() || "—"}</span> }),
-    colAccount.accessor("escritura_total", { header: "Escritura total", cell: (c) => <span className="tabular-nums">{c.getValue() || "—"}</span> }),
-    colAccount.accessor("subscriptions", { header: "Subs", cell: (c) => <span className="tabular-nums">{c.getValue()}</span> }),
-    colAccount.accessor((a) => scopeLabel(a.broadest_scope_level), { id: "scope", header: "Scope más amplio" }),
-    colAccount.accessor((a) => viaLabel(a.via), { id: "via", header: "Vía" }),
-    colAccount.accessor((a) => a.last_sign_in ?? "", { id: "last_sign_in", header: "Último login", cell: (c) => dateOrDash(c.row.original.last_sign_in) }),
-    colAccount.accessor((a) => a.mfa_status ?? "", { id: "mfa", header: "MFA", cell: (c) => mfaCell(c.row.original.mfa_status) }),
+    // Avance de la revisión, no "N pendientes" en cada fila: con nada decidido, ese texto es idéntico
+    // en toda la columna. El desglose por decisión queda en el panel (y en el título/lectores).
+    colAccount.accessor((a) => a.decision_mantener + a.decision_revocar + a.decision_justificado, {
+      id: "decision", header: "Decisión",
+      cell: (c) => {
+        const a = c.row.original;
+        const progreso = decisionProgress(a);
+        const resumen = decisionSummary(a);
+        return (
+          <span className="text-xs tabular-nums whitespace-nowrap" title={resumen}>
+            <span className={progreso === "—" ? "text-muted-foreground" : ""}>{progreso}</span>
+            <span className="sr-only"> {resumen}</span>
+          </span>
+        );
+      },
+    }),
+    colAccount.accessor((a) => a.last_sign_in ?? "", {
+      id: "last_sign_in", header: "Último login",
+      cell: (c) => <span className="whitespace-nowrap">{dateOrDash(c.row.original.last_sign_in)}</span>,
+    }),
+    // Acceso por teclado al panel de detalle (la fila entera también abre, con el mouse). El nombre
+    // accesible dice "Ver asignaciones" porque eso es lo que el panel lista abajo, además del resto de
+    // los datos de la cuenta.
+    colAccount.display({
+      id: "detalle",
+      header: "",
+      cell: (c) => (
+        <span className="flex justify-end">
+          <button type="button" aria-label="Ver asignaciones" aria-haspopup="dialog"
+            title="Ver el detalle de la cuenta"
+            onClick={(e) => { e.stopPropagation(); setDetailAccount(c.row.original); }}
+            className="text-muted-foreground hover:text-foreground cursor-pointer">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </span>
+      ),
+    }),
   ], []);
 
   const assignColumns = useMemo(() => [
@@ -790,21 +827,19 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   ], []);
 
   const [accountSorting, setAccountSorting] = useState<SortingState>([]);
-  const [accountExpanded, setAccountExpanded] = useState<ExpandedState>({});
   const accountTable = useReactTable({
     data: filteredAccounts, columns: accountColumns,
-    state: { sorting: accountSorting, expanded: accountExpanded },
-    onSortingChange: setAccountSorting, onExpandedChange: setAccountExpanded,
+    state: { sorting: accountSorting },
+    onSortingChange: setAccountSorting,
     getRowId: (a) => a.principal_object_id,
-    getRowCanExpand: () => true,
     enableColumnFilters: false,
     getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(),
-    getExpandedRowModel: getExpandedRowModel(), getPaginationRowModel: getPaginationRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
 
-  // Asignaciones de una cuenta, listadas al expandir su fila.
-  const accountSubRow = useCallback((a: AccessAccount) => {
+  // Asignaciones de una cuenta, listadas en el panel de detalle.
+  const accountAssignments = useCallback((a: AccessAccount) => {
     const rows = assignments.filter((x) => x.principal_object_id === a.principal_object_id);
     if (rows.length === 0) return <span className="text-xs text-muted-foreground">Sin asignaciones.</span>;
     return (
@@ -994,8 +1029,6 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
             {/* Los contadores de privilegio solo dependen de ARM: siguen midiéndose aunque la fase
                 Graph haya fallado (es la ganancia concreta en corridas Lighthouse / sin consent). */}
             <div className="flex flex-wrap gap-2">
-              <Counter icon={<Users className="w-4 h-4" />} label="Cuentas" value={String(cuentasUnicas)} accent="#606161"
-                hint="Clic para ver todas las cuentas" onClick={showAllAccounts} active={tab === "accounts" && !accountFilter} />
               <Counter icon={<Layers className="w-4 h-4" />} label="Asignaciones" value={String(totalAsign)} accent="#606161"
                 hint="Clic para ver todas las asignaciones (limpia los filtros)" onClick={showAllAssignments} />
               {/* "Nuevos" solo depende de ARM y de que exista corrida previa: nunca va en "no medido".
@@ -1018,44 +1051,18 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                 value={graphIncomplete ? "n/d" : String(externas)} accent={externas > 0 ? "#d9a82a" : "#70b043"} muted={graphIncomplete}
                 hint={graphIncomplete ? "No medido: el origen interna/externa sale del UPN, que requiere leer el directorio." : "Cuentas invitadas o de otro tenant. Clic para filtrarlas."}
                 onClick={() => toggleAccountFilter("externas")} active={accountFilter === "externas"} />
-              <Counter icon={<ShieldOff className="w-4 h-4" />} label="Externas con Owner"
-                value={graphIncomplete ? "n/d" : String(ownersExternos)} accent={ownersExternos > 0 ? "#a53b35" : "#70b043"} muted={graphIncomplete}
-                hint={graphIncomplete ? "No medido: el origen interna/externa sale del UPN, que requiere leer el directorio." : "Clic para ver las cuentas externas con rol Owner"}
-                onClick={() => toggleAccountFilter("owners_externos")} active={accountFilter === "owners_externos"} />
               <Counter icon={<Wrench className="w-4 h-4" />} label="Roles propios" value={String(rolesCustom)}
                 accent={rolesCustom > 0 ? "#d9a82a" : "#606161"}
                 hint="Definiciones de rol personalizadas en uso. Clic para filtrar sus asignaciones."
                 onClick={() => toggleKpiFilter("personalizados")} active={kpiFilter === "personalizados"} />
               {/* Pendientes solo depende de ARM + decisiones: nunca va en "no medido". */}
-              <Counter icon={<ClipboardCheck className="w-4 h-4" />} label="Pendientes" value={String(pendientes)}
-                accent={pendientes > 0 ? "#d9a82a" : "#70b043"}
-                hint="Accesos con alerta y sin decisión registrada. Clic para revisarlos en Asignaciones."
-                onClick={togglePendientes} active={tab === "assignments" && fDecision === "pendiente"} />
-              <Counter icon={<Crown className="w-4 h-4" />} label="Global Admins"
-                value={graphIncomplete ? "n/d" : String(gaCount)} accent={gaAccent} muted={graphIncomplete}
-                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : "Clic para ver la pestaña Global Admins"}
-                onClick={() => setTab("admins")} active={tab === "admins"} />
-              <Counter icon={<ShieldOff className="w-4 h-4" />} label="Sin MFA"
-                value={graphIncomplete ? "n/d" : String(sinMfa)} accent={sinMfa > 0 ? "#a53b35" : "#70b043"} muted={graphIncomplete}
-                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : "Clic para filtrar las asignaciones de internos sin MFA"}
-                onClick={() => toggleKpiFilter("sin_mfa")} active={kpiFilter === "sin_mfa"} />
-              <Counter icon={<UserX className="w-4 h-4" />} label="Deshabilitadas"
-                value={graphIncomplete ? "n/d" : String(deshabilitadas)} accent={deshabilitadas > 0 ? "#a53b35" : "#70b043"} muted={graphIncomplete}
-                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : "Clic para filtrar las asignaciones de cuentas deshabilitadas"}
-                onClick={() => toggleKpiFilter("deshabilitadas")} active={kpiFilter === "deshabilitadas"} />
-              <Counter icon={<Clock3 className="w-4 h-4" />} label="Inactivas"
-                value={inactivityIncomplete ? "n/d" : String(inactivas)} accent={inactivas > 0 ? "#a53b35" : "#70b043"} muted={inactivityIncomplete}
-                hint={inactivityIncomplete ? "No medido: requiere licencia Entra ID P1 para el último inicio de sesión." : "Clic para filtrar las asignaciones de cuentas inactivas"}
-                onClick={() => toggleKpiFilter("inactivas")} active={kpiFilter === "inactivas"} />
-              <Counter icon={<UserCog className="w-4 h-4" />} label="Guests inactivos c/permisos"
-                value={graphIncomplete ? "n/d" : String(guestsAlert)} accent={guestsAlert > 0 ? "#a53b35" : "#70b043"} muted={graphIncomplete}
-                hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : "Clic para filtrar los guests inactivos con permisos"}
-                onClick={toggleGuestsAlert} active={guestsOnlyAlert} />
             </div>
 
             <DeltaStrip delta={delta} onShowNew={showNewAssignments} />
 
-            <FindingsPanel findings={findings} onDrillDown={drillDownFinding}
+            <FindingsPanel findings={findings} accounts={accounts}
+              pendientes={pendientes} cuentasUnicas={cuentasUnicas}
+              onDrillDown={drillDownFinding}
               onAccept={editable ? acceptFinding : undefined} />
 
             {sinClasificar && (
@@ -1105,6 +1112,11 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                     <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
                       <History className="w-4 h-4 mr-2" />Historial de corridas
                     </DropdownMenuItem>
+                    {/* Densidad: en el menú, no como botón suelto en el encabezado. */}
+                    <DropdownMenuItem onClick={toggleDensity}>
+                      <AlignJustify className="w-4 h-4 mr-2" />
+                      {dense ? "Filas cómodas" : "Filas compactas"}
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -1147,7 +1159,8 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                   table={accountTable}
                   emptyText={accounts.length ? "Sin cuentas que coincidan con los filtros." : "Este cliente no tiene cuentas con asignaciones RBAC."}
                   rowClassName={(a) => (a.orphan || a.account_enabled === false ? "bg-red-50 dark:bg-red-950/30" : "")}
-                  subRow={accountSubRow}
+                  onRowClick={setDetailAccount}
+                  dense={dense}
                 />
               </TabsContent>
 
@@ -1303,11 +1316,12 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                   table={assignTable}
                   emptyText={assignments.length ? "Sin asignaciones que coincidan con los filtros." : "Este cliente no tiene asignaciones RBAC activas registradas."}
                   rowClassName={(a) => (assignmentAlert(a, dias) || isOrphanAssignment(a) ? "bg-red-50 dark:bg-red-950/30" : "")}
+                  dense={dense}
                 />
               </TabsContent>
 
               <TabsContent value="admins">
-                <DataTableBlock table={adminTable} emptyText="No se encontraron Global Administrators." />
+                <DataTableBlock table={adminTable} dense={dense} emptyText="No se encontraron Global Administrators." />
               </TabsContent>
 
               <TabsContent value="guests" className="space-y-3">
@@ -1324,12 +1338,12 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                     </div>
                   </div>
                 )}
-                <DataTableBlock table={guestTable}
+                <DataTableBlock table={guestTable} dense={dense}
                   emptyText={guestsOnlyAlert && guests.length ? "Sin guests inactivos con permisos sobre el umbral actual." : "No se encontraron cuentas guest."} />
               </TabsContent>
 
               <TabsContent value="sp">
-                <DataTableBlock table={spTable} emptyText="No se encontraron service principals con asignaciones RBAC." />
+                <DataTableBlock table={spTable} dense={dense} emptyText="No se encontraron service principals con asignaciones RBAC." />
               </TabsContent>
             </Tabs>
 
@@ -1340,6 +1354,74 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
           </>
         )}
       </div>
+
+      {/* Panel de detalle de la cuenta: todo lo que salió de la tabla (tipo, correo, subs, scope, vía,
+          MFA y el desglose por clase de rol), más sus asignaciones. Una sola forma de ver el detalle,
+          en vez de una expansión en línea que apretaba la tabla y competía con este panel. */}
+      <Dialog open={detailAccount !== null} onOpenChange={(o) => { if (!o) setDetailAccount(null); }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="pr-8 break-words">
+              {detailAccount?.display_name || detailAccount?.login || detailAccount?.principal_object_id}
+            </DialogTitle>
+          </DialogHeader>
+          {detailAccount && (
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
+                <DetailField label="Tipo">{principalTypeLabel(detailAccount.principal_type)}</DetailField>
+                <DetailField label="Origen">
+                  {chip(externalChip(detailAccount.is_external), externalLabel(detailAccount.is_external))}
+                </DetailField>
+                <DetailField label="Correo/Login">
+                  <span className="break-all">{detailAccount.login || "—"}</span>
+                </DetailField>
+                <DetailField label="Habilitada">{enabledChip(detailAccount.account_enabled)}</DetailField>
+                <DetailField label="MFA">{mfaCell(detailAccount.mfa_status)}</DetailField>
+                <DetailField label="Último login">{dateOrDash(detailAccount.last_sign_in)}</DetailField>
+                <DetailField label="Suscripciones">
+                  <span className="tabular-nums">{detailAccount.subscriptions}</span>
+                </DetailField>
+                <DetailField label="Scope más amplio">{scopeLabel(detailAccount.broadest_scope_level)}</DetailField>
+                <DetailField label="Vía">{viaLabel(detailAccount.via)}</DetailField>
+              </div>
+
+              {/* El desglose numérico que antes ocupaba cuatro columnas de la tabla. Un 0 se muestra
+                  como "—": lo que importa es dónde sí hay privilegio. */}
+              <div>
+                <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Accesos por clase de rol
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                  {([
+                    ["owner", detailAccount.owner],
+                    ["otorga_accesos", detailAccount.otorga_accesos],
+                    ["escritura_total", detailAccount.escritura_total],
+                    ["escritura_servicio", detailAccount.escritura_servicio],
+                    ["lectura", detailAccount.lectura],
+                    [null, detailAccount.sin_clasificar],
+                  ] as [AccessRoleClass, number][]).map(([cls, n]) => (
+                    <span key={cls ?? "sin_clasificar"} className="inline-flex items-center gap-1.5">
+                      <span className="text-muted-foreground">{roleClassLabel(cls)}:</span>
+                      <span className={`tabular-nums ${n > 0 ? "font-medium" : "text-muted-foreground"}`}>
+                        {n > 0 ? n : "—"}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Decisiones de esta cuenta
+                </div>
+                <div className="mt-1 text-sm">{decisionSummary(detailAccount)}</div>
+              </div>
+
+              {accountAssignments(detailAccount)}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Justificar exige nota: es la única decisión que baja el conteo de los hallazgos, así que
           queda con motivo, responsable y fecha. */}

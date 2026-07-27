@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ThemeProvider } from "next-themes";
 import { beforeEach, expect, test, vi } from "vitest";
 import { setSession } from "@/lib/auth";
@@ -39,7 +39,8 @@ const F = (over: Partial<AccessFinding>): AccessFinding => ({
   key: "regla", severity: "media", title: "Regla de prueba", detail: "Detalle con cifras.",
   recommendation: "Hacer algo concreto.", evaluable: true, not_evaluable_reason: null,
   affected_accounts: 1, affected_assignments: 1, affected_principals: ["u1"],
-  accepted: false, accepted_note: null, accepted_by: null, accepted_at: null, ...over,
+  accepted: false, accepted_note: null, accepted_by: null, accepted_at: null,
+  coverage_pct: null, ...over,
 });
 
 const baseResp: AccessReviewResponse = {
@@ -174,8 +175,9 @@ test("los contadores de privilegio siguen medidos sin Graph, los de origen no", 
   // El eje de privilegio solo depende de ARM: se muestra con valor real.
   expect(await screen.findByText("40%")).toBeInTheDocument();
   // Los dos contadores de origen (Externas y Externas con Owner) comparten el motivo de "no medido".
+  // Queda un solo contador que depende del eje de origen: los de riesgo se movieron a los hallazgos.
   const externas = screen.getAllByTitle(/el origen interna\/externa sale del UPN/i);
-  expect(externas).toHaveLength(2);
+  expect(externas).toHaveLength(1);
   for (const c of externas) expect(c).toHaveTextContent("n/d");
 });
 
@@ -367,18 +369,22 @@ test("justificar no permite guardar sin nota", async () => {
   });
 });
 
-test("el contador Pendientes deja solo las asignaciones sin decisión", async () => {
-  resp.kpis = { ...resp.kpis!, pendientes_de_revisar: 1 };
+test("el filtro de decisión 'Pendientes' deja solo las asignaciones sin decidir", async () => {
   resp.accounts = [];
   resp.assignments = [
     A({ principal_object_id: "u1", display_name: "Ana Perez" }),
     A({ principal_object_id: "u2", display_name: "Beto Decidido", decision: "mantener" }),
   ];
   await renderPage();
+  await openTab(/asignaciones/i);
+  await screen.findByText("Beto Decidido");
 
-  fireEvent.click(await screen.findByTitle(/Accesos con alerta y sin decisión registrada/));
+  // El contador de la tira se quitó (lo resuelven los hallazgos); el filtro vive en el popover.
+  fireEvent.click(screen.getByRole("button", { name: /filtros/i }));
+  fireEvent.keyDown(await screen.findByText("Decisión: todas"), { key: "ArrowDown" });
+  fireEvent.click(await screen.findByRole("option", { name: "Pendientes" }));
 
-  expect(await screen.findByText("Ana Perez")).toBeInTheDocument();
+  expect(screen.getByText("Ana Perez")).toBeInTheDocument();
   expect(screen.queryByText("Beto Decidido")).toBeNull();
 });
 
@@ -527,4 +533,163 @@ test("un hallazgo de umbral se acepta con nota obligatoria", async () => {
 
   await waitFor(() => expect(acceptAccessFinding)
     .toHaveBeenCalledWith(4, "exceso_global_admins", "Son cuentas break-glass."));
+});
+
+// ── Presentación: dos especies de hallazgo y tabla de 6 columnas ────
+
+test("el panel separa los hallazgos con cuentas de las prácticas de administración", async () => {
+  resp.findings = [
+    F({ key: "externa_elevada", severity: "critica", title: "Cuenta externa con privilegio elevado",
+        affected_accounts: 1, affected_assignments: 1, affected_principals: ["u1"] }),
+    F({ key: "granularidad_recurso", severity: "media", title: "Asignaciones a nivel de recurso individual",
+        affected_accounts: 0, affected_assignments: 2968, affected_principals: [] }),
+  ];
+  await renderPage();
+
+  const accion = await screen.findByRole("region", { name: "Requiere acción" });
+  const practicas = screen.getByRole("region", { name: "Prácticas de administración" });
+
+  expect(within(accion).getByText("Cuenta externa con privilegio elevado")).toBeInTheDocument();
+  // El hallazgo de umbral NO es una alerta de hoy: es una propiedad del tenant, un proyecto de meses.
+  expect(within(accion).queryByText("Asignaciones a nivel de recurso individual")).toBeNull();
+  expect(within(practicas).getByText("Asignaciones a nivel de recurso individual")).toBeInTheDocument();
+  expect(within(practicas).getByText("2968 asignaciones por corregir")).toBeInTheDocument();
+  // Y no ofrece drill-down: un umbral no tiene cuentas a las que llevar.
+  expect(within(practicas).queryByRole("button", { name: "Ver cuentas" })).toBeNull();
+});
+
+test("un hallazgo con pocas cuentas muestra los nombres en la propia fila", async () => {
+  resp.accounts = [
+    C({ principal_object_id: "u1", display_name: "Juan Pérez" }),
+    C({ principal_object_id: "u2", display_name: "Ana Gómez" }),
+  ];
+  resp.findings = [F({
+    key: "externa_elevada", severity: "critica", title: "Cuenta externa con privilegio elevado",
+    affected_accounts: 2, affected_assignments: 2, affected_principals: ["u1", "u2"],
+  })];
+  await renderPage();
+
+  const accion = await screen.findByRole("region", { name: "Requiere acción" });
+  expect(within(accion).getByText("— Juan Pérez, Ana Gómez")).toBeInTheDocument();
+});
+
+test("con más cuentas que el máximo de la fila no se listan los nombres", async () => {
+  resp.accounts = ["u1", "u2", "u3", "u4"].map((id, i) => C({ principal_object_id: id, display_name: `Cuenta ${i}` }));
+  resp.findings = [F({
+    key: "elevada_sin_mfa", severity: "alta", title: "Cuenta elevada sin MFA",
+    affected_accounts: 4, affected_assignments: 4, affected_principals: ["u1", "u2", "u3", "u4"],
+  })];
+  await renderPage();
+
+  const accion = await screen.findByRole("region", { name: "Requiere acción" });
+  expect(within(accion).getByText("4 cuentas · 4 asignaciones")).toBeInTheDocument();
+  expect(within(accion).queryByText(/— Cuenta 0/)).toBeNull();
+});
+
+test("el conteo del hallazgo concuerda en singular", async () => {
+  resp.findings = [F({ affected_accounts: 1, affected_assignments: 1, affected_principals: ["u1"] })];
+  await renderPage();
+  // Antes decía "1 cuentas · 1 asignaciones".
+  expect(await screen.findByText("1 cuenta · 1 asignación")).toBeInTheDocument();
+});
+
+test("el titular ejecutivo resume críticos, pendientes y cuentas", async () => {
+  resp.kpis = { ...resp.kpis!, pendientes_de_revisar: 12, cuentas_unicas: 340 };
+  resp.findings = [
+    F({ key: "externa_elevada", severity: "critica", title: "Cuenta externa con privilegio elevado", affected_principals: ["u1"] }),
+    F({ key: "elevada_sin_mfa", severity: "alta", title: "Cuenta elevada sin MFA", affected_principals: ["u1"] }),
+    // La cobertura viene como CAMPO del backend (coverage_pct), no parseada del texto del detalle.
+    F({ key: "sin_segregacion_ambientes", severity: "alta", title: "Mismo privilegio en producción y en no producción",
+        detail: "14 cuentas cruzan ambientes.", coverage_pct: 23, affected_principals: ["u1"] }),
+  ];
+  await renderPage();
+
+  // Dentro del titular: los mismos números que los contadores, pero con jerarquía de resumen.
+  const resumen = await screen.findByRole("region", { name: "Resumen de la revisión" });
+  expect(within(resumen).getByText("Hallazgos críticos")).toBeInTheDocument();
+  expect(within(resumen).getByText("2 de severidad alta")).toBeInTheDocument();
+  expect(within(resumen).getByText("Accesos sin decidir")).toBeInTheDocument();
+  expect(within(resumen).getByText("12")).toBeInTheDocument();
+  expect(within(resumen).getByText("340")).toBeInTheDocument();
+  expect(within(resumen).getByText("Del tenant evaluado")).toBeInTheDocument();
+  expect(within(resumen).getByText("23%")).toBeInTheDocument();
+});
+
+test("las informativas no van en ninguno de los dos bloques", async () => {
+  resp.findings = [F({
+    key: "alcance_incompleto", severity: "informativa", title: "Alcance de la corrida",
+    affected_accounts: 1, affected_assignments: 0, affected_principals: [],
+  })];
+  await renderPage();
+
+  expect(await screen.findByText(/1 informativas/)).toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Requiere acción" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "Prácticas de administración" })).toBeNull();
+});
+
+test("la tabla de Cuentas tiene seis columnas y ya no el desglose numérico", async () => {
+  await renderPage();
+  await screen.findByText("Accesos");
+
+  const headers = screen.getAllByRole("columnheader").map((h) => h.textContent?.trim());
+  // La séptima celda no tiene título: es el disparador del panel de detalle.
+  expect(headers).toEqual(["Cuenta", "Origen", "Accesos", "Privilegio", "Decisión", "Último login", ""]);
+  for (const fuera of ["Owner", "Otorga", "Escritura total", "Subs", "Scope más amplio", "Vía", "MFA", "Tipo", "Correo/Login"]) {
+    expect(screen.queryByRole("columnheader", { name: fuera })).toBeNull();
+  }
+});
+
+test("la columna Privilegio muestra el techo del privilegio, con etiqueta corta", async () => {
+  resp.accounts = [
+    C({ principal_object_id: "u1", display_name: "Ana Owner", owner: 1, lectura: 2, total_assignments: 3 }),
+    C({ principal_object_id: "u2", display_name: "Beto Lector", lectura: 1, total_assignments: 1 }),
+  ];
+  resp.assignments = [];
+  await renderPage();
+
+  expect(await screen.findByText("Owner")).toBeInTheDocument();
+  expect(screen.getByText("Lectura")).toBeInTheDocument();
+  // En una celda, "Owner (otorga accesos)" se parte en tres líneas: la etiqueta larga queda en el panel.
+  expect(screen.queryByText("Owner (otorga accesos)")).toBeNull();
+});
+
+test("la columna Decisión no repite el mismo texto: guion sin decisiones, avance con ellas", async () => {
+  resp.accounts = [
+    C({ principal_object_id: "u1", display_name: "Ana Sin Decidir", decision_pendientes: 8 }),
+    C({ principal_object_id: "u2", display_name: "Beto Avanzado", decision_pendientes: 5, decision_mantener: 3 }),
+  ];
+  resp.assignments = [];
+  await renderPage();
+
+  const ana = (await screen.findByText("Ana Sin Decidir")).closest("tr")!;
+  expect(within(ana).getByText("—")).toBeInTheDocument();
+  // El desglose sigue disponible para lectores de pantalla y en el panel, pero no como texto visible.
+  expect(within(ana).getByText("8 pendientes")).toHaveClass("sr-only");
+
+  const beto = screen.getByText("Beto Avanzado").closest("tr")!;
+  expect(within(beto).getByText("3 de 8")).toBeInTheDocument();
+});
+
+test("el panel de detalle de la cuenta trae lo que salió de la tabla", async () => {
+  resp.accounts = [C({
+    principal_object_id: "u1", display_name: "Ana Perez", login: "ana@x.com", subscriptions: 2,
+    broadest_scope_level: "management_group", via: "ambos", mfa_status: "disabled",
+    owner: 1, lectura: 2, total_assignments: 3, decision_pendientes: 3,
+  })];
+  resp.assignments = [A({ principal_object_id: "u1", display_name: "Ana Perez", role_name: "Contributor" })];
+  await renderPage();
+
+  fireEvent.click((await screen.findAllByRole("button", { name: "Ver asignaciones" }))[0]);
+
+  const panel = await screen.findByRole("dialog");
+  expect(within(panel).getByText("Management group")).toBeInTheDocument();
+  expect(within(panel).getByText("Directo y vía grupo")).toBeInTheDocument();
+  expect(within(panel).getByText("Sin MFA")).toBeInTheDocument();
+  expect(within(panel).getByText("ana@x.com")).toBeInTheDocument();
+  expect(within(panel).getByText("Usuario")).toBeInTheDocument();
+  // El desglose por clase de rol y las asignaciones de la cuenta viven acá.
+  expect(within(panel).getByText("Accesos por clase de rol")).toBeInTheDocument();
+  expect(within(panel).getByText("Asignaciones de esta cuenta")).toBeInTheDocument();
+  expect(within(panel).getByText("Contributor")).toBeInTheDocument();
+  expect(within(panel).getByText("3 pendientes")).toBeInTheDocument();
 });

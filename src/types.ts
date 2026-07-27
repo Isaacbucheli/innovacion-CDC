@@ -940,6 +940,9 @@ export interface AccessFinding {
   accepted_note: string | null;
   accepted_by: string | null;
   accepted_at: string | null;
+  /** Porcentaje del tenant que la regla pudo evaluar. Solo lo trae la regla de segregación de
+   *  ambientes, que depende de inferir el ambiente del nombre de la suscripción; null en el resto. */
+  coverage_pct: number | null;
 }
 
 /** Una cuenta (principal) con sus asignaciones efectivas agregadas — la agregación la hace el backend. */

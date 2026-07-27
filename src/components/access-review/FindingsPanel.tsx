@@ -1,27 +1,69 @@
-import { useState } from "react";
-import { ChevronDown, ChevronRight, CircleCheck, CircleHelp, ShieldCheck } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, CircleCheck, CircleHelp, Info, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { severityChip, severityLabel, findingIsOpen } from "@/lib/accessReview";
-import type { AccessFinding } from "@/types";
+import {
+  asignacionesLabel, cuentasLabel, findingIsActionable, findingIsOpen,
+  severityChip, severityLabel,
+} from "@/lib/accessReview";
+import type { AccessAccount, AccessFinding } from "@/types";
 
 function dateOrDash(iso: string | null): string {
   return iso ? new Date(iso).toLocaleString("es-EC") : "—";
 }
 
+/** Con pocas cuentas afectadas se muestran los nombres en la fila: "Cuenta externa con privilegio
+ *  elevado — Juan Pérez" informa, "1 cuenta" obliga a hacer clic para saber de quién se habla. */
+const MAX_NOMBRES_EN_FILA = 3;
+
+/** Cifra grande + etiqueta micro: la capa ejecutiva del módulo (números tabulares, sin color salvo
+ *  cuando hay algo crítico). */
+function Stat({ value, label, note, alarm }: {
+  value: string; label: string; note?: string; alarm?: boolean;
+}) {
+  return (
+    <div>
+      <div className={`text-2xl font-semibold tabular-nums leading-none ${alarm ? "text-red-700 dark:text-red-400" : ""}`}>
+        {value}
+      </div>
+      <div className="mt-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+      {note && <div className="text-[11px] text-muted-foreground leading-tight">{note}</div>}
+    </div>
+  );
+}
+
 /**
  * Cola de trabajo del módulo: qué está mal, con la cifra de esta corrida y qué hacer.
- * Cuatro grupos, en este orden: hallazgos abiertos (por severidad), y colapsados los no evaluables
- * (falta el dato), los evaluados sin hallazgos y los aceptados con justificación. Los tres últimos
- * son información, no trabajo pendiente.
  *
- * `onAccept` solo se recibe con permiso de edición: sin él no se ofrece aceptar nada. La aceptación
- * es únicamente para los hallazgos de umbral (sin principals afectados), que no tienen accesos
- * individuales que marcar; el resto se resuelve con la decisión por acceso en Asignaciones.
+ * Tres alturas, porque doce filas del mismo peso con un botón cada una no dicen qué mirar primero:
+ *  1. titular ejecutivo (críticos, accesos sin decidir, cuentas, cobertura de la evaluación);
+ *  2. "Requiere acción": los hallazgos con cuentas concretas, por severidad, con las críticas y altas
+ *     prominentes y las medias en una línea compacta;
+ *  3. "Prácticas de administración": los hallazgos de umbral (sin principals), que son propiedades
+ *     estructurales del tenant y proyectos de meses, no alertas — barra de progreso y tono neutro.
+ *
+ * Al final, colapsado: informativas, no evaluables (falta el dato), evaluadas sin hallazgos y
+ * aceptadas con justificación. Los cuatro son información, no trabajo pendiente.
+ *
+ * Las acciones ("Ver cuentas", "Aceptar") aparecen al pasar el mouse o al enfocar la fila, y quedan
+ * fijas cuando la fila está expandida: siguen en el DOM (teclado y lectores de pantalla las
+ * alcanzan), pero no forman un riel de botones que compite con el contenido.
+ *
+ * `onAccept` solo se recibe con permiso de edición. La aceptación es únicamente para los hallazgos de
+ * umbral, que no tienen accesos individuales que marcar; el resto se resuelve con la decisión por
+ * acceso en Asignaciones.
  */
-export default function FindingsPanel({ findings, onDrillDown, onAccept }: {
+export default function FindingsPanel({
+  findings, accounts = [], pendientes = 0, cuentasUnicas = 0, onDrillDown, onAccept,
+}: {
   findings: AccessFinding[];
+  /** Para resolver los nombres de las cuentas afectadas (viene del mismo response). */
+  accounts?: AccessAccount[];
+  /** `kpis.pendientes_de_revisar`: accesos elevados que nadie decidió todavía. */
+  pendientes?: number;
+  /** `kpis.cuentas_unicas`. */
+  cuentasUnicas?: number;
   onDrillDown: (finding: AccessFinding) => void;
   onAccept?: (finding: AccessFinding, note: string) => Promise<void>;
 }) {
@@ -30,9 +72,33 @@ export default function FindingsPanel({ findings, onDrillDown, onAccept }: {
   const noEvaluables = findings.filter((f) => !f.accepted && !f.evaluable);
   const limpios = findings.filter((f) => !f.accepted && f.evaluable && !findingIsOpen(f));
 
-  // El primer crítico arranca abierto: es lo que hay que leer hoy.
+  // Las informativas (alcance de la corrida) no son ninguna de las dos especies: son contexto.
+  const informativos = abiertos.filter((f) => f.severity === "informativa");
+  const relevantes = abiertos.filter((f) => f.severity !== "informativa");
+  const accionables = relevantes.filter(findingIsActionable);
+  const practicas = relevantes.filter((f) => !findingIsActionable(f));
+
+  const criticos = accionables.filter((f) => f.severity === "critica").length;
+  const altos = accionables.filter((f) => f.severity === "alta").length;
+  // Cobertura de la evaluación de ambientes: la cifra la calcula y redacta el backend en el detalle
+  // del hallazgo de segregación; acá solo se lee para el titular.
+  const cobertura = findings.find((f) => f.key === "sin_segregacion_ambientes")?.coverage_pct ?? null;
+
+  const nameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of accounts) m.set(a.principal_object_id, a.display_name || a.login || a.principal_object_id);
+    return m;
+  }, [accounts]);
+
+  /** Nombres de las cuentas afectadas, solo cuando son pocas (si no, la fila se vuelve un párrafo). */
+  function nombresAfectados(f: AccessFinding): string | null {
+    if (f.affected_principals.length === 0 || f.affected_principals.length > MAX_NOMBRES_EN_FILA) return null;
+    return f.affected_principals.map((id) => nameById.get(id) ?? id).join(", ");
+  }
+
+  // El primer hallazgo que requiere acción arranca abierto: es lo que hay que leer hoy.
   const [expanded, setExpanded] = useState<Set<string>>(
-    () => new Set(abiertos.length > 0 ? [abiertos[0].key] : []),
+    () => new Set(accionables.length > 0 ? [accionables[0].key] : []),
   );
   const [showOtros, setShowOtros] = useState(false);
 
@@ -68,72 +134,142 @@ export default function FindingsPanel({ findings, onDrillDown, onAccept }: {
 
   if (findings.length === 0) return null;
 
+  /** Detalle + recomendación de un hallazgo expandido. */
+  const detalle = (f: AccessFinding, pad = "px-4 pb-3 pl-11") => (
+    <div className={`${pad} space-y-2 text-sm`}>
+      <p className="text-muted-foreground">{f.detail}</p>
+      <p className="rounded-lg bg-muted/60 px-3 py-2 border-l-2 border-primary">
+        <span className="font-medium">Recomendación: </span>{f.recommendation}
+      </p>
+    </div>
+  );
+
   return (
-    <div className="rounded-xl border bg-card divide-y">
-      <div className="px-4 py-2.5 flex items-center gap-2">
-        <span className="text-sm font-semibold">Hallazgos</span>
-        <span className="text-xs text-muted-foreground">
+    <div className="space-y-3">
+      {/* Capa ejecutiva: en 30 segundos, cuánto pesa lo de hoy. */}
+      <section aria-label="Resumen de la revisión"
+        className="rounded-xl border bg-card px-4 py-3.5 flex flex-wrap items-start gap-x-10 gap-y-4">
+        <Stat value={String(criticos)} label="Hallazgos críticos" alarm={criticos > 0}
+          note={altos > 0 ? `${altos} de severidad alta` : undefined} />
+        <Stat value={String(pendientes)} label="Accesos sin decidir"
+          note="Elevados, sin decisión registrada" />
+        <Stat value={String(cuentasUnicas)} label="Cuentas con acceso" />
+        {cobertura !== null && (
+          <Stat value={`${cobertura}%`} label="Del tenant evaluado"
+            note="Ambiente inferido del nombre de la suscripción" />
+        )}
+        <p className="ml-auto text-xs text-muted-foreground max-w-[22ch] text-right">
           {abiertos.length === 0
             ? "Sin hallazgos abiertos en esta corrida"
             : `${abiertos.length} de ${findings.length} reglas con hallazgos`}
-        </span>
-      </div>
+        </p>
+      </section>
 
-      {abiertos.map((f) => {
-        const open = expanded.has(f.key);
-        // Los hallazgos de umbral no tienen accesos individuales que marcar: su salida es aceptarlos.
-        const canAccept = !!onAccept && f.affected_principals.length === 0;
-        return (
-          <div key={f.key} className="px-4 py-3">
-            <div className="flex items-center gap-3 flex-wrap">
-              <button type="button" onClick={() => toggle(f.key)} aria-expanded={open}
-                aria-label={open ? `Ocultar detalle de ${f.title}` : `Ver detalle de ${f.title}`}
-                className="text-muted-foreground hover:text-foreground cursor-pointer">
-                {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              </button>
-              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${severityChip(f.severity)}`}>
-                {severityLabel(f.severity)}
-              </span>
-              <button type="button" onClick={() => toggle(f.key)}
-                className="text-sm font-medium text-left hover:underline cursor-pointer">
-                {f.title}
-              </button>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {f.affected_accounts > 0 && `${f.affected_accounts} cuentas`}
-                {f.affected_accounts > 0 && f.affected_assignments > 0 && " · "}
-                {f.affected_assignments > 0 && `${f.affected_assignments} asignaciones`}
-              </span>
-              {f.affected_principals.length > 0 && (
-                <Button variant="outline" size="sm" className="h-7 ml-auto"
-                  onClick={() => onDrillDown(f)}>
-                  Ver cuentas
-                </Button>
-              )}
-              {canAccept && (
-                <Button variant="outline" size="sm" className="h-7 ml-auto"
-                  onClick={() => { setAcceptTarget(f); setAcceptNote(""); }}>
-                  Aceptar
-                </Button>
-              )}
-            </div>
-            {open && (
-              <div className="mt-2 ml-7 space-y-2 text-sm">
-                <p className="text-muted-foreground">{f.detail}</p>
-                <p className="rounded-lg bg-muted/60 px-3 py-2 border-l-2 border-primary">
-                  <span className="font-medium">Recomendación: </span>{f.recommendation}
-                </p>
-              </div>
-            )}
+      {accionables.length > 0 && (
+        <section aria-label="Requiere acción" className="rounded-xl border bg-card">
+          <header className="px-4 py-2.5 border-b flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <h3 className="text-xs font-semibold uppercase tracking-wider">Requiere acción</h3>
+            <span className="text-xs text-muted-foreground">
+              Cuentas concretas: se corrigen en esta revisión
+            </span>
+          </header>
+          <div className="divide-y">
+            {accionables.map((f) => {
+              const open = expanded.has(f.key);
+              const fuerte = f.severity === "critica" || f.severity === "alta";
+              const nombres = nombresAfectados(f);
+              return (
+                <div key={f.key}>
+                  <div className={`group flex items-center gap-3 px-4 hover:bg-muted/40 transition-colors ${fuerte ? "py-3" : "py-1.5"}`}>
+                    <button type="button" onClick={() => toggle(f.key)} aria-expanded={open}
+                      className="flex-1 min-w-0 flex items-center gap-2.5 text-left cursor-pointer">
+                      <span className="text-muted-foreground shrink-0">
+                        {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                      </span>
+                      <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${severityChip(f.severity)}`}>
+                        {severityLabel(f.severity)}
+                      </span>
+                      <span className={`truncate ${fuerte ? "text-sm font-semibold" : "text-xs font-medium"}`}>
+                        {f.title}
+                      </span>
+                      {nombres && (
+                        <span className="text-xs truncate" title={nombres}>— {nombres}</span>
+                      )}
+                      <span className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                        {f.affected_accounts > 0 && cuentasLabel(f.affected_accounts)}
+                        {f.affected_accounts > 0 && f.affected_assignments > 0 && " · "}
+                        {f.affected_assignments > 0 && asignacionesLabel(f.affected_assignments)}
+                      </span>
+                    </button>
+                    <div className={`shrink-0 transition-opacity ${open ? "" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100"}`}>
+                      <Button variant="outline" size="sm" className="h-7" onClick={() => onDrillDown(f)}>
+                        Ver cuentas
+                      </Button>
+                    </div>
+                  </div>
+                  {open && detalle(f)}
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
+        </section>
+      )}
 
-      {(noEvaluables.length > 0 || limpios.length > 0 || aceptados.length > 0) && (
-        <div className="px-4 py-2.5">
+      {practicas.length > 0 && (
+        <section aria-label="Prácticas de administración" className="rounded-xl border bg-card">
+          <header className="px-4 py-2.5 border-b flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Prácticas de administración
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              Propiedades del tenant: se corrigen por proyecto, no en esta revisión
+            </span>
+          </header>
+          <div className="divide-y">
+            {practicas.map((f) => {
+              const open = expanded.has(f.key);
+              // El total es lo que falta resolver: el backend cuenta lo que sigue incumpliendo la
+              // práctica, así que el avance parte de cero y sube cuando la cifra baja entre corridas.
+              const unidad = f.affected_assignments > 0
+                ? asignacionesLabel(f.affected_assignments)
+                : cuentasLabel(f.affected_accounts);
+              return (
+                <div key={f.key} className="group px-4 py-2.5 hover:bg-muted/40 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => toggle(f.key)} aria-expanded={open}
+                      className="flex-1 min-w-0 flex items-center gap-2.5 text-left cursor-pointer">
+                      <span className="text-muted-foreground shrink-0">
+                        {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                      </span>
+                      <span className="truncate text-sm font-medium">{f.title}</span>
+                      <span className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                        {unidad} por corregir
+                      </span>
+                    </button>
+                    {onAccept && (
+                      <div className={`shrink-0 transition-opacity ${open ? "" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100"}`}>
+                        <Button variant="outline" size="sm" className="h-7"
+                          onClick={() => { setAcceptTarget(f); setAcceptNote(""); }}>
+                          Aceptar
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  {open && <div className="mt-2">{detalle(f, "pl-6 pb-1")}</div>}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {(informativos.length > 0 || noEvaluables.length > 0 || limpios.length > 0 || aceptados.length > 0) && (
+        <div className="rounded-xl border bg-card px-4 py-2.5">
           <button type="button" onClick={() => setShowOtros((v) => !v)} aria-expanded={showOtros}
             className="text-xs text-muted-foreground hover:text-foreground cursor-pointer inline-flex items-center gap-1.5">
             {showOtros ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
             {[
+              informativos.length > 0 ? `${informativos.length} informativas` : null,
               noEvaluables.length > 0 ? `${noEvaluables.length} sin datos para evaluar` : null,
               limpios.length > 0 ? `${limpios.length} evaluadas sin hallazgos` : null,
               aceptados.length > 0 ? `${aceptados.length} aceptadas con justificación` : null,
@@ -142,6 +278,12 @@ export default function FindingsPanel({ findings, onDrillDown, onAccept }: {
 
           {showOtros && (
             <ul className="mt-2 space-y-1.5">
+              {informativos.map((f) => (
+                <li key={f.key} className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span><span className="font-medium">{f.title}</span> — {f.detail}</span>
+                </li>
+              ))}
               {noEvaluables.map((f) => (
                 <li key={f.key} className="flex items-start gap-2 text-xs text-muted-foreground"
                   title={f.not_evaluable_reason ?? undefined}>
