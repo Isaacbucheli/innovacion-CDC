@@ -1,7 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "next-themes";
 import { beforeEach, expect, test, vi } from "vitest";
-import type { AccessAccount, AccessAssignment, AccessReviewResponse, ClientAdmin } from "@/types";
+import type {
+  AccessAccount, AccessAssignment, AccessFinding, AccessReviewResponse, ClientAdmin,
+} from "@/types";
 
 const clients: ClientAdmin[] = [{
   client_id: 4, client_name: "Cliente Demo", tax_id: null, contact_name: null,
@@ -24,6 +26,12 @@ const C = (over: Partial<AccessAccount>): AccessAccount => ({
   escritura_total: 0, escritura_servicio: 0, lectura: 1, sin_clasificar: 0, subscriptions: 1,
   broadest_scope_level: "subscription", via: "directo", account_enabled: true,
   last_sign_in: "2026-07-20T10:00:00Z", mfa_status: "enabled", orphan: false, ...over,
+});
+
+const F = (over: Partial<AccessFinding>): AccessFinding => ({
+  key: "regla", severity: "media", title: "Regla de prueba", detail: "Detalle con cifras.",
+  recommendation: "Hacer algo concreto.", evaluable: true, not_evaluable_reason: null,
+  affected_accounts: 1, affected_assignments: 1, affected_principals: ["u1"], ...over,
 });
 
 const baseResp: AccessReviewResponse = {
@@ -175,6 +183,61 @@ test("la pestaña Asignaciones muestra la clase de rol", async () => {
   await renderPage();
   await openTab(/asignaciones/i);
   expect(await screen.findByText("Owner (otorga accesos)")).toBeInTheDocument();
+});
+
+test("el panel de hallazgos abre el primero y muestra su recomendación", async () => {
+  resp.findings = [
+    F({ key: "critico", severity: "critica", title: "Privilegio en la raíz", recommendation: "Bajar el scope." }),
+    F({ key: "medio", severity: "media", title: "Otra regla", recommendation: "Otra acción." }),
+  ];
+  await renderPage();
+
+  expect(await screen.findByText("Privilegio en la raíz")).toBeInTheDocument();
+  expect(screen.getByText(/Bajar el scope/)).toBeInTheDocument();
+  // El segundo queda colapsado: su recomendación no está en el DOM.
+  expect(screen.queryByText(/Otra acción/)).toBeNull();
+});
+
+test("un hallazgo no evaluable no ofrece drill-down y explica por qué", async () => {
+  resp.findings = [
+    F({ key: "sin_datos", title: "Cuentas sin MFA", evaluable: false, affected_accounts: 0,
+        affected_assignments: 0, affected_principals: [], not_evaluable_reason: "No evaluable: falta leer el directorio." }),
+  ];
+  await renderPage();
+
+  // Va al grupo colapsado, así que primero hay que abrirlo.
+  fireEvent.click(await screen.findByText(/1 sin datos para evaluar/));
+  expect(await screen.findByText(/falta leer el directorio/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Ver cuentas" })).toBeNull();
+});
+
+test("'Ver cuentas' filtra la tabla por las cuentas del hallazgo, y el chip lo quita", async () => {
+  resp.accounts = [
+    C({ principal_object_id: "u1", display_name: "Ana Afectada" }),
+    C({ principal_object_id: "u2", display_name: "Beto Sano" }),
+  ];
+  resp.findings = [F({ key: "critico", severity: "critica", title: "Privilegio en la raíz", affected_principals: ["u1"] })];
+  await renderPage();
+
+  await screen.findByText("Beto Sano");
+  fireEvent.click(screen.getByRole("button", { name: "Ver cuentas" }));
+
+  expect(screen.getByText("Ana Afectada")).toBeInTheDocument();
+  expect(screen.queryByText("Beto Sano")).toBeNull();
+
+  fireEvent.click(screen.getByLabelText(/Quitar filtro del hallazgo/));
+  expect(screen.getByText("Beto Sano")).toBeInTheDocument();
+});
+
+test("una regla de práctica (porcentaje) no ofrece drill-down", async () => {
+  // Sin principals afectados no hay a quién llevar: un umbral no tiene culpables individuales.
+  resp.findings = [F({ key: "granularidad_recurso", title: "Granularidad", affected_accounts: 0,
+                       affected_assignments: 2968, affected_principals: [] })];
+  await renderPage();
+
+  expect(await screen.findByText("Granularidad")).toBeInTheDocument();
+  expect(screen.getByText(/2968 asignaciones/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Ver cuentas" })).toBeNull();
 });
 
 test("el filtro 'Solo elevados' descarta las asignaciones de lectura", async () => {

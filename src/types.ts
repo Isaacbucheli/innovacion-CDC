@@ -901,6 +901,25 @@ export type AccessRoleClass =
 export type AccessPrincipalType =
   | "User" | "Group" | "ServicePrincipal" | "ForeignGroup" | "Device" | "Unknown" | (string & {});
 
+export type AccessFindingSeverity = "critica" | "alta" | "media" | "informativa";
+
+/** Hallazgo de una corrida. `evaluable: false` = la regla depende de datos que no se midieron;
+ *  en ese caso los conteos van en 0 y NO deben leerse como "sin hallazgos". */
+export interface AccessFinding {
+  key: string;
+  severity: AccessFindingSeverity;
+  title: string;
+  detail: string;
+  recommendation: string;
+  evaluable: boolean;
+  not_evaluable_reason: string | null;
+  affected_accounts: number;
+  affected_assignments: number;
+  /** Ids de principal afectados: el front filtra la tabla de Cuentas por esta lista. Vacío en las
+   *  reglas de práctica (porcentajes), que no tienen culpables individuales. */
+  affected_principals: string[];
+}
+
 /** Una cuenta (principal) con sus asignaciones efectivas agregadas — la agregación la hace el backend. */
 export interface AccessAccount {
   principal_object_id: string;
@@ -999,6 +1018,7 @@ export interface AccessReviewResponse {
   /** Lo decide el backend: si la fase Graph se leyó completa para todas las credenciales. */
   graph_complete?: boolean;
   kpis?: AccessReviewKpis;
+  findings?: AccessFinding[];
   credentials?: AccessCredentialStatus[];
   accounts?: AccessAccount[];
   assignments?: AccessAssignment[];

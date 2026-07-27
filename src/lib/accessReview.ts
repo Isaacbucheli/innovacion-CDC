@@ -1,6 +1,8 @@
 // Helpers de presentación del módulo Revisión de accesos.
 
-import type { AccessAssignment, AccessPrincipalType, AccessRoleClass } from "@/types";
+import type {
+  AccessAssignment, AccessFinding, AccessFindingSeverity, AccessPrincipalType, AccessRoleClass,
+} from "@/types";
 
 export function principalTypeLabel(t: AccessPrincipalType): string {
   switch (t) {
@@ -68,6 +70,30 @@ export function viaLabel(v: string): string {
  * Para un ForeignGroup, un Device o un principal sin tipo, no tener nombre es lo esperado. */
 export function livesInTenant(t: AccessPrincipalType): boolean {
   return t === "User" || t === "Group" || t === "ServicePrincipal";
+}
+
+export function severityLabel(s: AccessFindingSeverity): string {
+  switch (s) {
+    case "critica": return "Crítica";
+    case "alta": return "Alta";
+    case "media": return "Media";
+    default: return "Informativa";
+  }
+}
+
+export function severityChip(s: AccessFindingSeverity): string {
+  switch (s) {
+    case "critica": return "bg-red-600 text-white dark:bg-red-700";
+    case "alta": return "bg-amber-500 text-white dark:bg-amber-600";
+    case "media": return "bg-yellow-200 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-100";
+    default: return "bg-muted text-muted-foreground";
+  }
+}
+
+/** Un hallazgo "vive" si se pudo evaluar y encontró algo. Los evaluados sin hallazgos también son
+ *  información (se agrupan aparte), y los no evaluables no son cero: es dato que falta. */
+export function findingIsOpen(f: AccessFinding): boolean {
+  return f.evaluable && (f.affected_accounts > 0 || f.affected_assignments > 0);
 }
 
 /** Roles presentes en la corrida, para el filtro por rol. */

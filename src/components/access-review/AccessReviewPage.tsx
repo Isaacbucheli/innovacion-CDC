@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
+import FindingsPanel from "@/components/access-review/FindingsPanel";
 import ClientHeader from "@/components/ClientHeader";
 import DataTablePagination from "@/components/DataTablePagination";
 import DataTableColumnHeader from "@/components/DataTableColumnHeader";
@@ -34,7 +35,7 @@ import {
 import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
 import { canEditModule } from "@/lib/auth";
 import type {
-  ClientAdmin, AccessAccount, AccessAssignment, AccessGlobalAdmin, AccessGuest,
+  ClientAdmin, AccessAccount, AccessAssignment, AccessFinding, AccessGlobalAdmin, AccessGuest,
   AccessReviewResponse, AccessReviewRun, AccessRoleClass,
 } from "@/types";
 
@@ -298,7 +299,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   // Al cambiar de cliente se descarta el drill-down de tarjetas (es estado del snapshot anterior).
   function selectClient(id: number) {
     writeActiveClient(id); setClientId(id);
-    setKpiFilter(null); setGuestsOnlyAlert(false); setAccountFilter(null);
+    setKpiFilter(null); setGuestsOnlyAlert(false); setAccountFilter(null); setFindingFilter(null);
   }
 
   async function doSync() {
@@ -348,6 +349,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
 
   const assignments = useMemo(() => resp?.assignments ?? [], [resp]);
   const accounts = useMemo(() => resp?.accounts ?? [], [resp]);
+  const findings = useMemo(() => resp?.findings ?? [], [resp]);
   const globalAdmins = useMemo(() => resp?.global_admins ?? [], [resp]);
   const guests = useMemo(() => resp?.guests ?? [], [resp]);
   const servicePrincipals = useMemo(() => assignments.filter((a) => a.principal_type === "ServicePrincipal"), [assignments]);
@@ -424,6 +426,9 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const [guestsOnlyAlert, setGuestsOnlyAlert] = useState(false);
   const [accountFilter, setAccountFilter] = useState<KpiAccountFilter | null>(null);
   const [qAccount, setQAccount] = useState("");
+  // Drill-down de un hallazgo: se guarda la lista de principals en un Set para no recorrer un array
+  // de cientos de ids por cada fila de la tabla.
+  const [findingFilter, setFindingFilter] = useState<{ key: string; title: string; principals: Set<string> } | null>(null);
 
   // Clic en contador: lleva a la pestaña correspondiente y aplica su filtro
   // (clic de nuevo sobre el contador activo lo quita).
@@ -451,7 +456,14 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   // Contador "Cuentas": tabla completa de cuentas.
   function showAllAccounts() {
     setTab("accounts");
-    setAccountFilter(null); setQAccount("");
+    setAccountFilter(null); setQAccount(""); setFindingFilter(null);
+  }
+  // Clic en "Ver cuentas" de un hallazgo. Se limpia el filtro de contadores: combinar dos criterios
+  // sin avisar daría una tabla vacía sin explicación.
+  function drillDownFinding(f: AccessFinding) {
+    setTab("accounts");
+    setAccountFilter(null);
+    setFindingFilter({ key: f.key, title: f.title, principals: new Set(f.affected_principals) });
   }
 
   const scopeLevels = useMemo(
@@ -510,6 +522,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const filteredAccounts = useMemo(() => {
     const term = qAccount.trim().toLowerCase();
     return accounts.filter((a) => {
+      if (findingFilter && !findingFilter.principals.has(a.principal_object_id)) return false;
       if (accountFilter === "externas" && a.is_external !== true) return false;
       if (accountFilter === "owners_externos" && !(a.is_external === true && a.owner > 0)) return false;
       if (term) {
@@ -518,7 +531,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
       }
       return true;
     });
-  }, [accounts, accountFilter, qAccount]);
+  }, [accounts, accountFilter, qAccount, findingFilter]);
 
   // Mismo criterio que el KPI "guests_inactivos_con_permisos": inactivo sobre el umbral Y con roles RBAC.
   const filteredGuests = useMemo(() => {
@@ -853,6 +866,8 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                 onClick={toggleGuestsAlert} active={guestsOnlyAlert} />
             </div>
 
+            <FindingsPanel findings={findings} onDrillDown={drillDownFinding} />
+
             {sinClasificar && (
               <p className="text-sm rounded-lg border border-border px-3 py-2 text-muted-foreground">
                 Esta corrida es anterior a la clasificación de privilegio: las columnas de clase de rol
@@ -923,6 +938,14 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                       className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
                       aria-label={`Quitar filtro ${ACCOUNT_FILTER_LABEL[accountFilter]}`}>
                       {ACCOUNT_FILTER_LABEL[accountFilter]}
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                  {findingFilter && (
+                    <button type="button" onClick={() => setFindingFilter(null)}
+                      className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+                      aria-label={`Quitar filtro del hallazgo ${findingFilter.title}`}>
+                      Hallazgo: {findingFilter.title}
                       <X className="w-3 h-3" />
                     </button>
                   )}
