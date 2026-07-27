@@ -20,7 +20,10 @@ const A = (over: Partial<AccessAssignment>): AccessAssignment => ({
   via_group_id: null, via_group_name: null, account_enabled: true,
   last_sign_in: "2026-07-20T10:00:00Z", mfa_status: "enabled",
   decision: null, decision_note: null, decision_decided_by: null, decision_decided_at: null,
-  decision_runs_since: null, ...over,
+  decision_runs_since: null,
+  // Bloque 4: los dos los decide el backend (ambiente inferido del nombre de la suscripción, y
+  // "nuevo" según el delta contra la corrida anterior).
+  environment: "desconocido", is_new: false, ...over,
 });
 
 const C = (over: Partial<AccessAccount>): AccessAccount => ({
@@ -42,6 +45,12 @@ const F = (over: Partial<AccessFinding>): AccessFinding => ({
 const baseResp: AccessReviewResponse = {
   status: "ok", run_id: 7, started_at: null, finished_at: "2026-07-24T17:07:00Z",
   inactivity_days: 90, graph_complete: true,
+  delta: {
+    has_previous: true, previous_run_id: 6, previous_finished_at: "2026-06-24T17:07:00Z",
+    nuevos_accesos: 2, accesos_removidos: 1,
+    nuevos_global_admins: [], global_admins_removidos: [],
+    nuevos_guests: 0, guests_removidos: 0, nuevos_principals: ["u1"],
+  },
   kpis: {
     total_asignaciones: 3, global_admins: 0, global_admins_sin_mfa: 0, internos_sin_mfa: 0,
     cuentas_deshabilitadas: 0, cuentas_inactivas: 0, guests_total: 0, guests_inactivos: 0,
@@ -385,6 +394,120 @@ test("un hallazgo aceptado no aparece entre los abiertos", async () => {
   expect(await screen.findByText("Sin hallazgos abiertos en esta corrida")).toBeInTheDocument();
   fireEvent.click(screen.getByText(/1 aceptadas con justificación/));
   expect(await screen.findByText(/aceptado por Ana Perez/)).toBeInTheDocument();
+});
+
+// ── Delta entre corridas y ambiente (bloque 4) ─────────────
+
+const NUEVOS_HINT = /Accesos que no existían en la corrida anterior/;
+
+test("la franja muestra los conteos del delta y la fecha de la corrida comparada", async () => {
+  await renderPage();
+
+  expect(await screen.findByText("Cambios desde la corrida anterior")).toBeInTheDocument();
+  expect(screen.getByText("+2 accesos")).toBeInTheDocument();
+  expect(screen.getByText("−1 acceso")).toBeInTheDocument();
+  const fecha = new Date("2026-06-24T17:07:00Z").toLocaleDateString("es-EC");
+  expect(screen.getByText(`Comparado con la corrida del ${fecha}`)).toBeInTheDocument();
+  // Y la tira gana el contador "Nuevos".
+  expect(screen.getByTitle(NUEVOS_HINT)).toHaveTextContent("2");
+});
+
+test("la franja destaca los Global Admins nuevos y removidos", async () => {
+  resp.delta = { ...resp.delta!, nuevos_global_admins: ["Ana Perez"], global_admins_removidos: ["Beto Saliente"] };
+  await renderPage();
+
+  expect(await screen.findByText(/Global Admins nuevos: Ana Perez/)).toBeInTheDocument();
+  expect(screen.getByText(/Global Admins removidos: Beto Saliente/)).toBeInTheDocument();
+});
+
+test("sin corrida anterior lo dice y no muestra el contador Nuevos", async () => {
+  resp.delta = {
+    has_previous: false, previous_run_id: null, previous_finished_at: null,
+    nuevos_accesos: 0, accesos_removidos: 0, nuevos_global_admins: [], global_admins_removidos: [],
+    nuevos_guests: 0, guests_removidos: 0, nuevos_principals: [],
+  };
+  await renderPage();
+
+  expect(await screen.findByText(/Primera revisión de este cliente/)).toBeInTheDocument();
+  // "+0 / −0" se leería como "no cambió nada", que es distinto de "no hay con qué comparar".
+  expect(screen.queryByText("+0 accesos")).toBeNull();
+  expect(screen.queryByText("Cambios desde la corrida anterior")).toBeNull();
+  expect(screen.queryByTitle(NUEVOS_HINT)).toBeNull();
+});
+
+test("sin diferencias con la corrida anterior lo dice explícitamente", async () => {
+  resp.delta = { ...resp.delta!, nuevos_accesos: 0, accesos_removidos: 0, nuevos_principals: [] };
+  await renderPage();
+
+  expect(await screen.findByText("Sin cambios respecto de la corrida anterior.")).toBeInTheDocument();
+  expect(screen.queryByText("+0 accesos")).toBeNull();
+});
+
+test("el chip Nuevo aparece solo en las asignaciones nuevas, junto al de decisión", async () => {
+  resp.accounts = [];
+  resp.assignments = [
+    A({ principal_object_id: "u1", display_name: "Ana Perez", is_new: true }),
+    A({ principal_object_id: "u2", display_name: "Beto Antiguo" }),
+  ];
+  await renderPage();
+  await openTab(/asignaciones/i);
+
+  await screen.findByText("Beto Antiguo");
+  expect(screen.getAllByText("Nuevo")).toHaveLength(1);
+  // Convive con el chip de decisión: las dos filas siguen mostrando la suya.
+  expect(screen.getAllByText("Pendiente")).toHaveLength(2);
+});
+
+test("el filtro 'Solo nuevos' deja únicamente los accesos nuevos", async () => {
+  resp.accounts = [];
+  resp.assignments = [
+    A({ principal_object_id: "u1", display_name: "Ana Perez", is_new: true }),
+    A({ principal_object_id: "u2", display_name: "Beto Antiguo" }),
+  ];
+  await renderPage();
+  await openTab(/asignaciones/i);
+  await screen.findByText("Beto Antiguo");
+
+  fireEvent.click(screen.getByLabelText("Solo nuevos", { selector: "input" }));
+
+  expect(screen.getByText("Ana Perez")).toBeInTheDocument();
+  expect(screen.queryByText("Beto Antiguo")).toBeNull();
+});
+
+test("el contador Nuevos lleva a Asignaciones filtradas por lo nuevo", async () => {
+  resp.accounts = [];
+  resp.assignments = [
+    A({ principal_object_id: "u1", display_name: "Ana Perez", is_new: true }),
+    A({ principal_object_id: "u2", display_name: "Beto Antiguo" }),
+  ];
+  await renderPage();
+
+  fireEvent.click(await screen.findByTitle(NUEVOS_HINT));
+
+  expect(await screen.findByText("Ana Perez")).toBeInTheDocument();
+  expect(screen.queryByText("Beto Antiguo")).toBeNull();
+});
+
+test("el filtro por ambiente deja solo las asignaciones de ese ambiente", async () => {
+  resp.accounts = [];
+  resp.assignments = [
+    A({ principal_object_id: "u1", display_name: "Ana Perez", subscription_name: "SAPPRD", environment: "produccion" }),
+    A({ principal_object_id: "u2", display_name: "Beto Dev", subscription_name: "AnaliticaDEV", environment: "desarrollo" }),
+  ];
+  await renderPage();
+  await openTab(/asignaciones/i);
+
+  // La columna Ambiente muestra la etiqueta de cada uno (la clasificación viene del backend).
+  expect(await screen.findByText("Producción")).toBeInTheDocument();
+  expect(screen.getByText("Desarrollo")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: /filtros/i }));
+  const envTrigger = (await screen.findByText("Ambiente: todos")).closest("button")!;
+  fireEvent.keyDown(envTrigger, { key: "ArrowDown" });
+  fireEvent.click(await screen.findByRole("option", { name: "Producción" }));
+
+  expect(screen.getByText("Ana Perez")).toBeInTheDocument();
+  expect(screen.queryByText("Beto Dev")).toBeNull();
 });
 
 test("un hallazgo de umbral se acepta con nota obligatoria", async () => {

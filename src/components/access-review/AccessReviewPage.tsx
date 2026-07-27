@@ -8,9 +8,11 @@ import {
 import {
   Crown, ShieldOff, UserX, Clock3, UserCog, Layers, MoreHorizontal, RefreshCw, Download, History, Loader2, X,
   Users, ShieldAlert, KeyRound, Globe, Wrench, ChevronRight, ChevronDown, Filter, ClipboardCheck,
+  Sparkles,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
+import DeltaStrip from "@/components/access-review/DeltaStrip";
 import FindingsPanel from "@/components/access-review/FindingsPanel";
 import ClientHeader from "@/components/ClientHeader";
 import DataTablePagination from "@/components/DataTablePagination";
@@ -34,7 +36,7 @@ import {
 import {
   mfaChip, scopeLabel, graphStatusLabel, assignmentAlert, daysSince, principalTypeLabel,
   roleClassLabel, roleClassChip, externalLabel, externalChip, viaLabel, livesInTenant, distinctRoles,
-  decisionChip, decisionLabel, decisionSummary, decisionTitle,
+  decisionChip, decisionLabel, decisionSummary, decisionTitle, environmentLabel, environmentChip,
 } from "@/lib/accessReview";
 import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
 import { canEditModule } from "@/lib/auth";
@@ -168,6 +170,11 @@ const colGuest = createColumnHelper<AccessGuest>();
 
 const ROLE_CLASSES: Exclude<AccessRoleClass, null>[] =
   ["owner", "otorga_accesos", "escritura_total", "escritura_servicio", "lectura"];
+
+// Los cuatro valores que puede devolver la clasificación de ambiente del backend (inferida del
+// nombre de la suscripción). Fija, no derivada de la corrida: el filtro debe ofrecer "Producción"
+// aunque este cliente no tenga ninguna suscripción clasificada así.
+const ENVIRONMENTS = ["produccion", "preproduccion", "desarrollo", "desconocido"] as const;
 
 const mfaCell = (m: AccessAssignment["mfa_status"] | AccessGuest["mfa_status"] | AccessGlobalAdmin["mfa_status"]) => {
   const c = mfaChip(m);
@@ -320,7 +327,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   function selectClient(id: number) {
     writeActiveClient(id); setClientId(id);
     setKpiFilter(null); setGuestsOnlyAlert(false); setAccountFilter(null); setFindingFilter(null);
-    setFDecision("all");
+    setFDecision("all"); setFEnv("all"); setOnlyNew(false);
   }
 
   async function doSync() {
@@ -375,6 +382,9 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const guests = useMemo(() => resp?.guests ?? [], [resp]);
   const servicePrincipals = useMemo(() => assignments.filter((a) => a.principal_type === "ServicePrincipal"), [assignments]);
   const credentials = useMemo(() => resp?.credentials ?? [], [resp]);
+  // Delta contra la corrida anterior: lo calcula el backend. Sin corrida previa (has_previous false)
+  // no hay novedad que mostrar, y eso NO es "no cambió nada".
+  const delta = resp?.delta;
 
   // Corrida anterior a la clasificación de privilegio: sin re-sincronizar no hay clase que mostrar.
   const sinClasificar = useMemo(
@@ -442,6 +452,10 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const [fClass, setFClass] = useState("all");
   const [fExternal, setFExternal] = useState("all");
   const [fDecision, setFDecision] = useState<DecisionFilter>("all");
+  const [fEnv, setFEnv] = useState("all");
+  // "Solo nuevos" va en línea (no en el popover): en una revisión mensual es el primer filtro que se
+  // usa, porque lo que cambió es lo único que todavía nadie miró.
+  const [onlyNew, setOnlyNew] = useState(false);
 
   // ---- Drill-down desde los contadores ----
   const [tab, setTab] = useState("accounts");
@@ -475,7 +489,19 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   function clearAssignFilters() {
     setKpiFilter(null); setQ(""); setFScope("all"); setOnlyAlerts(false); setOnlyElevated(false);
     setFRole("all"); setFSub("all"); setFType("all"); setFClass("all"); setFExternal("all");
-    setFDecision("all");
+    setFDecision("all"); setFEnv("all"); setOnlyNew(false);
+  }
+  // Contador "Nuevos" (y la franja de cambios): lleva a Asignaciones con "solo nuevos". Limpia el
+  // filtro de otros contadores para no cruzar dos criterios y dejar una tabla vacía sin explicación.
+  function toggleOnlyNew() {
+    setTab("assignments");
+    setKpiFilter(null);
+    setOnlyNew((prev) => !prev);
+  }
+  function showNewAssignments() {
+    setTab("assignments");
+    setKpiFilter(null);
+    setOnlyNew(true);
   }
   // Contador "Pendientes": la cola de trabajo. Lleva a Asignaciones con el filtro de decisión en
   // "Pendientes" y limpia el filtro de otros contadores (cruzar dos criterios daría una tabla vacía
@@ -514,7 +540,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   );
 
   // Filtros secundarios activos: alimenta el contador del botón "Filtros".
-  const secondaryFilters = [fRole, fSub, fType, fClass, fExternal, fScope, fDecision].filter((v) => v !== "all").length;
+  const secondaryFilters = [fRole, fSub, fType, fClass, fExternal, fScope, fDecision, fEnv].filter((v) => v !== "all").length;
 
   const filteredAssignments = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -547,12 +573,14 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
       if (fDecision !== "all") {
         if (fDecision === "pendiente" ? a.decision !== null : a.decision !== fDecision) return false;
       }
+      if (fEnv !== "all" && a.environment !== fEnv) return false;
+      if (onlyNew && !a.is_new) return false;
       if (onlyElevated && !a.is_elevated) return false;
       if (onlyAlerts && !assignmentAlert(a, dias) && !isOrphanAssignment(a)) return false;
       return true;
     });
-  }, [assignments, q, fScope, fRole, fSub, fType, fClass, fExternal, fDecision, onlyAlerts, onlyElevated,
-      dias, kpiFilter, isOrphanAssignment]);
+  }, [assignments, q, fScope, fRole, fSub, fType, fClass, fExternal, fDecision, fEnv, onlyNew,
+      onlyAlerts, onlyElevated, dias, kpiFilter, isOrphanAssignment]);
 
   const filteredAccounts = useMemo(() => {
     const term = qAccount.trim().toLowerCase();
@@ -654,13 +682,33 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     colAssign.accessor((a) => a.decision ?? "", {
       id: "decision", header: "Decisión",
       cell: (c) => (
-        <span title={decisionTitle(c.row.original)}
-          className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${decisionChip(c.row.original.decision)}`}>
-          {decisionLabel(c.row.original.decision)}
+        // El chip "Nuevo" convive con el de decisión: un acceso nuevo casi siempre está pendiente, y
+        // saber que apareció entre dos revisiones es justo lo que cambia cómo se lo revisa.
+        <span className="inline-flex items-center gap-1 flex-wrap">
+          <span title={decisionTitle(c.row.original)}
+            className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${decisionChip(c.row.original.decision)}`}>
+            {decisionLabel(c.row.original.decision)}
+          </span>
+          {c.row.original.is_new && (
+            <span title="Este acceso no existía en la corrida anterior."
+              className="text-xs px-2 py-0.5 rounded-full whitespace-nowrap bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+              Nuevo
+            </span>
+          )}
         </span>
       ),
     }),
     colAssign.accessor((a) => a.subscription_name || a.subscription_id, { id: "subscription", header: "Suscripción" }),
+    // El ambiente lo infiere el backend del nombre de la suscripción (el front no clasifica nada).
+    colAssign.accessor((a) => environmentLabel(a.environment), {
+      id: "environment", header: "Ambiente",
+      cell: (c) => (
+        <span title="Inferido del nombre de la suscripción."
+          className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${environmentChip(c.row.original.environment)}`}>
+          {environmentLabel(c.row.original.environment)}
+        </span>
+      ),
+    }),
     colAssign.accessor("role_name", { header: "Rol" }),
     colAssign.accessor((a) => a.role_class ?? "", {
       id: "role_class", header: "Clase de rol",
@@ -950,6 +998,14 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                 hint="Clic para ver todas las cuentas" onClick={showAllAccounts} active={tab === "accounts" && !accountFilter} />
               <Counter icon={<Layers className="w-4 h-4" />} label="Asignaciones" value={String(totalAsign)} accent="#606161"
                 hint="Clic para ver todas las asignaciones (limpia los filtros)" onClick={showAllAssignments} />
+              {/* "Nuevos" solo depende de ARM y de que exista corrida previa: nunca va en "no medido".
+                  Sin corrida anterior no se muestra — un 0 ahí se leería como "no cambió nada". */}
+              {delta?.has_previous && (
+                <Counter icon={<Sparkles className="w-4 h-4" />} label="Nuevos" value={String(delta.nuevos_accesos)}
+                  accent={delta.nuevos_accesos > 0 ? "#d9a82a" : "#70b043"}
+                  hint="Accesos que no existían en la corrida anterior. Clic para verlos en Asignaciones."
+                  onClick={toggleOnlyNew} active={tab === "assignments" && onlyNew} />
+              )}
               <Counter icon={<ShieldAlert className="w-4 h-4" />} label="% elevadas" value={`${pctElevadas}%`}
                 accent={pctElevadas >= 25 ? "#a53b35" : "#d9a82a"}
                 hint="Owner, Otorga accesos y Escritura total sobre el total de asignaciones. Clic para filtrarlas."
@@ -996,6 +1052,8 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                 hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : "Clic para filtrar los guests inactivos con permisos"}
                 onClick={toggleGuestsAlert} active={guestsOnlyAlert} />
             </div>
+
+            <DeltaStrip delta={delta} onShowNew={showNewAssignments} />
 
             <FindingsPanel findings={findings} onDrillDown={drillDownFinding}
               onAccept={editable ? acceptFinding : undefined} />
@@ -1132,6 +1190,13 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                           {subs.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
                         </SelectContent>
                       </Select>
+                      <Select value={fEnv} onValueChange={setFEnv}>
+                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Ambiente: todos</SelectItem>
+                          {ENVIRONMENTS.map((e) => <SelectItem key={e} value={e}>{environmentLabel(e)}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                       <Select value={fType} onValueChange={setFType}>
                         <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -1167,12 +1232,20 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                       </Select>
                       {secondaryFilters > 0 && (
                         <Button variant="ghost" size="sm" className="w-full h-8"
-                          onClick={() => { setFClass("all"); setFRole("all"); setFSub("all"); setFType("all"); setFExternal("all"); setFScope("all"); setFDecision("all"); }}>
+                          onClick={() => { setFClass("all"); setFRole("all"); setFSub("all"); setFType("all"); setFExternal("all"); setFScope("all"); setFDecision("all"); setFEnv("all"); }}>
                           Limpiar filtros
                         </Button>
                       )}
                     </PopoverContent>
                   </Popover>
+                  {/* En línea, no en el popover: en una revisión mensual "qué cambió" es lo primero
+                      que se filtra. Sin corrida anterior no se ofrece (nada sería nuevo). */}
+                  {delta?.has_previous && (
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+                      <input type="checkbox" checked={onlyNew} onChange={(e) => setOnlyNew(e.target.checked)} className="accent-primary h-4 w-4" />
+                      Solo nuevos
+                    </label>
+                  )}
                   <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
                     <input type="checkbox" checked={onlyElevated} onChange={(e) => setOnlyElevated(e.target.checked)} className="accent-primary h-4 w-4" />
                     Solo elevados

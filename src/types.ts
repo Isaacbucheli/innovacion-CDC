@@ -1010,6 +1010,11 @@ export interface AccessAssignment {
   decision_decided_at: string | null;
   /** Corridas transcurridas desde que se decidió. 0 = se decidió en la corrida actual. */
   decision_runs_since: number | null;
+  /** produccion | preproduccion | desarrollo | desconocido. Inferido del nombre de la suscripción
+   *  por el backend: el front no clasifica ambientes, solo presenta. */
+  environment: string;
+  /** El acceso no existía en la corrida anterior (lo decide el delta del backend). */
+  is_new: boolean;
 }
 
 export interface AccessGuest {
@@ -1044,6 +1049,23 @@ export interface AccessReviewRun {
   requested_by: string | null;
 }
 
+/** Cambios respecto de la corrida anterior. Lo calcula el backend comparando snapshots completos:
+ *  el front no diferencia nada, solo presenta. `has_previous: false` es la primera corrida del
+ *  cliente — no hay novedad que mostrar, que no es lo mismo que "no cambió nada". */
+export interface AccessReviewDelta {
+  has_previous: boolean;
+  previous_run_id: number | null;
+  previous_finished_at: string | null;
+  nuevos_accesos: number;
+  accesos_removidos: number;
+  nuevos_global_admins: string[];
+  global_admins_removidos: string[];
+  nuevos_guests: number;
+  guests_removidos: number;
+  /** Principals con al menos un acceso nuevo: para filtrar la pestaña Cuentas. */
+  nuevos_principals: string[];
+}
+
 export interface AccessReviewResponse {
   status: "none" | "queued" | "running" | "ok" | "partial" | "error";
   run_id?: number;
@@ -1052,6 +1074,7 @@ export interface AccessReviewResponse {
   inactivity_days?: number;
   /** Lo decide el backend: si la fase Graph se leyó completa para todas las credenciales. */
   graph_complete?: boolean;
+  delta?: AccessReviewDelta;
   kpis?: AccessReviewKpis;
   findings?: AccessFinding[];
   credentials?: AccessCredentialStatus[];

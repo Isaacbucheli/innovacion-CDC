@@ -15,6 +15,12 @@ if (!window.matchMedia) {
     }) as unknown as MediaQueryList;
 }
 
+// Radix UI Select enfoca el item activo con scrollIntoView, que jsdom no implementa: sin este
+// stub, abrir un Select en un test tira "candidate?.scrollIntoView is not a function".
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
+
 // Radix UI DropdownMenu usa PointerEvent que jsdom no implementa completamente.
 if (typeof window.PointerEvent === "undefined") {
   class PointerEvent extends MouseEvent {

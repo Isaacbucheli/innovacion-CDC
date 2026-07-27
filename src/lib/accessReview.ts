@@ -58,6 +58,28 @@ export function externalChip(v: boolean | null): string {
     : "bg-muted text-muted-foreground";
 }
 
+/** Ambiente de la suscripción. Lo clasifica el backend a partir del nombre (es una inferencia):
+ *  acá solo se etiqueta. "Sin identificar" es honesto — el nombre no permitió deducirlo. */
+export function environmentLabel(env: string): string {
+  switch (env) {
+    case "produccion": return "Producción";
+    case "preproduccion": return "Preproducción";
+    case "desarrollo": return "Desarrollo";
+    default: return "Sin identificar";
+  }
+}
+
+/** Producción en rojo tenue (un permiso ahí pesa más), preproducción en ámbar, desarrollo neutro
+ *  y sin identificar en gris. */
+export function environmentChip(env: string): string {
+  switch (env) {
+    case "produccion": return "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300";
+    case "preproduccion": return "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300";
+    case "desarrollo": return "bg-muted text-foreground";
+    default: return "bg-muted/50 text-muted-foreground";
+  }
+}
+
 export function viaLabel(v: string): string {
   switch (v) {
     case "directo": return "Directo";
