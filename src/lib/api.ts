@@ -74,6 +74,7 @@ import type {
   FindingState,
   AccessReviewResponse,
   AccessReviewRun,
+  AccessDecisionItem,
 } from "@/types";
 import { clearSession, getToken, setEmail, setSession } from "@/lib/auth";
 
@@ -558,6 +559,16 @@ export const syncAccessReview = (clientId: number) =>
   request<{ run_id?: number; status: string }>(`/cdc/clients/${clientId}/access-review/sync`, { method: "POST" });
 export const listAccessReviewRuns = (clientId: number) =>
   request<AccessReviewRun[]>(`/cdc/clients/${clientId}/access-review/runs`);
+/** Guarda un lote de decisiones (mantener/revocar/justificado) sobre accesos efectivos.
+ *  La clave de la decisión la calcula el backend con principal + rol + scope. */
+export const saveAccessDecisions = (clientId: number, items: AccessDecisionItem[]) =>
+  request<{ saved: number }>(
+    `/cdc/clients/${clientId}/access-review/decisions`, jsonOpts("POST", { items }));
+/** Acepta un hallazgo de umbral (los que no tienen accesos individuales que marcar). Nota obligatoria. */
+export const acceptAccessFinding = (clientId: number, findingKey: string, note: string) =>
+  request<{ saved: number }>(
+    `/cdc/clients/${clientId}/access-review/findings/${encodeURIComponent(findingKey)}/accept`,
+    jsonOpts("POST", { note }));
 // Export Excel: usar downloadFromApi(`/cdc/clients/${id}/access-review/export?inactivity_days=${d}`, fileName)
 
 // ---- Sesión Azure de usuario (Lighthouse: device code + selección de suscripciones) ----

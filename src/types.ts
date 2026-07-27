@@ -891,6 +891,22 @@ export interface AccessReviewKpis {
   cuentas_externas: number;
   owners_externos: number;
   roles_personalizados: number;
+  /** Accesos con alerta y sin decisión registrada: la cola de trabajo real del módulo.
+   *  Solo depende de ARM + decisiones, así que se mide aunque la fase Graph haya fallado. */
+  pendientes_de_revisar: number;
+}
+
+/** Decisión registrada sobre un acceso efectivo (o sobre un hallazgo de umbral). */
+export type AccessDecisionValue = "mantener" | "revocar" | "justificado";
+
+/** Ítem del lote que se manda a guardar. La clave de la decisión la calcula el backend a partir de
+ *  principal + rol + scope: el front nunca la deriva. */
+export interface AccessDecisionItem {
+  principal_object_id: string;
+  role_definition_id: string;
+  scope: string;
+  decision: AccessDecisionValue;
+  note?: string | null;
 }
 
 /** owner | otorga_accesos | escritura_total | escritura_servicio | lectura, o null si no se pudo clasificar. */
@@ -918,6 +934,12 @@ export interface AccessFinding {
   /** Ids de principal afectados: el front filtra la tabla de Cuentas por esta lista. Vacío en las
    *  reglas de práctica (porcentajes), que no tienen culpables individuales. */
   affected_principals: string[];
+  /** Aceptación a nivel de hallazgo: solo para las reglas de umbral, que no tienen accesos
+   *  individuales que marcar. Un hallazgo aceptado deja de estar abierto. */
+  accepted: boolean;
+  accepted_note: string | null;
+  accepted_by: string | null;
+  accepted_at: string | null;
 }
 
 /** Una cuenta (principal) con sus asignaciones efectivas agregadas — la agregación la hace el backend. */
@@ -943,6 +965,11 @@ export interface AccessAccount {
   last_sign_in: string | null;
   mfa_status: "enabled" | "disabled" | "unavailable" | null;
   orphan: boolean;
+  /** Resumen de decisiones de los accesos de esta cuenta (lo agrega el backend). */
+  decision_pendientes: number;
+  decision_mantener: number;
+  decision_revocar: number;
+  decision_justificado: number;
 }
 
 export interface AccessCredentialStatus {
@@ -975,6 +1002,14 @@ export interface AccessAssignment {
   account_enabled: boolean | null;
   last_sign_in: string | null;
   mfa_status: "enabled" | "disabled" | "unavailable" | null;
+  /** Decisión vigente sobre este acceso (vive por cliente, no por corrida: sobrevive a la
+   *  re-sincronización). null = pendiente. */
+  decision: AccessDecisionValue | null;
+  decision_note: string | null;
+  decision_decided_by: string | null;
+  decision_decided_at: string | null;
+  /** Corridas transcurridas desde que se decidió. 0 = se decidió en la corrida actual. */
+  decision_runs_since: number | null;
 }
 
 export interface AccessGuest {

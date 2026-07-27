@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner";
 import {
   createColumnHelper, flexRender, getCoreRowModel, getExpandedRowModel, getPaginationRowModel,
-  getSortedRowModel, useReactTable, type ExpandedState, type SortingState, type Table as RTTable,
+  getSortedRowModel, useReactTable, type ExpandedState, type RowSelectionState, type SortingState,
+  type Table as RTTable,
 } from "@tanstack/react-table";
 import {
   Crown, ShieldOff, UserX, Clock3, UserCog, Layers, MoreHorizontal, RefreshCw, Download, History, Loader2, X,
-  Users, ShieldAlert, KeyRound, Globe, Wrench, ChevronRight, ChevronDown, Filter,
+  Users, ShieldAlert, KeyRound, Globe, Wrench, ChevronRight, ChevronDown, Filter, ClipboardCheck,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
@@ -21,22 +22,25 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   listClientsAdmin, getAccessReview, syncAccessReview, listAccessReviewRuns, downloadFromApi,
+  saveAccessDecisions, acceptAccessFinding,
 } from "@/lib/api";
 import {
   mfaChip, scopeLabel, graphStatusLabel, assignmentAlert, daysSince, principalTypeLabel,
   roleClassLabel, roleClassChip, externalLabel, externalChip, viaLabel, livesInTenant, distinctRoles,
+  decisionChip, decisionLabel, decisionSummary, decisionTitle,
 } from "@/lib/accessReview";
 import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
 import { canEditModule } from "@/lib/auth";
 import type {
-  ClientAdmin, AccessAccount, AccessAssignment, AccessFinding, AccessGlobalAdmin, AccessGuest,
-  AccessReviewResponse, AccessReviewRun, AccessRoleClass,
+  ClientAdmin, AccessAccount, AccessAssignment, AccessDecisionValue, AccessFinding, AccessGlobalAdmin,
+  AccessGuest, AccessReviewResponse, AccessReviewRun, AccessRoleClass,
 } from "@/types";
 
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
@@ -115,7 +119,12 @@ function DataTableBlock<T>({ table, emptyText, rowClassName, subRow }: {
               <TableRow key={hg.id}>
                 {hg.headers.map((h) => (
                   <TableHead key={h.id}>
-                    {h.isPlaceholder ? null : <DataTableColumnHeader column={h.column} title={String(h.column.columnDef.header)} />}
+                    {/* Cabeceras con nodo (la de selección múltiple) se renderizan tal cual:
+                        DataTableColumnHeader espera un título de texto. */}
+                    {h.isPlaceholder ? null
+                      : typeof h.column.columnDef.header === "string"
+                        ? <DataTableColumnHeader column={h.column} title={h.column.columnDef.header} />
+                        : flexRender(h.column.columnDef.header, h.getContext())}
                   </TableHead>
                 ))}
               </TableRow>
@@ -200,6 +209,17 @@ type KpiAccountFilter = "externas" | "owners_externos";
 const ACCOUNT_FILTER_LABEL: Record<KpiAccountFilter, string> = {
   externas: "Cuentas externas",
   owners_externos: "Externas con Owner",
+};
+
+/** Filtro por decisión sobre Asignaciones. "pendiente" (sin decisión registrada) es la cola de
+ *  trabajo real del módulo, y es a donde apunta el contador "Pendientes". */
+type DecisionFilter = "all" | "pendiente" | AccessDecisionValue;
+
+const DECISION_FILTER_LABEL: Record<Exclude<DecisionFilter, "all">, string> = {
+  pendiente: "Pendientes",
+  mantener: "Mantener",
+  revocar: "Revocar",
+  justificado: "Justificado",
 };
 
 export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: string) => void }) {
@@ -300,6 +320,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   function selectClient(id: number) {
     writeActiveClient(id); setClientId(id);
     setKpiFilter(null); setGuestsOnlyAlert(false); setAccountFilter(null); setFindingFilter(null);
+    setFDecision("all");
   }
 
   async function doSync() {
@@ -408,6 +429,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const externas = resp?.kpis?.cuentas_externas ?? 0;
   const ownersExternos = resp?.kpis?.owners_externos ?? 0;
   const rolesCustom = resp?.kpis?.roles_personalizados ?? 0;
+  const pendientes = resp?.kpis?.pendientes_de_revisar ?? 0;
 
   // ---- Filtros de negocio sobre Asignaciones (point 7) ----
   const [q, setQ] = useState("");
@@ -419,6 +441,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const [fType, setFType] = useState("all");
   const [fClass, setFClass] = useState("all");
   const [fExternal, setFExternal] = useState("all");
+  const [fDecision, setFDecision] = useState<DecisionFilter>("all");
 
   // ---- Drill-down desde los contadores ----
   const [tab, setTab] = useState("accounts");
@@ -452,6 +475,15 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   function clearAssignFilters() {
     setKpiFilter(null); setQ(""); setFScope("all"); setOnlyAlerts(false); setOnlyElevated(false);
     setFRole("all"); setFSub("all"); setFType("all"); setFClass("all"); setFExternal("all");
+    setFDecision("all");
+  }
+  // Contador "Pendientes": la cola de trabajo. Lleva a Asignaciones con el filtro de decisión en
+  // "Pendientes" y limpia el filtro de otros contadores (cruzar dos criterios daría una tabla vacía
+  // sin explicación).
+  function togglePendientes() {
+    setTab("assignments");
+    setKpiFilter(null);
+    setFDecision((prev) => (prev === "pendiente" ? "all" : "pendiente"));
   }
   // Contador "Cuentas": tabla completa de cuentas.
   function showAllAccounts() {
@@ -482,7 +514,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   );
 
   // Filtros secundarios activos: alimenta el contador del botón "Filtros".
-  const secondaryFilters = [fRole, fSub, fType, fClass, fExternal, fScope].filter((v) => v !== "all").length;
+  const secondaryFilters = [fRole, fSub, fType, fClass, fExternal, fScope, fDecision].filter((v) => v !== "all").length;
 
   const filteredAssignments = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -512,11 +544,14 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
         const wanted = fExternal === "externa" ? true : fExternal === "interna" ? false : null;
         if (a.is_external !== wanted) return false;
       }
+      if (fDecision !== "all") {
+        if (fDecision === "pendiente" ? a.decision !== null : a.decision !== fDecision) return false;
+      }
       if (onlyElevated && !a.is_elevated) return false;
       if (onlyAlerts && !assignmentAlert(a, dias) && !isOrphanAssignment(a)) return false;
       return true;
     });
-  }, [assignments, q, fScope, fRole, fSub, fType, fClass, fExternal, onlyAlerts, onlyElevated,
+  }, [assignments, q, fScope, fRole, fSub, fType, fClass, fExternal, fDecision, onlyAlerts, onlyElevated,
       dias, kpiFilter, isOrphanAssignment]);
 
   const filteredAccounts = useMemo(() => {
@@ -582,6 +617,11 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
       cell: (c) => chip(externalChip(c.row.original.is_external), externalLabel(c.row.original.is_external)),
     }),
     colAccount.accessor("total_assignments", { header: "Accesos", cell: (c) => <span className="tabular-nums">{c.getValue()}</span> }),
+    // Resumen de decisiones de la cuenta: el detalle por acceso está en Asignaciones.
+    colAccount.accessor((a) => a.decision_pendientes, {
+      id: "decision", header: "Decisión",
+      cell: (c) => <span className="text-xs">{decisionSummary(c.row.original)}</span>,
+    }),
     colAccount.accessor("owner", { header: "Owner", cell: (c) => <span className="tabular-nums">{c.getValue() || "—"}</span> }),
     colAccount.accessor("otorga_accesos", { header: "Otorga", cell: (c) => <span className="tabular-nums">{c.getValue() || "—"}</span> }),
     colAccount.accessor("escritura_total", { header: "Escritura total", cell: (c) => <span className="tabular-nums">{c.getValue() || "—"}</span> }),
@@ -593,6 +633,33 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   ], []);
 
   const assignColumns = useMemo(() => [
+    // Selección múltiple para decidir por lote (6013 accesos en el cliente más grande: marcar de a
+    // uno no escala). Solo con permiso de edición: sin él no hay nada que hacer con la selección.
+    ...(editable ? [colAssign.display({
+      id: "select",
+      header: ({ table }) => (
+        <input type="checkbox" className="accent-primary h-4 w-4 align-middle cursor-pointer"
+          aria-label="Seleccionar las asignaciones de esta página"
+          checked={table.getIsAllPageRowsSelected()}
+          onChange={(e) => table.toggleAllPageRowsSelected(e.target.checked)} />
+      ),
+      cell: (c) => (
+        <input type="checkbox" className="accent-primary h-4 w-4 align-middle cursor-pointer"
+          aria-label={`Seleccionar la asignación de ${c.row.original.display_name || c.row.original.principal_object_id} (${c.row.original.role_name})`}
+          checked={c.row.getIsSelected()} onChange={c.row.getToggleSelectedHandler()} />
+      ),
+    })] : []),
+    // Decisión vigente: vive por cliente, así que sobrevive a la re-sincronización. El title agrega
+    // responsable, fecha, nota y el arrastre de un "revocar" que sigue vivo desde corridas anteriores.
+    colAssign.accessor((a) => a.decision ?? "", {
+      id: "decision", header: "Decisión",
+      cell: (c) => (
+        <span title={decisionTitle(c.row.original)}
+          className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${decisionChip(c.row.original.decision)}`}>
+          {decisionLabel(c.row.original.decision)}
+        </span>
+      ),
+    }),
     colAssign.accessor((a) => a.subscription_name || a.subscription_id, { id: "subscription", header: "Suscripción" }),
     colAssign.accessor("role_name", { header: "Rol" }),
     colAssign.accessor((a) => a.role_class ?? "", {
@@ -626,7 +693,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     }),
     colAssign.accessor((a) => a.last_sign_in ?? "", { id: "last_sign_in", header: "Último login", cell: (c) => dateOrDash(c.row.original.last_sign_in) }),
     colAssign.accessor((a) => a.mfa_status ?? "", { id: "mfa", header: "MFA", cell: (c) => mfaCell(c.row.original.mfa_status) }),
-  ], [isOrphanAssignment]);
+  ], [isOrphanAssignment, editable]);
 
   const spColumns = useMemo(() => [
     colAssign.accessor((a) => a.subscription_name || a.subscription_id, { id: "subscription", header: "Suscripción" }),
@@ -724,13 +791,72 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   }, [assignments]);
 
   const [assignSorting, setAssignSorting] = useState<SortingState>([]);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const assignTable = useReactTable({
     data: filteredAssignments, columns: assignColumns,
-    state: { sorting: assignSorting }, onSortingChange: setAssignSorting,
+    state: { sorting: assignSorting, rowSelection },
+    onSortingChange: setAssignSorting, onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
+    // El índice va en el id porque una misma cuenta puede tener el mismo rol en el mismo scope por
+    // dos vías (directa y por grupo): sin él habría ids repetidos.
+    getRowId: (a, i) => `${i}|${a.principal_object_id}|${a.role_definition_id}|${a.scope}`,
     enableColumnFilters: false,
     getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
+
+  // Los ids de fila dependen del índice dentro del conjunto filtrado: si el filtro (o el snapshot)
+  // cambia, una selección vieja apuntaría a otras filas. Se descarta.
+  useEffect(() => { setRowSelection({}); }, [filteredAssignments]);
+
+  const selectedCount = Object.values(rowSelection).filter(Boolean).length;
+
+  // ---- Decisión por acceso (bloque 3) ----
+  const [savingDecision, setSavingDecision] = useState(false);
+  const [justifyOpen, setJustifyOpen] = useState(false);
+  const [justifyNote, setJustifyNote] = useState("");
+
+  // Guarda la decisión del lote seleccionado. La clave (principal + rol + scope) la calcula el
+  // backend: acá solo se manda el trío crudo de cada fila.
+  async function applyDecision(decision: AccessDecisionValue, note?: string) {
+    if (clientId == null) return;
+    const rows = assignTable.getSelectedRowModel().rows.map((r) => r.original);
+    if (rows.length === 0) return;
+    setSavingDecision(true);
+    try {
+      const res = await saveAccessDecisions(clientId, rows.map((a) => ({
+        principal_object_id: a.principal_object_id,
+        role_definition_id: a.role_definition_id,
+        scope: a.scope,
+        decision,
+        note: note ?? null,
+      })));
+      const n = res?.saved ?? rows.length;
+      toast.success(n === 1 ? "1 decisión guardada." : `${n} decisiones guardadas.`);
+      setRowSelection({});
+      setJustifyOpen(false);
+      setJustifyNote("");
+      load(clientId, dias, { silent: true });
+    } catch (e) {
+      toast.error(`No se pudieron guardar las decisiones: ${msg(e)}`);
+    } finally {
+      if (mounted.current) setSavingDecision(false);
+    }
+  }
+
+  // Aceptación de un hallazgo de umbral. Se relanza el error para que el diálogo del panel quede
+  // abierto con la nota escrita.
+  const acceptFinding = useCallback(async (f: AccessFinding, note: string) => {
+    if (clientId == null) return;
+    try {
+      await acceptAccessFinding(clientId, f.key, note);
+    } catch (e) {
+      toast.error(`No se pudo aceptar el hallazgo: ${msg(e)}`);
+      throw e;
+    }
+    toast.success(`Hallazgo aceptado: ${f.title}`);
+    load(clientId, dias, { silent: true });
+  }, [clientId, dias, load]);
 
   const [spSorting, setSpSorting] = useState<SortingState>([]);
   const spTable = useReactTable({
@@ -844,6 +970,11 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                 accent={rolesCustom > 0 ? "#d9a82a" : "#606161"}
                 hint="Definiciones de rol personalizadas en uso. Clic para filtrar sus asignaciones."
                 onClick={() => toggleKpiFilter("personalizados")} active={kpiFilter === "personalizados"} />
+              {/* Pendientes solo depende de ARM + decisiones: nunca va en "no medido". */}
+              <Counter icon={<ClipboardCheck className="w-4 h-4" />} label="Pendientes" value={String(pendientes)}
+                accent={pendientes > 0 ? "#d9a82a" : "#70b043"}
+                hint="Accesos con alerta y sin decisión registrada. Clic para revisarlos en Asignaciones."
+                onClick={togglePendientes} active={tab === "assignments" && fDecision === "pendiente"} />
               <Counter icon={<Crown className="w-4 h-4" />} label="Global Admins"
                 value={graphIncomplete ? "n/d" : String(gaCount)} accent={gaAccent} muted={graphIncomplete}
                 hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : "Clic para ver la pestaña Global Admins"}
@@ -866,7 +997,8 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                 onClick={toggleGuestsAlert} active={guestsOnlyAlert} />
             </div>
 
-            <FindingsPanel findings={findings} onDrillDown={drillDownFinding} />
+            <FindingsPanel findings={findings} onDrillDown={drillDownFinding}
+              onAccept={editable ? acceptFinding : undefined} />
 
             {sinClasificar && (
               <p className="text-sm rounded-lg border border-border px-3 py-2 text-muted-foreground">
@@ -1023,9 +1155,19 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                           {scopeLevels.map((lvl) => <SelectItem key={lvl} value={lvl}>{scopeLabel(lvl)}</SelectItem>)}
                         </SelectContent>
                       </Select>
+                      <Select value={fDecision} onValueChange={(v) => setFDecision(v as DecisionFilter)}>
+                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Decisión: todas</SelectItem>
+                          <SelectItem value="pendiente">Pendientes</SelectItem>
+                          <SelectItem value="mantener">Mantener</SelectItem>
+                          <SelectItem value="revocar">Revocar</SelectItem>
+                          <SelectItem value="justificado">Justificado</SelectItem>
+                        </SelectContent>
+                      </Select>
                       {secondaryFilters > 0 && (
                         <Button variant="ghost" size="sm" className="w-full h-8"
-                          onClick={() => { setFClass("all"); setFRole("all"); setFSub("all"); setFType("all"); setFExternal("all"); setFScope("all"); }}>
+                          onClick={() => { setFClass("all"); setFRole("all"); setFSub("all"); setFType("all"); setFExternal("all"); setFScope("all"); setFDecision("all"); }}>
                           Limpiar filtros
                         </Button>
                       )}
@@ -1047,10 +1189,43 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                       <X className="w-3 h-3" />
                     </button>
                   )}
+                  {fDecision !== "all" && (
+                    <button type="button" onClick={() => setFDecision("all")}
+                      className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+                      aria-label={`Quitar filtro de decisión ${DECISION_FILTER_LABEL[fDecision]}`}>
+                      Decisión: {DECISION_FILTER_LABEL[fDecision]}
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
                   <div className="text-xs text-muted-foreground ml-auto">
                     {assignments.length ? `${filteredAssignments.length} de ${assignments.length} asignaciones` : ""}
                   </div>
                 </div>
+                {/* Barra de decisión por lote: aparece solo con filas seleccionadas. Marcar no revoca
+                    nada en Azure (el módulo es de lectura): registra la decisión con responsable y fecha. */}
+                {editable && selectedCount > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+                    <span className="text-sm">
+                      {selectedCount === 1 ? "1 asignación seleccionada" : `${selectedCount} asignaciones seleccionadas`}
+                    </span>
+                    <Button size="sm" variant="outline" className="h-8" disabled={savingDecision}
+                      onClick={() => applyDecision("mantener")}>
+                      Mantener
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-8" disabled={savingDecision}
+                      onClick={() => applyDecision("revocar")}>
+                      Revocar
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-8" disabled={savingDecision}
+                      onClick={() => { setJustifyNote(""); setJustifyOpen(true); }}>
+                      Justificar
+                    </Button>
+                    <button type="button" onClick={() => setRowSelection({})}
+                      className="text-xs text-muted-foreground hover:text-foreground ml-auto">
+                      Quitar selección
+                    </button>
+                  </div>
+                )}
                 <DataTableBlock
                   table={assignTable}
                   emptyText={assignments.length ? "Sin asignaciones que coincidan con los filtros." : "Este cliente no tiene asignaciones RBAC activas registradas."}
@@ -1092,6 +1267,35 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
           </>
         )}
       </div>
+
+      {/* Justificar exige nota: es la única decisión que baja el conteo de los hallazgos, así que
+          queda con motivo, responsable y fecha. */}
+      <Dialog open={justifyOpen} onOpenChange={setJustifyOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Justificar los accesos seleccionados</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {selectedCount === 1
+                ? "1 asignación quedará marcada como justificada."
+                : `${selectedCount} asignaciones quedarán marcadas como justificadas.`}{" "}
+              La nota es obligatoria: se guarda con tu usuario y la fecha, y estos accesos salen del
+              conteo de los hallazgos.
+            </p>
+            <Textarea value={justifyNote} onChange={(e) => setJustifyNote(e.target.value)} rows={4}
+              aria-label="Nota de justificación"
+              placeholder="Motivo por el que estos accesos se mantienen…" />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setJustifyOpen(false)}>Cancelar</Button>
+              <Button disabled={!justifyNote.trim() || savingDecision}
+                onClick={() => applyDecision("justificado", justifyNote.trim())}>
+                Guardar justificación
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">

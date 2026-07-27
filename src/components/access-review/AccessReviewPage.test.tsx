@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ThemeProvider } from "next-themes";
 import { beforeEach, expect, test, vi } from "vitest";
+import { setSession } from "@/lib/auth";
 import type {
-  AccessAccount, AccessAssignment, AccessFinding, AccessReviewResponse, ClientAdmin,
+  AccessAccount, AccessAssignment, AccessDecisionItem, AccessFinding, AccessReviewResponse, ClientAdmin,
 } from "@/types";
 
 const clients: ClientAdmin[] = [{
@@ -17,7 +18,9 @@ const A = (over: Partial<AccessAssignment>): AccessAssignment => ({
   principal_object_id: "u1",
   principal_type: "User", display_name: "Ana", login: "ana@x.com", user_type: "Member",
   via_group_id: null, via_group_name: null, account_enabled: true,
-  last_sign_in: "2026-07-20T10:00:00Z", mfa_status: "enabled", ...over,
+  last_sign_in: "2026-07-20T10:00:00Z", mfa_status: "enabled",
+  decision: null, decision_note: null, decision_decided_by: null, decision_decided_at: null,
+  decision_runs_since: null, ...over,
 });
 
 const C = (over: Partial<AccessAccount>): AccessAccount => ({
@@ -25,13 +28,15 @@ const C = (over: Partial<AccessAccount>): AccessAccount => ({
   user_type: "Member", is_external: false, total_assignments: 1, owner: 0, otorga_accesos: 0,
   escritura_total: 0, escritura_servicio: 0, lectura: 1, sin_clasificar: 0, subscriptions: 1,
   broadest_scope_level: "subscription", via: "directo", account_enabled: true,
-  last_sign_in: "2026-07-20T10:00:00Z", mfa_status: "enabled", orphan: false, ...over,
+  last_sign_in: "2026-07-20T10:00:00Z", mfa_status: "enabled", orphan: false,
+  decision_pendientes: 1, decision_mantener: 0, decision_revocar: 0, decision_justificado: 0, ...over,
 });
 
 const F = (over: Partial<AccessFinding>): AccessFinding => ({
   key: "regla", severity: "media", title: "Regla de prueba", detail: "Detalle con cifras.",
   recommendation: "Hacer algo concreto.", evaluable: true, not_evaluable_reason: null,
-  affected_accounts: 1, affected_assignments: 1, affected_principals: ["u1"], ...over,
+  affected_accounts: 1, affected_assignments: 1, affected_principals: ["u1"],
+  accepted: false, accepted_note: null, accepted_by: null, accepted_at: null, ...over,
 });
 
 const baseResp: AccessReviewResponse = {
@@ -42,7 +47,7 @@ const baseResp: AccessReviewResponse = {
     cuentas_deshabilitadas: 0, cuentas_inactivas: 0, guests_total: 0, guests_inactivos: 0,
     guests_inactivos_con_permisos: 0, service_principals: 0,
     cuentas_unicas: 3, asignaciones_elevadas: 0, pct_elevadas: 0, owners: 0,
-    cuentas_externas: 0, owners_externos: 0, roles_personalizados: 0,
+    cuentas_externas: 0, owners_externos: 0, roles_personalizados: 0, pendientes_de_revisar: 0,
   },
   credentials: [{ credential_id: 1, credential_name: "cred", arm_status: "ok", graph_status: "ok", detail: null }],
   accounts: [
@@ -61,6 +66,11 @@ const baseResp: AccessReviewResponse = {
 
 let resp: AccessReviewResponse;
 
+const saveAccessDecisions = vi.fn(
+  (_clientId: number, _items: AccessDecisionItem[]) => Promise.resolve({ saved: _items.length }));
+const acceptAccessFinding = vi.fn(
+  (_clientId: number, _findingKey: string, _note: string) => Promise.resolve({ saved: 1 }));
+
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   listClientsAdmin: () => Promise.resolve(clients),
@@ -68,12 +78,23 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   listAccessReviewRuns: () => Promise.resolve([]),
   syncAccessReview: vi.fn(),
   downloadFromApi: vi.fn(),
+  // Envueltos en lambdas: la factoría del mock se evalúa al primer import de @/lib/api, que ocurre
+  // dentro de renderPage (los vi.fn ya están inicializados, pero así no dependemos de ese orden).
+  saveAccessDecisions: (...args: Parameters<typeof saveAccessDecisions>) => saveAccessDecisions(...args),
+  acceptAccessFinding: (...args: Parameters<typeof acceptAccessFinding>) => acceptAccessFinding(...args),
 }));
 
 beforeEach(() => {
   localStorage.clear();
+  saveAccessDecisions.mockClear();
+  acceptAccessFinding.mockClear();
   resp = structuredClone(baseResp);
 });
+
+/** Sesión con permiso de edición del módulo: sin ella no hay checkbox ni barra de decisión. */
+function asEditor() {
+  setSession("tok", "admin", "Consultor BIT");
+}
 
 async function renderPage() {
   const { default: AccessReviewPage } = await import("@/components/access-review/AccessReviewPage");
@@ -253,4 +274,134 @@ test("el filtro 'Solo elevados' descarta las asignaciones de lectura", async () 
 
   expect(screen.getByText("Ana Elevada")).toBeInTheDocument();
   expect(screen.queryByText("Beto Lector")).toBeNull();
+});
+
+// ── Decisión por acceso (bloque 3) ─────────────────────────
+
+test("Asignaciones muestra el chip de decisión, con el arrastre en el title", async () => {
+  resp.accounts = [];
+  resp.assignments = [
+    A({ principal_object_id: "u1", display_name: "Ana Perez", decision: "revocar",
+        decision_note: "Se pidió al cliente en junio.", decision_decided_by: "consultor@demo.local",
+        decision_decided_at: "2026-06-30T10:00:00Z", decision_runs_since: 2 }),
+    A({ principal_object_id: "u2", display_name: "Beto Sin Decidir" }),
+  ];
+  await renderPage();
+  await openTab(/asignaciones/i);
+
+  const revocar = await screen.findByText("Revocar");
+  expect(screen.getByText("Pendiente")).toBeInTheDocument();
+  // El punto del bloque: un "revocar" que sigue vivo desde corridas anteriores lo dice.
+  expect(revocar.getAttribute("title")).toContain("hace 2 corridas");
+});
+
+test("Cuentas resume las decisiones y omite los ceros", async () => {
+  resp.accounts = [C({
+    principal_object_id: "u1", display_name: "Ana Perez",
+    decision_pendientes: 3, decision_mantener: 0, decision_revocar: 0, decision_justificado: 1,
+  })];
+  resp.assignments = [];
+  await renderPage();
+  expect(await screen.findByText("3 pendientes · 1 justificado")).toBeInTheDocument();
+});
+
+test("con permiso de edición, seleccionar una fila permite marcarla para revocar", async () => {
+  asEditor();
+  resp.accounts = [];
+  resp.assignments = [A({ principal_object_id: "u1", display_name: "Ana Perez" })];
+  await renderPage();
+  await openTab(/asignaciones/i);
+
+  fireEvent.click(await screen.findByLabelText(/Seleccionar la asignación de Ana Perez/));
+  expect(await screen.findByText("1 asignación seleccionada")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Revocar" }));
+  await waitFor(() => expect(saveAccessDecisions).toHaveBeenCalledTimes(1));
+  expect(saveAccessDecisions).toHaveBeenCalledWith(4, [{
+    principal_object_id: "u1", role_definition_id: "def-1", scope: "/subscriptions/s1",
+    decision: "revocar", note: null,
+  }]);
+});
+
+test("sin permiso de edición no hay selección ni barra de decisión", async () => {
+  resp.accounts = [];
+  resp.assignments = [A({ principal_object_id: "u1", display_name: "Ana Perez" })];
+  await renderPage();
+  await openTab(/asignaciones/i);
+
+  await screen.findByText("Ana Perez");
+  expect(screen.queryByLabelText(/Seleccionar la asignación de/)).toBeNull();
+  expect(screen.queryByRole("button", { name: "Revocar" })).toBeNull();
+});
+
+test("justificar no permite guardar sin nota", async () => {
+  asEditor();
+  resp.accounts = [];
+  resp.assignments = [A({ principal_object_id: "u1", display_name: "Ana Perez" })];
+  await renderPage();
+  await openTab(/asignaciones/i);
+  fireEvent.click(await screen.findByLabelText(/Seleccionar la asignación de Ana Perez/));
+  fireEvent.click(screen.getByRole("button", { name: "Justificar" }));
+
+  const guardar = await screen.findByRole("button", { name: "Guardar justificación" });
+  expect(guardar).toBeDisabled();
+  fireEvent.click(guardar);
+  expect(saveAccessDecisions).not.toHaveBeenCalled();
+
+  fireEvent.change(screen.getByLabelText("Nota de justificación"),
+    { target: { value: "Cuenta break-glass aprobada por el cliente." } });
+  fireEvent.click(await screen.findByRole("button", { name: "Guardar justificación" }));
+
+  await waitFor(() => expect(saveAccessDecisions).toHaveBeenCalledTimes(1));
+  expect(saveAccessDecisions.mock.calls[0][1][0]).toMatchObject({
+    decision: "justificado", note: "Cuenta break-glass aprobada por el cliente.",
+  });
+});
+
+test("el contador Pendientes deja solo las asignaciones sin decisión", async () => {
+  resp.kpis = { ...resp.kpis!, pendientes_de_revisar: 1 };
+  resp.accounts = [];
+  resp.assignments = [
+    A({ principal_object_id: "u1", display_name: "Ana Perez" }),
+    A({ principal_object_id: "u2", display_name: "Beto Decidido", decision: "mantener" }),
+  ];
+  await renderPage();
+
+  fireEvent.click(await screen.findByTitle(/Accesos con alerta y sin decisión registrada/));
+
+  expect(await screen.findByText("Ana Perez")).toBeInTheDocument();
+  expect(screen.queryByText("Beto Decidido")).toBeNull();
+});
+
+test("un hallazgo aceptado no aparece entre los abiertos", async () => {
+  resp.findings = [F({
+    key: "exceso_global_admins", severity: "alta", title: "Exceso de Global Admins",
+    affected_accounts: 0, affected_assignments: 6, affected_principals: [],
+    accepted: true, accepted_note: "Cuentas break-glass documentadas.", accepted_by: "Ana Perez",
+    accepted_at: "2026-07-01T12:00:00Z",
+  })];
+  await renderPage();
+
+  expect(await screen.findByText("Sin hallazgos abiertos en esta corrida")).toBeInTheDocument();
+  fireEvent.click(screen.getByText(/1 aceptadas con justificación/));
+  expect(await screen.findByText(/aceptado por Ana Perez/)).toBeInTheDocument();
+});
+
+test("un hallazgo de umbral se acepta con nota obligatoria", async () => {
+  asEditor();
+  resp.findings = [F({
+    key: "exceso_global_admins", severity: "alta", title: "Exceso de Global Admins",
+    affected_accounts: 0, affected_assignments: 6, affected_principals: [],
+  })];
+  await renderPage();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Aceptar" }));
+  expect(await screen.findByRole("button", { name: "Aceptar hallazgo" })).toBeDisabled();
+
+  fireEvent.change(screen.getByLabelText("Nota de aceptación"),
+    { target: { value: "Son cuentas break-glass." } });
+  fireEvent.click(screen.getByRole("button", { name: "Aceptar hallazgo" }));
+
+  await waitFor(() => expect(acceptAccessFinding)
+    .toHaveBeenCalledWith(4, "exceso_global_admins", "Son cuentas break-glass."));
 });

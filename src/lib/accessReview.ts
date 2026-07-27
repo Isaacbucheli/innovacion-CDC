@@ -1,7 +1,8 @@
 // Helpers de presentación del módulo Revisión de accesos.
 
 import type {
-  AccessAssignment, AccessFinding, AccessFindingSeverity, AccessPrincipalType, AccessRoleClass,
+  AccessAccount, AccessAssignment, AccessDecisionValue, AccessFinding, AccessFindingSeverity,
+  AccessPrincipalType, AccessRoleClass,
 } from "@/types";
 
 export function principalTypeLabel(t: AccessPrincipalType): string {
@@ -90,10 +91,63 @@ export function severityChip(s: AccessFindingSeverity): string {
   }
 }
 
-/** Un hallazgo "vive" si se pudo evaluar y encontró algo. Los evaluados sin hallazgos también son
- *  información (se agrupan aparte), y los no evaluables no son cero: es dato que falta. */
+/** Un hallazgo "vive" si se pudo evaluar, no está aceptado y encontró algo. Los evaluados sin
+ *  hallazgos también son información (se agrupan aparte), y los no evaluables no son cero: es dato
+ *  que falta. Un hallazgo aceptado (umbral con justificación) deja de ser trabajo pendiente. */
 export function findingIsOpen(f: AccessFinding): boolean {
-  return f.evaluable && (f.affected_accounts > 0 || f.affected_assignments > 0);
+  return f.evaluable && !f.accepted && (f.affected_accounts > 0 || f.affected_assignments > 0);
+}
+
+// ── Decisión por acceso (bloque 3) ─────────────────────────
+// La decisión la calcula y persiste el backend; acá solo se presenta.
+
+export function decisionLabel(d: AccessDecisionValue | null): string {
+  switch (d) {
+    case "mantener": return "Mantener";
+    case "revocar": return "Revocar";
+    case "justificado": return "Justificado";
+    default: return "Pendiente";
+  }
+}
+
+/** `revocar` en rojo (promesa sin cumplir), `justificado` en ámbar (riesgo aceptado, visible),
+ *  `mantener` neutro y sin decisión en gris tenue. */
+export function decisionChip(d: AccessDecisionValue | null): string {
+  switch (d) {
+    case "revocar": return "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300";
+    case "justificado": return "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300";
+    case "mantener": return "bg-muted text-foreground";
+    default: return "bg-muted/50 text-muted-foreground";
+  }
+}
+
+/** Detalle de la decisión para el `title` del chip: responsable, fecha, nota y —el punto del
+ *  bloque— el arrastre de un `revocar` que sigue vivo desde corridas anteriores. */
+export function decisionTitle(a: Pick<AccessAssignment,
+  "decision" | "decision_note" | "decision_decided_by" | "decision_decided_at" | "decision_runs_since">): string {
+  if (!a.decision) return "Sin decisión registrada.";
+  const parts: string[] = [decisionLabel(a.decision)];
+  if (a.decision_decided_by) parts.push(`por ${a.decision_decided_by}`);
+  if (a.decision_decided_at) parts.push(`el ${new Date(a.decision_decided_at).toLocaleString("es-EC")}`);
+  const lines = [parts.join(" ")];
+  if (a.decision === "revocar" && a.decision_runs_since !== null && a.decision_runs_since > 0) {
+    lines.push(a.decision_runs_since === 1
+      ? "Sigue vivo desde hace 1 corrida."
+      : `Sigue vivo desde hace ${a.decision_runs_since} corridas.`);
+  }
+  if (a.decision_note) lines.push(a.decision_note);
+  return lines.join(" ");
+}
+
+/** Resumen compacto por cuenta: "3 pendientes · 1 justificado" (omite los que están en cero). */
+export function decisionSummary(a: Pick<AccessAccount,
+  "decision_pendientes" | "decision_mantener" | "decision_revocar" | "decision_justificado">): string {
+  const parts: string[] = [];
+  if (a.decision_pendientes > 0) parts.push(`${a.decision_pendientes} pendientes`);
+  if (a.decision_mantener > 0) parts.push(`${a.decision_mantener} mantener`);
+  if (a.decision_revocar > 0) parts.push(`${a.decision_revocar} revocar`);
+  if (a.decision_justificado > 0) parts.push(`${a.decision_justificado} justificado`);
+  return parts.length > 0 ? parts.join(" · ") : "—";
 }
 
 /** Roles presentes en la corrida, para el filtro por rol. */
