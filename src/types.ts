@@ -883,6 +883,47 @@ export interface AccessReviewKpis {
   guests_inactivos: number;
   guests_inactivos_con_permisos: number;
   service_principals: number;
+  // Los de privilegio solo dependen de ARM (se miden siempre); los de externos dependen de Graph.
+  cuentas_unicas: number;
+  asignaciones_elevadas: number;
+  pct_elevadas: number;
+  owners: number;
+  cuentas_externas: number;
+  owners_externos: number;
+  roles_personalizados: number;
+}
+
+/** owner | otorga_accesos | escritura_total | escritura_servicio | lectura, o null si no se pudo clasificar. */
+export type AccessRoleClass =
+  | "owner" | "otorga_accesos" | "escritura_total" | "escritura_servicio" | "lectura" | null;
+
+/** ARM devuelve más tipos que estos tres; el `(string & {})` evita que un tipo nuevo rompa el build. */
+export type AccessPrincipalType =
+  | "User" | "Group" | "ServicePrincipal" | "ForeignGroup" | "Device" | "Unknown" | (string & {});
+
+/** Una cuenta (principal) con sus asignaciones efectivas agregadas — la agregación la hace el backend. */
+export interface AccessAccount {
+  principal_object_id: string;
+  principal_type: AccessPrincipalType;
+  display_name: string | null;
+  login: string | null;
+  user_type: string | null;
+  /** null = no medido (sin Graph, o tipo sin UPN que mirar). */
+  is_external: boolean | null;
+  total_assignments: number;
+  owner: number;
+  otorga_accesos: number;
+  escritura_total: number;
+  escritura_servicio: number;
+  lectura: number;
+  sin_clasificar: number;
+  subscriptions: number;
+  broadest_scope_level: string;
+  via: "directo" | "grupo" | "ambos";
+  account_enabled: boolean | null;
+  last_sign_in: string | null;
+  mfa_status: "enabled" | "disabled" | "unavailable" | null;
+  orphan: boolean;
 }
 
 export interface AccessCredentialStatus {
@@ -899,8 +940,14 @@ export interface AccessAssignment {
   scope: string;
   scope_level: "management_group" | "subscription" | "resource_group" | "resource" | "root";
   role_name: string;
+  role_definition_id: string;
+  role_class: AccessRoleClass;
+  is_custom_role: boolean;
+  is_elevated: boolean;
+  /** null = no medido (sin Graph, o tipo sin UPN que mirar). */
+  is_external: boolean | null;
   principal_object_id: string;
-  principal_type: "User" | "Group" | "ServicePrincipal";
+  principal_type: AccessPrincipalType;
   display_name: string | null;
   login: string | null;
   user_type: "Member" | "Guest" | null;
@@ -949,8 +996,11 @@ export interface AccessReviewResponse {
   started_at?: string | null;
   finished_at?: string | null;
   inactivity_days?: number;
+  /** Lo decide el backend: si la fase Graph se leyó completa para todas las credenciales. */
+  graph_complete?: boolean;
   kpis?: AccessReviewKpis;
   credentials?: AccessCredentialStatus[];
+  accounts?: AccessAccount[];
   assignments?: AccessAssignment[];
   guests?: AccessGuest[];
   global_admins?: AccessGlobalAdmin[];

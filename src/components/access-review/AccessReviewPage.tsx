@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  createColumnHelper, flexRender, getCoreRowModel, getPaginationRowModel,
-  getSortedRowModel, useReactTable, type SortingState, type Table as RTTable,
+  createColumnHelper, flexRender, getCoreRowModel, getExpandedRowModel, getPaginationRowModel,
+  getSortedRowModel, useReactTable, type ExpandedState, type SortingState, type Table as RTTable,
 } from "@tanstack/react-table";
 import {
   Crown, ShieldOff, UserX, Clock3, UserCog, Layers, MoreHorizontal, RefreshCw, Download, History, Loader2, X,
+  Users, ShieldAlert, KeyRound, Globe, Wrench, ChevronRight, ChevronDown, Filter,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
@@ -22,14 +23,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   listClientsAdmin, getAccessReview, syncAccessReview, listAccessReviewRuns, downloadFromApi,
 } from "@/lib/api";
-import { mfaChip, scopeLabel, graphStatusLabel, assignmentAlert, daysSince } from "@/lib/accessReview";
+import {
+  mfaChip, scopeLabel, graphStatusLabel, assignmentAlert, daysSince, principalTypeLabel,
+  roleClassLabel, roleClassChip, externalLabel, externalChip, viaLabel, livesInTenant, distinctRoles,
+} from "@/lib/accessReview";
 import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
 import { canEditModule } from "@/lib/auth";
 import type {
-  ClientAdmin, AccessAssignment, AccessGlobalAdmin, AccessGuest, AccessReviewResponse, AccessReviewRun,
+  ClientAdmin, AccessAccount, AccessAssignment, AccessGlobalAdmin, AccessGuest,
+  AccessReviewResponse, AccessReviewRun, AccessRoleClass,
 } from "@/types";
 
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
@@ -39,15 +45,6 @@ const chip = (cls: string, text: React.ReactNode) => <span className={`text-xs p
 
 function dateOrDash(iso: string | null | undefined): string {
   return iso ? new Date(iso).toLocaleString("es-EC") : "—";
-}
-
-function principalTypeLabel(t: AccessAssignment["principal_type"]): string {
-  switch (t) {
-    case "User": return "Usuario";
-    case "Group": return "Grupo";
-    case "ServicePrincipal": return "Service principal";
-    default: return t;
-  }
 }
 
 function enabledChip(v: boolean | null | undefined) {
@@ -67,40 +64,46 @@ function runStatusChip(s: AccessReviewRun["status"]) {
   }
 }
 
-// `muted` degrada la tarjeta a un estado neutro ("no medido") cuando la corrida no tiene el dato
-// completo (ver graphIncomplete/inactivityIncomplete más abajo): nada de verde/rojo sobre un 0
-// que en realidad nunca se llegó a medir. `hint` es un title nativo, sin componente nuevo.
-// Con `onClick` la tarjeta se vuelve botón (filtra la tabla correspondiente); en estado muted
-// no hay clic porque el dato no está medido y filtrar por él no significa nada.
-function Kpi({ icon, label, value, accent, muted, hint, onClick, active }: {
-  icon: React.ReactNode; label: string; value: string; accent: string; muted?: boolean; hint?: string;
+// Contador compacto: uso interno, así que la primera pantalla es para trabajar (la tabla), no para
+// lucir indicadores. `muted` lo degrada a "no medido" cuando la corrida no tiene el dato completo
+// (ver graphIncomplete/inactivityIncomplete más abajo): nada de verde/rojo sobre un 0 que en
+// realidad nunca se llegó a medir. `hint` es un title nativo, sin componente nuevo. Con `onClick`
+// se vuelve botón (filtra la tabla correspondiente); en estado muted no hay clic porque filtrar
+// por un dato no medido no significa nada.
+function Counter({ icon, label, value, accent, muted, hint, onClick, active }: {
+  icon: React.ReactNode; label: string; value: string; accent?: string; muted?: boolean; hint?: string;
   onClick?: () => void; active?: boolean;
 }) {
   const inner = (
     <>
-      <div
-        className={`w-8 h-8 rounded-lg grid place-items-center mb-2 ${muted ? "bg-muted text-muted-foreground" : ""}`}
-        style={muted ? undefined : { background: `${accent}22`, color: accent }}
-      >
+      <span className={muted ? "text-muted-foreground" : ""} style={muted ? undefined : { color: accent }}>
         {icon}
-      </div>
-      <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className={`text-2xl font-bold tabular-nums tracking-tight mt-0.5 ${muted ? "text-muted-foreground" : ""}`}>{value}</div>
+      </span>
+      <span className={`text-lg font-bold tabular-nums leading-none ${muted ? "text-muted-foreground" : ""}`}>
+        {value}
+      </span>
+      <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground leading-tight">
+        {label}
+      </span>
     </>
   );
-  if (!onClick || muted) return <div className="rounded-xl border bg-background p-4" title={hint}>{inner}</div>;
+  const base = "flex items-center gap-2 rounded-lg border bg-background px-3 py-2";
+  if (!onClick || muted) return <div className={base} title={hint}>{inner}</div>;
   return (
     <button type="button" onClick={onClick} title={hint} aria-pressed={active}
-      className={`rounded-xl border bg-background p-4 text-left transition-colors cursor-pointer hover:border-primary/60 ${active ? "border-primary ring-1 ring-primary" : ""}`}>
+      className={`${base} text-left transition-colors cursor-pointer hover:border-primary/60 ${active ? "border-primary ring-1 ring-primary" : ""}`}>
       {inner}
     </button>
   );
 }
 
-// Bloque de tabla reutilizado por las 4 pestañas (mismo esqueleto que ReservationsPage: Table + DataTableColumnHeader
-// + DataTablePagination). `rowClassName` es opcional: solo Asignaciones lo usa para resaltar filas con alerta.
-function DataTableBlock<T>({ table, emptyText, rowClassName }: {
+// Bloque de tabla reutilizado por las 5 pestañas (mismo esqueleto que ReservationsPage: Table + DataTableColumnHeader
+// + DataTablePagination). `rowClassName` es opcional: Asignaciones y Cuentas lo usan para resaltar filas con
+// alerta. `subRow` lo usa solo Cuentas: al expandir, lista las asignaciones de esa cuenta sin sacar al
+// consultor de la tabla (un diálogo le haría perder el contexto de la lista).
+function DataTableBlock<T>({ table, emptyText, rowClassName, subRow }: {
   table: RTTable<T>; emptyText: string; rowClassName?: (row: T) => string;
+  subRow?: (row: T) => React.ReactNode;
 }) {
   return (
     <div className="space-y-3">
@@ -125,11 +128,20 @@ function DataTableBlock<T>({ table, emptyText, rowClassName }: {
                 </TableCell>
               </TableRow>
             ) : table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id} className={rowClassName?.(row.original) ?? ""}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="py-3">{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                ))}
-              </TableRow>
+              <React.Fragment key={row.id}>
+                <TableRow className={rowClassName?.(row.original) ?? ""}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id} className="py-3">{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                  ))}
+                </TableRow>
+                {subRow && row.getIsExpanded() && (
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableCell colSpan={row.getVisibleCells().length} className="py-3">
+                      {subRow(row.original)}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </React.Fragment>
             ))}
           </TableBody>
         </Table>
@@ -140,8 +152,12 @@ function DataTableBlock<T>({ table, emptyText, rowClassName }: {
 }
 
 const colAssign = createColumnHelper<AccessAssignment>();
+const colAccount = createColumnHelper<AccessAccount>();
 const colAdmin = createColumnHelper<AccessGlobalAdmin>();
 const colGuest = createColumnHelper<AccessGuest>();
+
+const ROLE_CLASSES: Exclude<AccessRoleClass, null>[] =
+  ["owner", "otorga_accesos", "escritura_total", "escritura_servicio", "lectura"];
 
 const mfaCell = (m: AccessAssignment["mfa_status"] | AccessGuest["mfa_status"] | AccessGlobalAdmin["mfa_status"]) => {
   const c = mfaChip(m);
@@ -162,15 +178,27 @@ const nameCell = (displayName: string | null, fallbackId: string, orphan = false
     </span>
   );
 
-// Filtros que aplican las tarjetas KPI sobre la tabla de Asignaciones. Replican el criterio de
-// AccessReviewKpiCalculator (API): solo usuarios; el KPI cuenta cuentas únicas, así que la tabla
-// puede mostrar más filas que el número de la tarjeta (una cuenta con N roles = N asignaciones).
-type KpiAssignFilter = "sin_mfa" | "deshabilitadas" | "inactivas";
+// Filtros que aplican los contadores sobre la tabla de Asignaciones. Los tres primeros replican el
+// criterio de AccessReviewKpiCalculator (API): solo usuarios, y el contador cuenta cuentas únicas,
+// así que la tabla puede mostrar más filas que el número del contador (una cuenta con N roles = N
+// asignaciones). Los tres últimos son por asignación, sin filtrar por tipo de principal.
+type KpiAssignFilter = "sin_mfa" | "deshabilitadas" | "inactivas" | "elevadas" | "owner" | "personalizados";
 
 const KPI_FILTER_LABEL: Record<KpiAssignFilter, string> = {
   sin_mfa: "Sin MFA (internos)",
   deshabilitadas: "Deshabilitadas con RBAC",
   inactivas: "Inactivas con RBAC",
+  elevadas: "Privilegio elevado",
+  owner: "Asignaciones Owner",
+  personalizados: "Roles personalizados",
+};
+
+/** Filtros que los contadores aplican sobre la tabla de Cuentas. */
+type KpiAccountFilter = "externas" | "owners_externos";
+
+const ACCOUNT_FILTER_LABEL: Record<KpiAccountFilter, string> = {
+  externas: "Cuentas externas",
+  owners_externos: "Externas con Owner",
 };
 
 export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: string) => void }) {
@@ -270,7 +298,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   // Al cambiar de cliente se descarta el drill-down de tarjetas (es estado del snapshot anterior).
   function selectClient(id: number) {
     writeActiveClient(id); setClientId(id);
-    setKpiFilter(null); setGuestsOnlyAlert(false);
+    setKpiFilter(null); setGuestsOnlyAlert(false); setAccountFilter(null);
   }
 
   async function doSync() {
@@ -319,18 +347,30 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const hasSnapshot = !!resp?.kpis;
 
   const assignments = useMemo(() => resp?.assignments ?? [], [resp]);
+  const accounts = useMemo(() => resp?.accounts ?? [], [resp]);
   const globalAdmins = useMemo(() => resp?.global_admins ?? [], [resp]);
   const guests = useMemo(() => resp?.guests ?? [], [resp]);
   const servicePrincipals = useMemo(() => assignments.filter((a) => a.principal_type === "ServicePrincipal"), [assignments]);
   const credentials = useMemo(() => resp?.credentials ?? [], [resp]);
 
+  // Corrida anterior a la clasificación de privilegio: sin re-sincronizar no hay clase que mostrar.
+  const sinClasificar = useMemo(
+    () => assignments.length > 0 && assignments.every((a) => a.role_class == null),
+    [assignments],
+  );
+
   // Zonas de la corrida no medidas: si el Graph no se pudo leer del todo (sin consent, Lighthouse
   // sin permisos ARM-only, error) o la corrida completa terminó en "error", los indicadores que
   // vienen de Entra ID (MFA, cuentas habilitadas/deshabilitadas, Global Admins, guests) no reflejan
   // datos reales — deben mostrarse como "no medido", nunca como un 0 verde.
+  // Lo decide el backend (`graph_complete`), que es la misma regla que usa el AccountBuilder para el
+  // eje interna/externa y el marcado de huérfanas. El cálculo local queda solo como respaldo para
+  // corridas servidas por una API anterior a este campo (ventana de deploy).
   const graphIncomplete = useMemo(
-    () => status === "error" || credentials.some((c) => c.graph_status === "sin_consent" || c.graph_status === "no_aplica" || c.graph_status === "error"),
-    [status, credentials],
+    () => resp?.graph_complete !== undefined
+      ? !resp.graph_complete
+      : status === "error" || credentials.some((c) => c.graph_status === "sin_consent" || c.graph_status === "no_aplica" || c.graph_status === "error"),
+    [resp?.graph_complete, status, credentials],
   );
   // La inactividad además depende del "último inicio de sesión", que requiere licencia Entra ID P1;
   // sin ella (aunque el resto de Graph haya funcionado) esa cifra puntual tampoco está medida.
@@ -342,8 +382,12 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   // Asignación huérfana: el principal ya no existe en Entra ID ("Identity not found" en el portal).
   // Solo se afirma con la fase Graph completa: si Graph falló, un nombre vacío significa "no
   // resuelto", no "eliminado". Las filas derivadas (vía grupo) vienen de miembros vivos.
+  // `livesInTenant` es clave: un ForeignGroup (grupo de otro tenant), un Device o un principal sin
+  // tipo NO viven en el directorio del cliente, así que su nombre vacío es lo esperado y marcarlos
+  // "Eliminado de Entra ID" sería un falso positivo.
   const isOrphanAssignment = useCallback(
-    (a: AccessAssignment) => !graphIncomplete && !a.display_name && !a.via_group_id,
+    (a: AccessAssignment) =>
+      !graphIncomplete && livesInTenant(a.principal_type) && !a.display_name && !a.via_group_id,
     [graphIncomplete],
   );
 
@@ -356,19 +400,33 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const inactivas = resp?.kpis?.cuentas_inactivas ?? 0;
   const guestsAlert = resp?.kpis?.guests_inactivos_con_permisos ?? 0;
   const totalAsign = resp?.kpis?.total_asignaciones ?? 0;
+  const cuentasUnicas = resp?.kpis?.cuentas_unicas ?? 0;
+  const pctElevadas = resp?.kpis?.pct_elevadas ?? 0;
+  const owners = resp?.kpis?.owners ?? 0;
+  const externas = resp?.kpis?.cuentas_externas ?? 0;
+  const ownersExternos = resp?.kpis?.owners_externos ?? 0;
+  const rolesCustom = resp?.kpis?.roles_personalizados ?? 0;
 
   // ---- Filtros de negocio sobre Asignaciones (point 7) ----
   const [q, setQ] = useState("");
   const [fScope, setFScope] = useState("all");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
+  const [onlyElevated, setOnlyElevated] = useState(false);
+  const [fRole, setFRole] = useState("all");
+  const [fSub, setFSub] = useState("all");
+  const [fType, setFType] = useState("all");
+  const [fClass, setFClass] = useState("all");
+  const [fExternal, setFExternal] = useState("all");
 
-  // ---- Drill-down desde las tarjetas KPI ----
-  const [tab, setTab] = useState("assignments");
+  // ---- Drill-down desde los contadores ----
+  const [tab, setTab] = useState("accounts");
   const [kpiFilter, setKpiFilter] = useState<KpiAssignFilter | null>(null);
   const [guestsOnlyAlert, setGuestsOnlyAlert] = useState(false);
+  const [accountFilter, setAccountFilter] = useState<KpiAccountFilter | null>(null);
+  const [qAccount, setQAccount] = useState("");
 
-  // Clic en tarjeta: lleva a la pestaña correspondiente y aplica el filtro del indicador
-  // (clic de nuevo sobre la tarjeta activa lo quita).
+  // Clic en contador: lleva a la pestaña correspondiente y aplica su filtro
+  // (clic de nuevo sobre el contador activo lo quita).
   function toggleKpiFilter(f: KpiAssignFilter) {
     setTab("assignments");
     setKpiFilter((prev) => (prev === f ? null : f));
@@ -377,21 +435,47 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     setTab("guests");
     setGuestsOnlyAlert((prev) => !prev);
   }
-  // Tarjeta "Asignaciones": muestra la tabla completa (limpia todos los filtros).
+  function toggleAccountFilter(f: KpiAccountFilter) {
+    setTab("accounts");
+    setAccountFilter((prev) => (prev === f ? null : f));
+  }
+  // Contador "Asignaciones": muestra la tabla completa (limpia todos los filtros).
   function showAllAssignments() {
     setTab("assignments");
-    setKpiFilter(null); setQ(""); setFScope("all"); setOnlyAlerts(false);
+    clearAssignFilters();
+  }
+  function clearAssignFilters() {
+    setKpiFilter(null); setQ(""); setFScope("all"); setOnlyAlerts(false); setOnlyElevated(false);
+    setFRole("all"); setFSub("all"); setFType("all"); setFClass("all"); setFExternal("all");
+  }
+  // Contador "Cuentas": tabla completa de cuentas.
+  function showAllAccounts() {
+    setTab("accounts");
+    setAccountFilter(null); setQAccount("");
   }
 
   const scopeLevels = useMemo(
     () => [...new Set(assignments.map((a) => a.scope_level))].sort((a, b) => a.localeCompare(b)),
     [assignments],
   );
+  const roles = useMemo(() => distinctRoles(assignments), [assignments]);
+  const subs = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of assignments) map.set(a.subscription_id, a.subscription_name || a.subscription_id);
+    return [...map].sort((x, y) => x[1].localeCompare(y[1], "es"));
+  }, [assignments]);
+  const principalTypes = useMemo(
+    () => [...new Set(assignments.map((a) => a.principal_type))].sort((a, b) => a.localeCompare(b)),
+    [assignments],
+  );
+
+  // Filtros secundarios activos: alimenta el contador del botón "Filtros".
+  const secondaryFilters = [fRole, fSub, fType, fClass, fExternal, fScope].filter((v) => v !== "all").length;
 
   const filteredAssignments = useMemo(() => {
     const term = q.trim().toLowerCase();
     return assignments.filter((a) => {
-      if (kpiFilter) {
+      if (kpiFilter === "sin_mfa" || kpiFilter === "deshabilitadas" || kpiFilter === "inactivas") {
         if (a.principal_type !== "User") return false;
         if (kpiFilter === "sin_mfa" && !(a.user_type !== "Guest" && a.mfa_status === "disabled")) return false;
         if (kpiFilter === "deshabilitadas" && a.account_enabled !== false) return false;
@@ -399,16 +483,42 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
           const d = daysSince(a.last_sign_in);
           if (d === null || d <= dias) return false;
         }
-      }
+      } else if (kpiFilter === "elevadas" && !a.is_elevated) return false;
+      else if (kpiFilter === "owner" && a.role_class !== "owner") return false;
+      else if (kpiFilter === "personalizados" && !a.is_custom_role) return false;
+
       if (term) {
         const hay = `${a.display_name ?? a.principal_object_id} ${a.login ?? ""} ${a.role_name} ${a.scope}`.toLowerCase();
         if (!hay.includes(term)) return false;
       }
       if (fScope !== "all" && a.scope_level !== fScope) return false;
+      if (fRole !== "all" && a.role_name !== fRole) return false;
+      if (fSub !== "all" && a.subscription_id !== fSub) return false;
+      if (fType !== "all" && a.principal_type !== fType) return false;
+      if (fClass !== "all" && (a.role_class ?? "sin_clasificar") !== fClass) return false;
+      if (fExternal !== "all") {
+        const wanted = fExternal === "externa" ? true : fExternal === "interna" ? false : null;
+        if (a.is_external !== wanted) return false;
+      }
+      if (onlyElevated && !a.is_elevated) return false;
       if (onlyAlerts && !assignmentAlert(a, dias) && !isOrphanAssignment(a)) return false;
       return true;
     });
-  }, [assignments, q, fScope, onlyAlerts, dias, kpiFilter, isOrphanAssignment]);
+  }, [assignments, q, fScope, fRole, fSub, fType, fClass, fExternal, onlyAlerts, onlyElevated,
+      dias, kpiFilter, isOrphanAssignment]);
+
+  const filteredAccounts = useMemo(() => {
+    const term = qAccount.trim().toLowerCase();
+    return accounts.filter((a) => {
+      if (accountFilter === "externas" && a.is_external !== true) return false;
+      if (accountFilter === "owners_externos" && !(a.is_external === true && a.owner > 0)) return false;
+      if (term) {
+        const hay = `${a.display_name ?? a.principal_object_id} ${a.login ?? ""}`.toLowerCase();
+        if (!hay.includes(term)) return false;
+      }
+      return true;
+    });
+  }, [accounts, accountFilter, qAccount]);
 
   // Mismo criterio que el KPI "guests_inactivos_con_permisos": inactivo sobre el umbral Y con roles RBAC.
   const filteredGuests = useMemo(() => {
@@ -420,11 +530,73 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   }, [guests, guestsOnlyAlert, dias]);
 
   // ---- Columnas (memoizadas, sin dependencias de estado externo) ----
+  const accountColumns = useMemo(() => [
+    colAccount.display({
+      id: "expander",
+      header: "",
+      cell: (c) => (
+        <button type="button" onClick={c.row.getToggleExpandedHandler()}
+          aria-label={c.row.getIsExpanded() ? "Ocultar asignaciones" : "Ver asignaciones"}
+          aria-expanded={c.row.getIsExpanded()}
+          className="text-muted-foreground hover:text-foreground cursor-pointer">
+          {c.row.getIsExpanded() ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </button>
+      ),
+    }),
+    colAccount.accessor((a) => a.display_name || a.login || a.principal_object_id, {
+      id: "cuenta", header: "Cuenta",
+      cell: (c) => {
+        const a = c.row.original;
+        return (
+          <span className="inline-flex items-center gap-2 flex-wrap">
+            {a.display_name
+              ? <span className="font-medium">{a.display_name}</span>
+              : <span className="font-mono text-xs">{a.login || a.principal_object_id}</span>}
+            {a.orphan && (
+              <span title="El principal ya no existe en Entra ID (en el portal aparece como 'Identity not found'). Acceso residual: conviene eliminar la asignación."
+                className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300">
+                Eliminado de Entra ID
+              </span>
+            )}
+          </span>
+        );
+      },
+    }),
+    colAccount.accessor((a) => a.login ?? "", { id: "login", header: "Correo/Login", cell: (c) => c.getValue() || "—" }),
+    colAccount.accessor((a) => principalTypeLabel(a.principal_type), { id: "tipo", header: "Tipo" }),
+    colAccount.accessor((a) => a.is_external === null ? 2 : a.is_external ? 1 : 0, {
+      id: "externa", header: "Origen",
+      cell: (c) => chip(externalChip(c.row.original.is_external), externalLabel(c.row.original.is_external)),
+    }),
+    colAccount.accessor("total_assignments", { header: "Accesos", cell: (c) => <span className="tabular-nums">{c.getValue()}</span> }),
+    colAccount.accessor("owner", { header: "Owner", cell: (c) => <span className="tabular-nums">{c.getValue() || "—"}</span> }),
+    colAccount.accessor("otorga_accesos", { header: "Otorga", cell: (c) => <span className="tabular-nums">{c.getValue() || "—"}</span> }),
+    colAccount.accessor("escritura_total", { header: "Escritura total", cell: (c) => <span className="tabular-nums">{c.getValue() || "—"}</span> }),
+    colAccount.accessor("subscriptions", { header: "Subs", cell: (c) => <span className="tabular-nums">{c.getValue()}</span> }),
+    colAccount.accessor((a) => scopeLabel(a.broadest_scope_level), { id: "scope", header: "Scope más amplio" }),
+    colAccount.accessor((a) => viaLabel(a.via), { id: "via", header: "Vía" }),
+    colAccount.accessor((a) => a.last_sign_in ?? "", { id: "last_sign_in", header: "Último login", cell: (c) => dateOrDash(c.row.original.last_sign_in) }),
+    colAccount.accessor((a) => a.mfa_status ?? "", { id: "mfa", header: "MFA", cell: (c) => mfaCell(c.row.original.mfa_status) }),
+  ], []);
+
   const assignColumns = useMemo(() => [
     colAssign.accessor((a) => a.subscription_name || a.subscription_id, { id: "subscription", header: "Suscripción" }),
     colAssign.accessor("role_name", { header: "Rol" }),
+    colAssign.accessor((a) => a.role_class ?? "", {
+      id: "role_class", header: "Clase de rol",
+      cell: (c) => (
+        <span className="inline-flex items-center gap-1 flex-wrap">
+          {chip(roleClassChip(c.row.original.role_class), roleClassLabel(c.row.original.role_class))}
+          {c.row.original.is_custom_role && chip("bg-muted text-muted-foreground", "Personalizado")}
+        </span>
+      ),
+    }),
     colAssign.accessor((a) => scopeLabel(a.scope_level), { id: "scope_level", header: "Nivel de scope" }),
     colAssign.accessor((a) => principalTypeLabel(a.principal_type), { id: "principal_type", header: "Tipo" }),
+    colAssign.accessor((a) => a.is_external === null ? 2 : a.is_external ? 1 : 0, {
+      id: "externa", header: "Origen",
+      cell: (c) => chip(externalChip(c.row.original.is_external), externalLabel(c.row.original.is_external)),
+    }),
     colAssign.accessor((a) => a.display_name || a.principal_object_id, {
       id: "display_name", header: "Nombre",
       cell: (c) => nameCell(c.row.original.display_name, c.row.original.principal_object_id, isOrphanAssignment(c.row.original)),
@@ -488,6 +660,55 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     colGuest.accessor((g) => g.roles_in_subs ?? "", { id: "roles", header: "Roles/Subs", cell: (c) => (c.getValue() ? <span className="text-xs">{c.getValue()}</span> : "—") }),
     colGuest.accessor((g) => g.mfa_status ?? "", { id: "mfa", header: "MFA", cell: (c) => mfaCell(c.row.original.mfa_status) }),
   ], []);
+
+  const [accountSorting, setAccountSorting] = useState<SortingState>([]);
+  const [accountExpanded, setAccountExpanded] = useState<ExpandedState>({});
+  const accountTable = useReactTable({
+    data: filteredAccounts, columns: accountColumns,
+    state: { sorting: accountSorting, expanded: accountExpanded },
+    onSortingChange: setAccountSorting, onExpandedChange: setAccountExpanded,
+    getRowId: (a) => a.principal_object_id,
+    getRowCanExpand: () => true,
+    enableColumnFilters: false,
+    getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(), getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 10 } },
+  });
+
+  // Asignaciones de una cuenta, listadas al expandir su fila.
+  const accountSubRow = useCallback((a: AccessAccount) => {
+    const rows = assignments.filter((x) => x.principal_object_id === a.principal_object_id);
+    if (rows.length === 0) return <span className="text-xs text-muted-foreground">Sin asignaciones.</span>;
+    return (
+      <div className="space-y-1">
+        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          Asignaciones de esta cuenta
+        </div>
+        <table className="w-full text-xs">
+          <thead className="text-muted-foreground">
+            <tr>
+              <th className="text-left font-medium py-1 pr-4">Rol</th>
+              <th className="text-left font-medium py-1 pr-4">Clase</th>
+              <th className="text-left font-medium py-1 pr-4">Nivel de scope</th>
+              <th className="text-left font-medium py-1 pr-4">Suscripción</th>
+              <th className="text-left font-medium py-1">Vía grupo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((x, i) => (
+              <tr key={`${x.role_definition_id}-${x.scope}-${x.via_group_id ?? "d"}-${i}`} className="border-t border-border/50">
+                <td className="py-1 pr-4">{x.role_name}</td>
+                <td className="py-1 pr-4">{roleClassLabel(x.role_class)}</td>
+                <td className="py-1 pr-4">{scopeLabel(x.scope_level)}</td>
+                <td className="py-1 pr-4">{x.subscription_name || x.subscription_id}</td>
+                <td className="py-1">{x.via_group_name || (x.via_group_id ? x.via_group_id : "—")}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }, [assignments]);
 
   const [assignSorting, setAssignSorting] = useState<SortingState>([]);
   const assignTable = useReactTable({
@@ -583,30 +804,61 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
               </p>
             )}
 
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-              <Kpi icon={<Crown className="w-4 h-4" />} label="Global Admins"
+            {/* Los contadores de privilegio solo dependen de ARM: siguen midiéndose aunque la fase
+                Graph haya fallado (es la ganancia concreta en corridas Lighthouse / sin consent). */}
+            <div className="flex flex-wrap gap-2">
+              <Counter icon={<Users className="w-4 h-4" />} label="Cuentas" value={String(cuentasUnicas)} accent="#606161"
+                hint="Clic para ver todas las cuentas" onClick={showAllAccounts} active={tab === "accounts" && !accountFilter} />
+              <Counter icon={<Layers className="w-4 h-4" />} label="Asignaciones" value={String(totalAsign)} accent="#606161"
+                hint="Clic para ver todas las asignaciones (limpia los filtros)" onClick={showAllAssignments} />
+              <Counter icon={<ShieldAlert className="w-4 h-4" />} label="% elevadas" value={`${pctElevadas}%`}
+                accent={pctElevadas >= 25 ? "#a53b35" : "#d9a82a"}
+                hint="Owner, Otorga accesos y Escritura total sobre el total de asignaciones. Clic para filtrarlas."
+                onClick={() => toggleKpiFilter("elevadas")} active={kpiFilter === "elevadas"} />
+              <Counter icon={<KeyRound className="w-4 h-4" />} label="Owners" value={String(owners)}
+                accent={owners > 0 ? "#a53b35" : "#70b043"}
+                hint="Asignaciones con rol que otorga accesos y escritura total. Clic para filtrarlas."
+                onClick={() => toggleKpiFilter("owner")} active={kpiFilter === "owner"} />
+              <Counter icon={<Globe className="w-4 h-4" />} label="Externas"
+                value={graphIncomplete ? "n/d" : String(externas)} accent={externas > 0 ? "#d9a82a" : "#70b043"} muted={graphIncomplete}
+                hint={graphIncomplete ? "No medido: el origen interna/externa sale del UPN, que requiere leer el directorio." : "Cuentas invitadas o de otro tenant. Clic para filtrarlas."}
+                onClick={() => toggleAccountFilter("externas")} active={accountFilter === "externas"} />
+              <Counter icon={<ShieldOff className="w-4 h-4" />} label="Externas con Owner"
+                value={graphIncomplete ? "n/d" : String(ownersExternos)} accent={ownersExternos > 0 ? "#a53b35" : "#70b043"} muted={graphIncomplete}
+                hint={graphIncomplete ? "No medido: el origen interna/externa sale del UPN, que requiere leer el directorio." : "Clic para ver las cuentas externas con rol Owner"}
+                onClick={() => toggleAccountFilter("owners_externos")} active={accountFilter === "owners_externos"} />
+              <Counter icon={<Wrench className="w-4 h-4" />} label="Roles propios" value={String(rolesCustom)}
+                accent={rolesCustom > 0 ? "#d9a82a" : "#606161"}
+                hint="Definiciones de rol personalizadas en uso. Clic para filtrar sus asignaciones."
+                onClick={() => toggleKpiFilter("personalizados")} active={kpiFilter === "personalizados"} />
+              <Counter icon={<Crown className="w-4 h-4" />} label="Global Admins"
                 value={graphIncomplete ? "n/d" : String(gaCount)} accent={gaAccent} muted={graphIncomplete}
                 hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : "Clic para ver la pestaña Global Admins"}
                 onClick={() => setTab("admins")} active={tab === "admins"} />
-              <Kpi icon={<ShieldOff className="w-4 h-4" />} label="Sin MFA"
+              <Counter icon={<ShieldOff className="w-4 h-4" />} label="Sin MFA"
                 value={graphIncomplete ? "n/d" : String(sinMfa)} accent={sinMfa > 0 ? "#a53b35" : "#70b043"} muted={graphIncomplete}
                 hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : "Clic para filtrar las asignaciones de internos sin MFA"}
                 onClick={() => toggleKpiFilter("sin_mfa")} active={kpiFilter === "sin_mfa"} />
-              <Kpi icon={<UserX className="w-4 h-4" />} label="Deshabilitadas con RBAC"
+              <Counter icon={<UserX className="w-4 h-4" />} label="Deshabilitadas"
                 value={graphIncomplete ? "n/d" : String(deshabilitadas)} accent={deshabilitadas > 0 ? "#a53b35" : "#70b043"} muted={graphIncomplete}
                 hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : "Clic para filtrar las asignaciones de cuentas deshabilitadas"}
                 onClick={() => toggleKpiFilter("deshabilitadas")} active={kpiFilter === "deshabilitadas"} />
-              <Kpi icon={<Clock3 className="w-4 h-4" />} label="Inactivas con RBAC"
+              <Counter icon={<Clock3 className="w-4 h-4" />} label="Inactivas"
                 value={inactivityIncomplete ? "n/d" : String(inactivas)} accent={inactivas > 0 ? "#a53b35" : "#70b043"} muted={inactivityIncomplete}
                 hint={inactivityIncomplete ? "No medido: requiere licencia Entra ID P1 para el último inicio de sesión." : "Clic para filtrar las asignaciones de cuentas inactivas"}
                 onClick={() => toggleKpiFilter("inactivas")} active={kpiFilter === "inactivas"} />
-              <Kpi icon={<UserCog className="w-4 h-4" />} label="Guests inactivos c/permisos"
+              <Counter icon={<UserCog className="w-4 h-4" />} label="Guests inactivos c/permisos"
                 value={graphIncomplete ? "n/d" : String(guestsAlert)} accent={guestsAlert > 0 ? "#a53b35" : "#70b043"} muted={graphIncomplete}
                 hint={graphIncomplete ? "No medido: esta corrida no tiene datos completos de Entra ID." : "Clic para filtrar los guests inactivos con permisos"}
                 onClick={toggleGuestsAlert} active={guestsOnlyAlert} />
-              <Kpi icon={<Layers className="w-4 h-4" />} label="Asignaciones" value={String(totalAsign)} accent="#a3c243"
-                hint="Clic para ver todas las asignaciones (limpia los filtros)" onClick={showAllAssignments} />
             </div>
+
+            {sinClasificar && (
+              <p className="text-sm rounded-lg border border-border px-3 py-2 text-muted-foreground">
+                Esta corrida es anterior a la clasificación de privilegio: las columnas de clase de rol
+                aparecen como "sin clasificar". Volvé a sincronizar para calcularla.
+              </p>
+            )}
 
             {badCredentials.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -655,22 +907,111 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
 
             <Tabs value={tab} onValueChange={setTab}>
               <TabsList>
+                <TabsTrigger value="accounts">Cuentas</TabsTrigger>
                 <TabsTrigger value="assignments">Asignaciones</TabsTrigger>
                 <TabsTrigger value="admins">Global Admins</TabsTrigger>
                 <TabsTrigger value="guests">Guests</TabsTrigger>
                 <TabsTrigger value="sp">Service principals</TabsTrigger>
               </TabsList>
 
+              <TabsContent value="accounts" className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <SearchInput placeholder="Buscar cuenta o login…" value={qAccount} onChange={setQAccount}
+                    className="w-[260px] max-w-full" inputClassName="h-9" aria-label="Buscar cuentas" />
+                  {accountFilter && (
+                    <button type="button" onClick={() => setAccountFilter(null)}
+                      className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+                      aria-label={`Quitar filtro ${ACCOUNT_FILTER_LABEL[accountFilter]}`}>
+                      {ACCOUNT_FILTER_LABEL[accountFilter]}
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                  <div className="text-xs text-muted-foreground ml-auto">
+                    {accounts.length ? `${filteredAccounts.length} de ${accounts.length} cuentas` : ""}
+                  </div>
+                </div>
+                <DataTableBlock
+                  table={accountTable}
+                  emptyText={accounts.length ? "Sin cuentas que coincidan con los filtros." : "Este cliente no tiene cuentas con asignaciones RBAC."}
+                  rowClassName={(a) => (a.orphan || a.account_enabled === false ? "bg-red-50 dark:bg-red-950/30" : "")}
+                  subRow={accountSubRow}
+                />
+              </TabsContent>
+
               <TabsContent value="assignments" className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <SearchInput placeholder="Buscar nombre, login, rol o scope…" value={q} onChange={setQ} className="w-[260px] max-w-full" inputClassName="h-9" aria-label="Buscar asignaciones" />
-                  <Select value={fScope} onValueChange={setFScope}>
-                    <SelectTrigger className="h-9 w-[190px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Nivel de scope: todos</SelectItem>
-                      {scopeLevels.map((lvl) => <SelectItem key={lvl} value={lvl}>{scopeLabel(lvl)}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  {/* Seis selects en línea desbordan la fila: los secundarios van en un popover con
+                      contador, y en línea quedan solo los dos interruptores de uso frecuente. */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9">
+                        <Filter className="w-4 h-4 mr-1" />Filtros
+                        {secondaryFilters > 0 && (
+                          <span className="ml-1.5 text-xs px-1.5 rounded-full bg-primary/15 text-primary tabular-nums">
+                            {secondaryFilters}
+                          </span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-[280px] space-y-2">
+                      <Select value={fClass} onValueChange={setFClass}>
+                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Clase de rol: todas</SelectItem>
+                          {ROLE_CLASSES.map((c) => <SelectItem key={c} value={c}>{roleClassLabel(c)}</SelectItem>)}
+                          <SelectItem value="sin_clasificar">Sin clasificar</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={fRole} onValueChange={setFRole}>
+                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Rol: todos</SelectItem>
+                          {roles.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Select value={fSub} onValueChange={setFSub}>
+                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Suscripción: todas</SelectItem>
+                          {subs.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Select value={fType} onValueChange={setFType}>
+                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Tipo: todos</SelectItem>
+                          {principalTypes.map((t) => <SelectItem key={t} value={t}>{principalTypeLabel(t)}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Select value={fExternal} onValueChange={setFExternal}>
+                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Origen: todos</SelectItem>
+                          <SelectItem value="interna">Interna</SelectItem>
+                          <SelectItem value="externa">Externa</SelectItem>
+                          <SelectItem value="nd">Sin medir</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={fScope} onValueChange={setFScope}>
+                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Nivel de scope: todos</SelectItem>
+                          {scopeLevels.map((lvl) => <SelectItem key={lvl} value={lvl}>{scopeLabel(lvl)}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      {secondaryFilters > 0 && (
+                        <Button variant="ghost" size="sm" className="w-full h-8"
+                          onClick={() => { setFClass("all"); setFRole("all"); setFSub("all"); setFType("all"); setFExternal("all"); setFScope("all"); }}>
+                          Limpiar filtros
+                        </Button>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+                    <input type="checkbox" checked={onlyElevated} onChange={(e) => setOnlyElevated(e.target.checked)} className="accent-primary h-4 w-4" />
+                    Solo elevados
+                  </label>
                   <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
                     <input type="checkbox" checked={onlyAlerts} onChange={(e) => setOnlyAlerts(e.target.checked)} className="accent-primary h-4 w-4" />
                     Solo con alertas

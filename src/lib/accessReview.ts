@@ -1,5 +1,80 @@
 // Helpers de presentación del módulo Revisión de accesos.
 
+import type { AccessAssignment, AccessPrincipalType, AccessRoleClass } from "@/types";
+
+export function principalTypeLabel(t: AccessPrincipalType): string {
+  switch (t) {
+    case "User": return "Usuario";
+    case "Group": return "Grupo";
+    case "ServicePrincipal": return "Service principal";
+    case "ForeignGroup": return "Grupo externo (otro tenant)";
+    case "Device": return "Dispositivo";
+    case "Unknown": return "Sin identificar";
+    default: return t;
+  }
+}
+
+export function roleClassLabel(c: AccessRoleClass): string {
+  switch (c) {
+    case "owner": return "Owner (otorga accesos)";
+    case "otorga_accesos": return "Otorga accesos";
+    case "escritura_total": return "Escritura total";
+    case "escritura_servicio": return "Escritura de servicio";
+    case "lectura": return "Lectura";
+    default: return "Sin clasificar";
+  }
+}
+
+/** Rojo para lo que puede otorgar accesos, ámbar para escritura amplia, neutro para el resto. */
+export function roleClassChip(c: AccessRoleClass): string {
+  switch (c) {
+    case "owner":
+    case "otorga_accesos":
+      return "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300";
+    case "escritura_total":
+      return "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300";
+    case "escritura_servicio":
+      return "bg-yellow-50 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300";
+    case "lectura":
+      return "bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
+}
+
+/** "n/d" cuando el eje no se midió: nunca afirmar "Interna" sin dato de directorio. */
+export function externalLabel(v: boolean | null): string {
+  if (v === null) return "n/d";
+  return v ? "Externa" : "Interna";
+}
+
+export function externalChip(v: boolean | null): string {
+  if (v === null) return "bg-muted text-muted-foreground";
+  return v
+    ? "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300"
+    : "bg-muted text-muted-foreground";
+}
+
+export function viaLabel(v: string): string {
+  switch (v) {
+    case "directo": return "Directo";
+    case "grupo": return "Vía grupo";
+    case "ambos": return "Directo y vía grupo";
+    default: return v;
+  }
+}
+
+/** Tipos que viven en el directorio del cliente: los únicos que pueden estar eliminados de Entra ID.
+ * Para un ForeignGroup, un Device o un principal sin tipo, no tener nombre es lo esperado. */
+export function livesInTenant(t: AccessPrincipalType): boolean {
+  return t === "User" || t === "Group" || t === "ServicePrincipal";
+}
+
+/** Roles presentes en la corrida, para el filtro por rol. */
+export function distinctRoles(assignments: AccessAssignment[]): string[] {
+  return [...new Set(assignments.map((a) => a.role_name))].sort((a, b) => a.localeCompare(b, "es"));
+}
+
 export function mfaChip(mfa: string | null): { cls: string; text: string } {
   switch (mfa) {
     case "enabled": return { cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300", text: "MFA" };
