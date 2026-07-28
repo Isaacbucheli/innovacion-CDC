@@ -85,6 +85,7 @@ export function environmentLabel(env: string): string {
     case "produccion": return "Producción";
     case "preproduccion": return "Preproducción";
     case "desarrollo": return "Desarrollo";
+    case "transversal": return "Varios ambientes";
     default: return "Sin identificar";
   }
 }
@@ -96,6 +97,8 @@ export function environmentChip(env: string): string {
     case "produccion": return "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300";
     case "preproduccion": return "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300";
     case "desarrollo": return "bg-muted text-foreground";
+    // Cruza ambientes: pesa como producción, porque producción está adentro.
+    case "transversal": return "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300";
     default: return "bg-muted/50 text-muted-foreground";
   }
 }
@@ -261,6 +264,30 @@ export function graphStatusLabel(s: string): string {
 }
 
 /** Días desde la fecha, o null si no hay registro. */
+/**
+ * Qué mostrar en la columna "Suscripción". Para una asignación heredada (management group o root) la
+ * suscripción es un dato arbitrario: ARM la reporta una vez por cada suscripción consultada y al
+ * colapsar las repeticiones se conserva la primera, que no significa nada. Lo honesto es decir de
+ * dónde viene el acceso y a cuántas suscripciones llega.
+ */
+export function subscriptionLabel(a: {
+  subscription_name: string | null; subscription_id: string;
+  scope: string; scope_level: string; subscriptions_reached?: number;
+}): string {
+  if (a.scope_level === "root") return "Todo el tenant";
+  if (a.scope_level === "management_group") {
+    const mg = a.scope.split("/").pop() || "management group";
+    // Azure nombra el management group raíz con el GUID del tenant: mostrar ese GUID no le dice nada
+    // a nadie, y es justo el scope más amplio que existe debajo de root.
+    const nombre = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mg)
+      ? "Management group raíz"
+      : mg;
+    const n = a.subscriptions_reached ?? 0;
+    return n > 1 ? `${nombre} · ${n} suscripciones` : nombre;
+  }
+  return a.subscription_name || a.subscription_id;
+}
+
 export function daysSince(iso: string | null): number | null {
   if (!iso) return null;
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);

@@ -986,6 +986,8 @@ export interface AccessCredentialStatus {
 export interface AccessAssignment {
   subscription_id: string;
   subscription_name: string | null;
+  /** Suscripciones que alcanza este acceso: >1 solo en asignaciones heredadas (MG o root). */
+  subscriptions_reached?: number;
   scope: string;
   scope_level: "management_group" | "subscription" | "resource_group" | "resource" | "root";
   role_name: string;

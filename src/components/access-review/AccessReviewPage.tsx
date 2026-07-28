@@ -35,7 +35,7 @@ import {
 import {
   mfaChip, scopeLabel, graphStatusLabel, assignmentAlert, daysSince, principalTypeLabel,
   roleClassLabel, roleClassChip, roleClassShortLabel, accountPrivilege, externalLabel, externalChip,
-  viaLabel, livesInTenant,
+  viaLabel, livesInTenant, subscriptionLabel,
   decisionChip, decisionLabel, decisionProgress, decisionSummary, decisionTitle,
   environmentLabel, environmentChip,
 } from "@/lib/accessReview";
@@ -204,7 +204,10 @@ const ROLE_CLASSES: Exclude<AccessRoleClass, null>[] =
 // Los cuatro valores que puede devolver la clasificación de ambiente del backend (inferida del
 // nombre de la suscripción). Fija, no derivada de la corrida: el filtro debe ofrecer "Producción"
 // aunque este cliente no tenga ninguna suscripción clasificada así.
-const ENVIRONMENTS = ["produccion", "preproduccion", "desarrollo", "desconocido"] as const;
+// "transversal" no es un ambiente al que el acceso pertenezca: es un acceso por encima de la
+// suscripción que alcanza varios (lo resuelve el backend con TODO lo que alcanza, no con el
+// nombre de una suscripción cualquiera).
+const ENVIRONMENTS = ["produccion", "preproduccion", "desarrollo", "transversal", "desconocido"] as const;
 
 const mfaCell = (m: AccessAssignment["mfa_status"] | AccessGuest["mfa_status"] | AccessGlobalAdmin["mfa_status"]) => {
   const c = mfaChip(m);
@@ -850,12 +853,17 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
         </span>
       ),
     }),
-    colAssign.accessor((a) => a.subscription_name || a.subscription_id, { id: "subscription", header: "Suscripción" }),
+    colAssign.accessor(subscriptionLabel, {
+      id: "subscription", header: "Suscripción",
+      cell: (c) => <span title={c.row.original.scope}>{subscriptionLabel(c.row.original)}</span>,
+    }),
     // El ambiente lo infiere el backend del nombre de la suscripción (el front no clasifica nada).
     colAssign.accessor((a) => environmentLabel(a.environment), {
       id: "environment", header: "Ambiente",
       cell: (c) => (
-        <span title="Inferido del nombre de la suscripción."
+        <span title={c.row.original.environment === "transversal"
+          ? "El acceso está por encima de la suscripción y alcanza suscripciones de más de un ambiente."
+          : "Inferido del nombre de la suscripción."}
           className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${environmentChip(c.row.original.environment)}`}>
           {environmentLabel(c.row.original.environment)}
         </span>
@@ -896,7 +904,10 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   ], [isOrphanAssignment, editable]);
 
   const spColumns = useMemo(() => [
-    colAssign.accessor((a) => a.subscription_name || a.subscription_id, { id: "subscription", header: "Suscripción" }),
+    colAssign.accessor(subscriptionLabel, {
+      id: "subscription", header: "Suscripción",
+      cell: (c) => <span title={c.row.original.scope}>{subscriptionLabel(c.row.original)}</span>,
+    }),
     colAssign.accessor("role_name", { header: "Rol" }),
     colAssign.accessor((a) => scopeLabel(a.scope_level), { id: "scope_level", header: "Nivel de scope" }),
     colAssign.accessor((a) => a.display_name || a.principal_object_id, {
