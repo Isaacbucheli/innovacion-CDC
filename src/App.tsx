@@ -25,6 +25,7 @@ const CatalogPage = lazy(() => import("@/components/CatalogPage"));
 const PolicyCatalogPage = lazy(() => import("@/components/PolicyCatalogPage"));
 const ConsultantsPage = lazy(() => import("@/components/ConsultantsPage"));
 const AccessReviewPage = lazy(() => import("@/components/access-review/AccessReviewPage"));
+const PendientesPage = lazy(() => import("@/components/pendientes/PendientesPage"));
 const NoAccessPage = lazy(() => import("@/components/NoAccessPage"));
 
 const SECTION_KEY = "innovacion_cdc_section";
@@ -37,8 +38,9 @@ function loadRecent(): string[] {
 // Guard central: si fuerzan la sección por localStorage sin permiso, se muestra
 // el fallback (la API igual respondería 403; esto evita la pantalla rota).
 const ADMIN_SECTIONS = new Set(["clientes", "usuarios", "waf-validation"]);
-// Matriz de módulos (12 secciones): costos, optimization, service-catalog, waf,
-// waf-ingestions, waf-cost, report, reservations, alerts, policies, consultants, access-review
+// Matriz de módulos (14 secciones): costos, optimization, service-catalog, waf,
+// waf-ingestions, waf-cost, report, reservations, alerts, policies, consultants, access-review,
+// pendientes-cdc, pendientes-infra
 function allowedSection(key: string): boolean {
   if (key === "home") return true;
   if (ADMIN_SECTIONS.has(key)) return getRole() === "admin";
@@ -86,6 +88,10 @@ function SectionView({ section, recent, onNavigate }: {
     <ConsultantsPage onNavigate={onNavigate} />
   ) : section === "access-review" ? (
     <AccessReviewPage onNavigate={onNavigate} />
+  ) : section === "pendientes-cdc" ? (
+    <PendientesPage area="CDC" section="pendientes-cdc" title="Pendientes CDC" onNavigate={onNavigate} />
+  ) : section === "pendientes-infra" ? (
+    <PendientesPage area="INFRA" section="pendientes-infra" title="Pendientes Infra & SSAA" onNavigate={onNavigate} />
   ) : (
     <HomePage recent={recent} onNavigate={onNavigate} />
   );

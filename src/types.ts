@@ -1109,3 +1109,75 @@ export interface AccessReviewResponse {
   guests?: AccessGuest[];
   global_admins?: AccessGlobalAdmin[];
 }
+
+// ---- Pendientes y bloqueantes (Gestión CDC) ----
+// El dato vive en la BD del tablero "Seguimiento CDC", no en la de la plataforma: la SWA original
+// sigue escribiendo las mismas tablas. De ahí `actualizado`, que viaja de vuelta en la edición como
+// token de concurrencia optimista.
+
+export type PendienteArea = "CDC" | "INFRA";
+export type PendienteTipo = "PENDIENTE" | "BLOQUEANTE";
+export type PendientePrioridad = "ALTA" | "MEDIA" | "BAJA";
+/** Con guion bajo: es el valor exacto de la BD, aunque la UI muestre "En progreso". */
+export type PendienteEstado = "ABIERTO" | "EN_PROGRESO" | "CERRADO";
+
+export interface PendienteNota {
+  hist_id: number;
+  fecha: string | null;
+  nota: string;
+  autor: string | null;
+  /** Orden de inserción: el timeline se rige por esto, NO por la fecha. */
+  orden: number;
+}
+
+export interface PendienteCliente {
+  num: number;
+  cliente: string;
+  servicio: string | null;
+  categoria: string | null;
+  pais: string | null;
+  coordinador: string | null;
+  consultor: string | null;
+}
+
+export interface PendienteItem {
+  id: string;
+  cliente_num: number;
+  /** Vacío en casi todos los registros reales: la descripción es el contenido. */
+  titulo: string | null;
+  descripcion: string | null;
+  tipo: PendienteTipo | null;
+  prioridad: PendientePrioridad | null;
+  estado: PendienteEstado | null;
+  responsable: string | null;
+  fecha_creacion: string | null;
+  actualizado: string;
+  historial: PendienteNota[];
+}
+
+export interface PendientesPayload {
+  area: string;
+  clientes: PendienteCliente[];
+  pendientes: PendienteItem[];
+}
+
+export interface PendienteWrite {
+  cliente_num: number;
+  titulo?: string | null;
+  descripcion?: string | null;
+  tipo?: string | null;
+  prioridad?: string | null;
+  estado?: string | null;
+  responsable?: string | null;
+  /** Obligatorio al editar: el `actualizado` que traía la fila leída. */
+  actualizado?: string | null;
+}
+
+export interface PendienteClienteWrite {
+  cliente: string;
+  servicio?: string | null;
+  categoria?: string | null;
+  pais?: string | null;
+  coordinador?: string | null;
+  consultor?: string | null;
+}
