@@ -84,7 +84,10 @@ const acceptAccessFinding = vi.fn(
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   listClientsAdmin: () => Promise.resolve(clients),
-  getAccessReview: () => Promise.resolve(resp),
+  // structuredClone en cada llamada: la API real devuelve JSON nuevo, con arrays de identidad
+  // distinta. Devolver siempre el MISMO objeto ocultaba todo efecto de recarga (la tabla volviendo a
+  // la página 1, la selección descartándose), porque los useMemo ni se recalculaban.
+  getAccessReview: () => Promise.resolve(structuredClone(resp)),
   listAccessReviewRuns: () => Promise.resolve([]),
   syncAccessReview: vi.fn(),
   downloadFromApi: vi.fn(),
