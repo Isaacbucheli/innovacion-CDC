@@ -7,7 +7,8 @@ import {
 } from "@tanstack/react-table";
 import {
   Layers, MoreHorizontal, RefreshCw, Download, History, Loader2, X,
-  ShieldAlert, KeyRound, Globe, Wrench, ChevronRight, Filter, Sparkles, AlignJustify,
+  ShieldAlert, KeyRound, Globe, Wrench, ChevronRight, Sparkles, AlignJustify,
+  ChevronDown, Check, Ban, FileText,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import BusyOverlay from "@/components/BusyOverlay";
@@ -27,7 +28,6 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   listClientsAdmin, getAccessReview, syncAccessReview, listAccessReviewRuns, downloadFromApi,
   saveAccessDecisions, acceptAccessFinding,
@@ -35,7 +35,7 @@ import {
 import {
   mfaChip, scopeLabel, graphStatusLabel, assignmentAlert, daysSince, principalTypeLabel,
   roleClassLabel, roleClassChip, roleClassShortLabel, accountPrivilege, externalLabel, externalChip,
-  viaLabel, livesInTenant, distinctRoles,
+  viaLabel, livesInTenant,
   decisionChip, decisionLabel, decisionProgress, decisionSummary, decisionTitle,
   environmentLabel, environmentChip,
 } from "@/lib/accessReview";
@@ -78,8 +78,14 @@ function runStatusChip(s: AccessReviewRun["status"]) {
 // realidad nunca se llegó a medir. `hint` es un title nativo, sin componente nuevo. Con `onClick`
 // se vuelve botón (filtra la tabla correspondiente); en estado muted no hay clic porque filtrar
 // por un dato no medido no significa nada.
-function Counter({ icon, label, value, accent, muted, hint, onClick, active }: {
-  icon: React.ReactNode; label: string; value: string; accent?: string; muted?: boolean; hint?: string;
+/**
+ * `muted` = no medido (el valor va en "n/d"). `partial` es distinto y más sutil: el valor SÍ se midió,
+ * pero sobre un inventario que quedó corto porque alguna credencial no respondió, así que es un piso y
+ * no el total. Se marca con "≥" para no presentar un mínimo como si fuera la cifra real.
+ */
+function Counter({ icon, label, value, accent, muted, partial, hint, onClick, active }: {
+  icon: React.ReactNode; label: string; value: string; accent?: string; muted?: boolean;
+  partial?: boolean; hint?: string;
   onClick?: () => void; active?: boolean;
 }) {
   const inner = (
@@ -88,6 +94,7 @@ function Counter({ icon, label, value, accent, muted, hint, onClick, active }: {
         {icon}
       </span>
       <span className={`text-lg font-bold tabular-nums leading-none ${muted ? "text-muted-foreground" : ""}`}>
+        {partial && !muted && <span className="text-muted-foreground font-normal">≥</span>}
         {value}
       </span>
       <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground leading-tight">
@@ -248,14 +255,25 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState("");
   const [dias, setDias] = useState(90);
+  // Texto del input, separado del número: permite el estado intermedio vacío sin elegir un umbral
+  // por el usuario ni disparar una recarga (ver el comentario junto al Input).
+  const [diasText, setDiasText] = useState("90");
 
   const runId = useRef(0);
+  // Cliente activo, para que una respuesta en vuelo no pinte datos de un cliente que ya no se está
+  // mirando (ver el comentario de `load`).
+  const clientIdRef = useRef<number | null>(null);
   const mounted = useRef(true);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstDias = useRef(true);
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+
+  // Sincroniza el ref del cliente activo. Va declarado ANTES del efecto que dispara `load`, porque
+  // los efectos corren en orden de declaración: si el ref quedara sin actualizar, `vigente()`
+  // descartaría la respuesta de la carga inicial y la vista nunca mostraría datos.
+  useEffect(() => { clientIdRef.current = clientId; }, [clientId]);
 
   const clearPoll = useCallback(() => {
     if (pollTimer.current) { clearInterval(pollTimer.current); pollTimer.current = null; }
@@ -267,32 +285,38 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
 
   // Carga (o recarga silenciosa) del snapshot. Si el estado devuelto es queued/running arranca
   // el polling cada 5s (anti-race con runId, igual que ReservationsPage) hasta llegar a un estado final.
+  //
+  // El guard por runId NO alcanza: una recarga disparada después de guardar una decisión nace con el
+  // runId más alto, así que gana la carrera contra la carga del cliente al que el usuario acaba de
+  // cambiar y pinta el inventario del cliente anterior bajo la cabecera del nuevo. De ahí el segundo
+  // guard por `cid`: si el cliente activo ya no es el de esta carga, la respuesta se descarta.
   const load = useCallback((cid: number, days: number, opts?: { silent?: boolean }) => {
     const myRun = ++runId.current;
+    const vigente = () => mounted.current && myRun === runId.current && cid === clientIdRef.current;
     clearPoll();
     if (opts?.silent) setRefreshing(true); else setLoading(true);
     setMessage("");
     getAccessReview(cid, days)
       .then((data) => {
-        if (!mounted.current || myRun !== runId.current) return;
+        if (!vigente()) return;
         setResp(data);
         if (data.status === "queued" || data.status === "running") {
           pollTimer.current = setInterval(() => {
-            if (!mounted.current || myRun !== runId.current) { clearPoll(); return; }
+            if (!vigente()) { clearPoll(); return; }
             getAccessReview(cid, days)
               .then((next) => {
-                if (!mounted.current || myRun !== runId.current) return;
+                if (!vigente()) return;
                 setResp(next);
                 if (next.status !== "queued" && next.status !== "running") clearPoll();
               })
               .catch((e) => {
-                if (mounted.current && myRun === runId.current) setMessage(`No se pudo actualizar el estado de la sincronización: ${msg(e)}`);
+                if (vigente()) setMessage(`No se pudo actualizar el estado de la sincronización: ${msg(e)}`);
               });
           }, 5000);
         }
       })
       .catch((e) => {
-        if (mounted.current && myRun === runId.current) {
+        if (vigente()) {
           setMessage(`No se pudo cargar la revisión de accesos: ${msg(e)}`);
           toast.error(`No se pudo cargar la revisión de accesos: ${msg(e)}`);
         }
@@ -333,9 +357,16 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
 
   // Al cambiar de cliente se descarta el drill-down de tarjetas (es estado del snapshot anterior).
   function selectClient(id: number) {
-    writeActiveClient(id); setClientId(id);
-    setKpiFilter(null); setGuestsOnlyAlert(false); setAccountFilter(null); setFindingFilter(null);
-    setFDecision("all"); setFEnv("all"); setOnlyNew(false);
+    writeActiveClient(id);
+    // El ref se actualiza de forma sincrónica: una respuesta en vuelo del cliente anterior tiene que
+    // descartarse aunque llegue antes de que React procese el cambio de estado.
+    clientIdRef.current = id;
+    setClientId(id);
+    // Se limpia TODO lo que filtra. Dejar filtros vivos entre clientes mostraba una tabla recortada
+    // por un criterio del cliente anterior, y en el caso de la suscripción (un GUID que no existe en
+    // el otro tenant) la dejaba en cero filas sin que nada lo explicara.
+    setGuestsOnlyAlert(false); setAccountFilter(null); setFindingFilter(null); setQAccount("");
+    clearAssignFilters();
   }
 
   async function doSync() {
@@ -393,6 +424,11 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   // Delta contra la corrida anterior: lo calcula el backend. Sin corrida previa (has_previous false)
   // no hay novedad que mostrar, y eso NO es "no cambió nada".
   const delta = resp?.delta;
+  // El eje de accesos del delta es comparable solo si el inventario ARM se leyó completo en LAS DOS
+  // corridas. Si no, "nuevos" no es 0 ni un número: es n/d. Comparar contra un inventario parcial
+  // reportaba altas que nadie hizo (y el filtro "solo nuevos" mostraría un recorte arbitrario).
+  // El `??` cubre corridas servidas por una API anterior a este campo.
+  const deltaAccesosOk = (delta?.accesos_comparables ?? delta?.nuevos_accesos !== null) === true;
 
   // Corrida anterior a la clasificación de privilegio: sin re-sincronizar no hay clase que mostrar.
   const sinClasificar = useMemo(
@@ -413,6 +449,22 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
       : status === "error" || credentials.some((c) => c.graph_status === "sin_consent" || c.graph_status === "no_aplica" || c.graph_status === "error"),
     [resp?.graph_complete, status, credentials],
   );
+  // Inventario ARM incompleto: alguna credencial no pudo listar sus asignaciones, o la corrida murió.
+  // No es lo mismo que el Graph incompleto: acá no queda un indicador "sin medir", queda la TABLA
+  // corta. Todo lo que se cuenta sobre asignaciones (total, % elevadas, owners, roles propios) es un
+  // piso, y presentarlo como el total hace concluir "este cliente tiene poco acceso repartido".
+  const armIncomplete = useMemo(
+    () => status === "error" || credentials.some((c) => c.arm_status !== "ok"),
+    [status, credentials],
+  );
+  // Falta de licencia P1/P2: el directorio se leyó completo, solo no hay último inicio de sesión. Es
+  // una limitación del tenant del cliente, no una falla, y merece su propio aviso: el banner anterior
+  // la reportaba como "los indicadores de Entra ID no reflejan datos completos", que es falso.
+  const sinLicenciaP1 = useMemo(
+    () => credentials.some((c) => c.graph_status === "sin_licencia_p1"),
+    [credentials],
+  );
+
   // Asignación huérfana: el principal ya no existe en Entra ID ("Identity not found" en el portal).
   // Solo se afirma con la fase Graph completa: si Graph falló, un nombre vacío significa "no
   // resuelto", no "eliminado". Las filas derivadas (vía grupo) vienen de miembros vivos.
@@ -437,14 +489,9 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
 
   // ---- Filtros de negocio sobre Asignaciones (point 7) ----
   const [q, setQ] = useState("");
-  const [fScope, setFScope] = useState("all");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
   const [onlyElevated, setOnlyElevated] = useState(false);
-  const [fRole, setFRole] = useState("all");
-  const [fSub, setFSub] = useState("all");
-  const [fType, setFType] = useState("all");
   const [fClass, setFClass] = useState("all");
-  const [fExternal, setFExternal] = useState("all");
   const [fDecision, setFDecision] = useState<DecisionFilter>("all");
   const [fEnv, setFEnv] = useState("all");
   // "Solo nuevos" va en línea (no en el popover): en una revisión mensual es el primer filtro que se
@@ -459,7 +506,11 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const [qAccount, setQAccount] = useState("");
   // Drill-down de un hallazgo: se guarda la lista de principals en un Set para no recorrer un array
   // de cientos de ids por cada fila de la tabla.
-  const [findingFilter, setFindingFilter] = useState<{ key: string; title: string; principals: Set<string> } | null>(null);
+  // Solo la CLAVE del hallazgo: las cuentas se releen del snapshot vigente. Guardar el Set
+  // materializado dejaba la tabla mostrando las cuentas de un hallazgo que ya cambió (subir el umbral
+  // de inactividad reescribe el hallazgo, y la tabla seguía listando las que ya no califican) o de
+  // uno que desapareció al justificarse.
+  const [findingFilter, setFindingFilter] = useState<{ key: string } | null>(null);
 
   // Clic en contador: lleva a la pestaña correspondiente y aplica su filtro
   // (clic de nuevo sobre el contador activo lo quita).
@@ -477,14 +528,16 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     clearAssignFilters();
   }
   function clearAssignFilters() {
-    setKpiFilter(null); setQ(""); setFScope("all"); setOnlyAlerts(false); setOnlyElevated(false);
-    setFRole("all"); setFSub("all"); setFType("all"); setFClass("all"); setFExternal("all");
-    setFDecision("all"); setFEnv("all"); setOnlyNew(false);
+    setKpiFilter(null); setQ(""); setOnlyAlerts(false); setOnlyElevated(false);
+    setFClass("all"); setFDecision("all"); setFEnv("all"); setOnlyNew(false);
   }
   // Contador "Nuevos" (y la franja de cambios): lleva a Asignaciones con "solo nuevos". Limpia el
   // filtro de otros contadores para no cruzar dos criterios y dejar una tabla vacía sin explicación.
+  // Desde otra pestaña el clic SIEMPRE muestra lo nuevo: con `active` mirando la pestaña, el
+  // contador aparecía apagado aunque el filtro siguiera puesto, y el clic lo apagaba en vez de llevar
+  // a la novedad — dos clics para lo que promete el hint.
   function toggleOnlyNew() {
-    setTab("assignments");
+    if (tab !== "assignments") { showNewAssignments(); return; }
     setKpiFilter(null);
     setOnlyNew((prev) => !prev);
   }
@@ -498,26 +551,16 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   function drillDownFinding(f: AccessFinding) {
     setTab("accounts");
     setAccountFilter(null);
-    setFindingFilter({ key: f.key, title: f.title, principals: new Set(f.affected_principals) });
+    setFindingFilter({ key: f.key });
   }
 
-  const scopeLevels = useMemo(
-    () => [...new Set(assignments.map((a) => a.scope_level))].sort((a, b) => a.localeCompare(b)),
-    [assignments],
-  );
-  const roles = useMemo(() => distinctRoles(assignments), [assignments]);
-  const subs = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const a of assignments) map.set(a.subscription_id, a.subscription_name || a.subscription_id);
-    return [...map].sort((x, y) => x[1].localeCompare(y[1], "es"));
-  }, [assignments]);
-  const principalTypes = useMemo(
-    () => [...new Set(assignments.map((a) => a.principal_type))].sort((a, b) => a.localeCompare(b)),
-    [assignments],
-  );
-
   // Filtros secundarios activos: alimenta el contador del botón "Filtros".
-  const secondaryFilters = [fRole, fSub, fType, fClass, fExternal, fScope, fDecision, fEnv].filter((v) => v !== "all").length;
+  // Filtros activos que NO se ven a simple vista: hoy los tres selects están en línea con su
+  // etiqueta, así que el usuario siempre ve cuál está aplicado. Se conserva el conteo solo para el
+  // botón de limpiar.
+  const activeFilters = [fClass, fEnv, fDecision].filter((v) => v !== "all").length
+    + (q.trim() ? 1 : 0) + (onlyElevated ? 1 : 0) + (onlyAlerts ? 1 : 0)
+    + (onlyNew && deltaAccesosOk ? 1 : 0);   // no cuenta si no filtra (ver el predicado)
 
   const filteredAssignments = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -535,34 +578,46 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
       else if (kpiFilter === "personalizados" && !a.is_custom_role) return false;
 
       if (term) {
-        const hay = `${a.display_name ?? a.principal_object_id} ${a.login ?? ""} ${a.role_name} ${a.scope}`.toLowerCase();
+        // Incluye suscripción y tipo porque sus selects se quitaron: sin esto quedarían
+        // inalcanzables. El scope ya trae el id de la suscripción; el nombre es lo que se busca.
+        // El toLowerCase() va sobre la cadena COMPLETA: aplicado a un solo tramo del template dejaba
+        // el nombre, el login y el rol comparándose con mayúsculas contra un término en minúsculas.
+        const hay = (`${a.display_name ?? a.principal_object_id} ${a.login ?? ""} ${a.role_name} `
+          + `${a.scope} ${a.subscription_name ?? ""} ${principalTypeLabel(a.principal_type)}`).toLowerCase();
         if (!hay.includes(term)) return false;
       }
-      if (fScope !== "all" && a.scope_level !== fScope) return false;
-      if (fRole !== "all" && a.role_name !== fRole) return false;
-      if (fSub !== "all" && a.subscription_id !== fSub) return false;
-      if (fType !== "all" && a.principal_type !== fType) return false;
       if (fClass !== "all" && (a.role_class ?? "sin_clasificar") !== fClass) return false;
-      if (fExternal !== "all") {
-        const wanted = fExternal === "externa" ? true : fExternal === "interna" ? false : null;
-        if (a.is_external !== wanted) return false;
-      }
       if (fDecision !== "all") {
         if (fDecision === "pendiente" ? a.decision !== null : a.decision !== fDecision) return false;
       }
       if (fEnv !== "all" && a.environment !== fEnv) return false;
-      if (onlyNew && !a.is_new) return false;
+      // `deltaAccesosOk` también acá: tras un re-sync que quedó parcial el filtro puede seguir
+      // encendido de la corrida anterior, y entonces recortaría la tabla por un "nuevo" que ya no se
+      // puede afirmar. Sin eje comparable el filtro simplemente no aplica.
+      if (onlyNew && deltaAccesosOk && !a.is_new) return false;
       if (onlyElevated && !a.is_elevated) return false;
       if (onlyAlerts && !assignmentAlert(a, dias) && !isOrphanAssignment(a)) return false;
       return true;
     });
-  }, [assignments, q, fScope, fRole, fSub, fType, fClass, fExternal, fDecision, fEnv, onlyNew,
+  }, [assignments, q, fClass, fDecision, fEnv, onlyNew, deltaAccesosOk,
       onlyAlerts, onlyElevated, dias, kpiFilter, isOrphanAssignment]);
+
+  // El hallazgo del drill-down, releído del snapshot actual: si desapareció (por ejemplo porque se
+  // justificaron todos sus accesos) el filtro se cae solo y no queda un chip describiendo algo que ya
+  // no existe.
+  const activeFinding = useMemo(
+    () => (findingFilter ? findings.find((f) => f.key === findingFilter.key) ?? null : null),
+    [findingFilter, findings],
+  );
+  const findingPrincipals = useMemo(
+    () => (activeFinding ? new Set(activeFinding.affected_principals) : null),
+    [activeFinding],
+  );
 
   const filteredAccounts = useMemo(() => {
     const term = qAccount.trim().toLowerCase();
     return accounts.filter((a) => {
-      if (findingFilter && !findingFilter.principals.has(a.principal_object_id)) return false;
+      if (findingPrincipals && !findingPrincipals.has(a.principal_object_id)) return false;
       if (accountFilter === "externas" && a.is_external !== true) return false;
       if (accountFilter === "owners_externos" && !(a.is_external === true && a.owner > 0)) return false;
       if (term) {
@@ -571,7 +626,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
       }
       return true;
     });
-  }, [accounts, accountFilter, qAccount, findingFilter]);
+  }, [accounts, accountFilter, qAccount, findingPrincipals]);
 
   // Mismo criterio que el KPI "guests_inactivos_con_permisos": inactivo sobre el umbral Y con roles RBAC.
   const filteredGuests = useMemo(() => {
@@ -966,6 +1021,21 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
 
   const badCredentials = credentials.filter((c) => c.arm_status !== "ok" || c.graph_status !== "ok");
 
+  // Un aviso por cada cosa que efectivamente no se pudo medir, en orden de gravedad: primero lo que
+  // deja la tabla corta, después lo que deja indicadores sin medir, y al final la limitación de
+  // licencia (que no es una falla). Vacío = la corrida cubrió todo y no hay nada que advertir.
+  const avisosCobertura = [
+    armIncomplete
+      ? "No se pudo listar las asignaciones de todas las credenciales: la tabla y los conteos de asignaciones son un piso, no el total del tenant."
+      : null,
+    graphIncomplete
+      ? "No se pudo leer el directorio de Entra ID: MFA, cuentas habilitadas, origen interna/externa, administradores e invitados quedan sin medir."
+      : null,
+    sinLicenciaP1
+      ? "El tenant del cliente no tiene licencia Entra ID P1/P2: sin último inicio de sesión, la inactividad de cuentas no es evaluable."
+      : null,
+  ].filter((a): a is string => a !== null);
+
   return (
     <AppShell title="Revisión de accesos" subtitle="Accesos y permisos RBAC del tenant del cliente"
       active="access-review" onNavigate={onNavigate}
@@ -1010,46 +1080,75 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
 
         {!loading && clientId != null && !isRunning && hasSnapshot && (
           <>
-            {status !== "ok" && (
-              <p
-                className={`text-sm rounded-lg border px-3 py-2 ${
-                  status === "error"
+            {/* El aviso se arma de lo que realmente faltó, no del `status` de la corrida. El texto
+                único mentía en los dos sentidos: una corrida `partial` solo por falta de licencia P1
+                leyó el directorio completo (nada de MFA ni administradores queda sin medir), y una
+                corrida `ok` con una credencial sin consent no mostraba aviso alguno aunque media
+                columna estuviera en n/d. Y el caso peor no se avisaba nunca: con una credencial que
+                falló en ARM la tabla queda corta y los conteos se leían como el total. */}
+            {avisosCobertura.length > 0 && (
+              <div
+                className={`text-sm rounded-lg border px-3 py-2 space-y-1 ${
+                  status === "error" || armIncomplete
                     ? "text-red-700 dark:text-red-400 border-red-300 dark:border-red-800"
                     : "text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800"
                 }`}
               >
-                Esta corrida está incompleta: los indicadores de Entra ID (MFA, cuentas, administradores e invitados) no reflejan datos completos. Revisa el estado por credencial más abajo.
-              </p>
+                {avisosCobertura.map((a) => <p key={a}>{a}</p>)}
+                {badCredentials.length > 0 && (
+                  <p className="text-muted-foreground">Revisa el estado por credencial más abajo.</p>
+                )}
+              </div>
             )}
 
             {/* Los contadores de privilegio solo dependen de ARM: siguen midiéndose aunque la fase
-                Graph haya fallado (es la ganancia concreta en corridas Lighthouse / sin consent). */}
+                Graph haya fallado (es la ganancia concreta en corridas Lighthouse / sin consent).
+                Si lo que falló es ARM van con "≥": el número es correcto sobre lo que se pudo leer,
+                pero el total del tenant es mayor. */}
             <div className="flex flex-wrap gap-2">
               <Counter icon={<Layers className="w-4 h-4" />} label="Asignaciones" value={String(totalAsign)} accent="#606161"
-                hint="Clic para ver todas las asignaciones (limpia los filtros)" onClick={showAllAssignments} />
-              {/* "Nuevos" solo depende de ARM y de que exista corrida previa: nunca va en "no medido".
-                  Sin corrida anterior no se muestra — un 0 ahí se leería como "no cambió nada". */}
+                partial={armIncomplete}
+                hint={armIncomplete
+                  ? "Piso, no el total: alguna credencial no pudo listar sus asignaciones. Clic para ver las que sí se leyeron."
+                  : "Clic para ver todas las asignaciones (limpia los filtros)"}
+                onClick={showAllAssignments} />
+              {/* "Nuevos" depende de ARM y de que exista corrida previa. Sin corrida anterior no se
+                  muestra — un 0 ahí se leería como "no cambió nada". Con corrida anterior pero
+                  inventario parcial en cualquiera de las dos, va en "n/d": el conteo saldría de
+                  comparar contra una lista que quedó a medias. */}
               {delta?.has_previous && (
-                <Counter icon={<Sparkles className="w-4 h-4" />} label="Nuevos" value={String(delta.nuevos_accesos)}
-                  accent={delta.nuevos_accesos > 0 ? "#d9a82a" : "#70b043"}
-                  hint="Accesos que no existían en la corrida anterior. Clic para verlos en Asignaciones."
-                  onClick={toggleOnlyNew} active={tab === "assignments" && onlyNew} />
+                <Counter icon={<Sparkles className="w-4 h-4" />} label="Nuevos"
+                  value={deltaAccesosOk ? String(delta.nuevos_accesos) : "n/d"}
+                  accent={deltaAccesosOk && (delta.nuevos_accesos ?? 0) > 0 ? "#d9a82a" : "#70b043"}
+                  muted={!deltaAccesosOk}
+                  hint={deltaAccesosOk
+                    ? "Accesos que no existían en la corrida anterior. Clic para verlos en Asignaciones."
+                    : "No medido: alguna de las dos corridas comparadas no leyó el inventario completo de asignaciones."}
+                  onClick={deltaAccesosOk ? toggleOnlyNew : undefined} active={onlyNew} />
               )}
+              {/* El porcentaje NO lleva "≥": sobre un inventario parcial puede salir para cualquier
+                  lado (es un cociente entre dos números incompletos), así que se aclara en el hint. */}
               <Counter icon={<ShieldAlert className="w-4 h-4" />} label="% elevadas" value={`${pctElevadas}%`}
                 accent={pctElevadas >= 25 ? "#a53b35" : "#d9a82a"}
-                hint="Owner, Otorga accesos y Escritura total sobre el total de asignaciones. Clic para filtrarlas."
+                hint={armIncomplete
+                  ? "Calculado solo sobre las asignaciones que se pudieron leer: con el inventario incompleto el porcentaje real puede ser mayor o menor. Clic para filtrarlas."
+                  : "Owner, Otorga accesos y Escritura total sobre el total de asignaciones. Clic para filtrarlas."}
                 onClick={() => toggleKpiFilter("elevadas")} active={kpiFilter === "elevadas"} />
               <Counter icon={<KeyRound className="w-4 h-4" />} label="Owners" value={String(owners)}
-                accent={owners > 0 ? "#a53b35" : "#70b043"}
-                hint="Asignaciones con rol que otorga accesos y escritura total. Clic para filtrarlas."
+                accent={owners > 0 ? "#a53b35" : "#70b043"} partial={armIncomplete}
+                hint={armIncomplete
+                  ? "Piso, no el total: alguna credencial no pudo listar sus asignaciones. Clic para filtrar las que sí se leyeron."
+                  : "Asignaciones con rol que otorga accesos y escritura total. Clic para filtrarlas."}
                 onClick={() => toggleKpiFilter("owner")} active={kpiFilter === "owner"} />
               <Counter icon={<Globe className="w-4 h-4" />} label="Externas"
                 value={graphIncomplete ? "n/d" : String(externas)} accent={externas > 0 ? "#d9a82a" : "#70b043"} muted={graphIncomplete}
                 hint={graphIncomplete ? "No medido: el origen interna/externa sale del UPN, que requiere leer el directorio." : "Cuentas invitadas o de otro tenant. Clic para filtrarlas."}
                 onClick={() => toggleAccountFilter("externas")} active={accountFilter === "externas"} />
               <Counter icon={<Wrench className="w-4 h-4" />} label="Roles propios" value={String(rolesCustom)}
-                accent={rolesCustom > 0 ? "#d9a82a" : "#606161"}
-                hint="Definiciones de rol personalizadas en uso. Clic para filtrar sus asignaciones."
+                accent={rolesCustom > 0 ? "#d9a82a" : "#606161"} partial={armIncomplete}
+                hint={armIncomplete
+                  ? "Piso, no el total: solo los roles personalizados vistos en las credenciales que respondieron. Clic para filtrar sus asignaciones."
+                  : "Definiciones de rol personalizadas en uso. Clic para filtrar sus asignaciones."}
                 onClick={() => toggleKpiFilter("personalizados")} active={kpiFilter === "personalizados"} />
               {/* Pendientes solo depende de ARM + decisiones: nunca va en "no medido". */}
             </div>
@@ -1088,8 +1187,23 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <label className="flex items-center gap-2">
                 Umbral de inactividad (días):
-                <Input type="number" min={1} max={3650} value={dias}
-                  onChange={(e) => setDias(Math.min(3650, Math.max(1, Number(e.target.value) || 90)))}
+                {/* El texto se edita libre y el número se confirma al salir del campo. Clampear en
+                    cada tecla repone "90" al borrar (un valor que el usuario no eligió), y como React
+                    reescribe el value el caret queda al final: teclear 365 producía 903 → 9036 → 3650. */}
+                <Input type="number" min={1} max={3650} value={diasText}
+                  onChange={(e) => {
+                    setDiasText(e.target.value);
+                    const n = Number(e.target.value);
+                    if (e.target.value.trim() !== "" && Number.isFinite(n) && n >= 1 && n <= 3650) setDias(n);
+                  }}
+                  onBlur={() => {
+                    const n = Number(diasText);
+                    const val = diasText.trim() === "" || !Number.isFinite(n)
+                      ? dias
+                      : Math.min(3650, Math.max(1, Math.trunc(n)));
+                    setDias(val);
+                    setDiasText(String(val));
+                  }}
                   className="h-8 w-20 text-foreground" aria-label="Umbral de inactividad en días" />
               </label>
               {refreshing && <span className="text-primary">Recalculando…</span>}
@@ -1139,11 +1253,14 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                       <X className="w-3 h-3" />
                     </button>
                   )}
-                  {findingFilter && (
+                  {/* El título sale del hallazgo VIVO, no de una copia: así el chip nunca describe un
+                      criterio que el snapshot actual ya cambió. Si el hallazgo desapareció, no hay chip
+                      ni filtro. */}
+                  {activeFinding && (
                     <button type="button" onClick={() => setFindingFilter(null)}
                       className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
-                      aria-label={`Quitar filtro del hallazgo ${findingFilter.title}`}>
-                      Hallazgo: {findingFilter.title}
+                      aria-label={`Quitar filtro del hallazgo ${activeFinding.title}`}>
+                      Hallazgo: {activeFinding.title}
                       <X className="w-3 h-3" />
                     </button>
                   )}
@@ -1163,93 +1280,48 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
               <TabsContent value="assignments" className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <SearchInput placeholder="Buscar nombre, login, rol o scope…" value={q} onChange={setQ} className="w-[260px] max-w-full" inputClassName="h-9" aria-label="Buscar asignaciones" />
-                  {/* Seis selects en línea desbordan la fila: los secundarios van en un popover con
-                      contador, y en línea quedan solo los dos interruptores de uso frecuente. */}
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-9">
-                        <Filter className="w-4 h-4 mr-1" />Filtros
-                        {secondaryFilters > 0 && (
-                          <span className="ml-1.5 text-xs px-1.5 rounded-full bg-primary/15 text-primary tabular-nums">
-                            {secondaryFilters}
-                          </span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="start" className="w-[280px] space-y-2">
-                      <Select value={fClass} onValueChange={setFClass}>
-                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Clase de rol: todas</SelectItem>
-                          {ROLE_CLASSES.map((c) => <SelectItem key={c} value={c}>{roleClassLabel(c)}</SelectItem>)}
-                          <SelectItem value="sin_clasificar">Sin clasificar</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Select value={fRole} onValueChange={setFRole}>
-                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Rol: todos</SelectItem>
-                          {roles.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Select value={fSub} onValueChange={setFSub}>
-                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Suscripción: todas</SelectItem>
-                          {subs.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Select value={fEnv} onValueChange={setFEnv}>
-                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Ambiente: todos</SelectItem>
-                          {ENVIRONMENTS.map((e) => <SelectItem key={e} value={e}>{environmentLabel(e)}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Select value={fType} onValueChange={setFType}>
-                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Tipo: todos</SelectItem>
-                          {principalTypes.map((t) => <SelectItem key={t} value={t}>{principalTypeLabel(t)}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Select value={fExternal} onValueChange={setFExternal}>
-                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Origen: todos</SelectItem>
-                          <SelectItem value="interna">Interna</SelectItem>
-                          <SelectItem value="externa">Externa</SelectItem>
-                          <SelectItem value="nd">Sin medir</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Select value={fScope} onValueChange={setFScope}>
-                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Nivel de scope: todos</SelectItem>
-                          {scopeLevels.map((lvl) => <SelectItem key={lvl} value={lvl}>{scopeLabel(lvl)}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Select value={fDecision} onValueChange={(v) => setFDecision(v as DecisionFilter)}>
-                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Decisión: todas</SelectItem>
-                          <SelectItem value="pendiente">Pendientes</SelectItem>
-                          <SelectItem value="mantener">Mantener</SelectItem>
-                          <SelectItem value="revocar">Revocar</SelectItem>
-                          <SelectItem value="justificado">Justificado</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {secondaryFilters > 0 && (
-                        <Button variant="ghost" size="sm" className="w-full h-8"
-                          onClick={() => { setFClass("all"); setFRole("all"); setFSub("all"); setFType("all"); setFExternal("all"); setFScope("all"); setFDecision("all"); setFEnv("all"); }}>
-                          Limpiar filtros
-                        </Button>
-                      )}
-                    </PopoverContent>
-                  </Popover>
+                  {/* Ocho selects apilados en un popover son un formulario volcado, no un panel de
+                      filtros. Quedan los tres que una revisión usa de verdad, en línea y visibles.
+                      Rol, Suscripción, Tipo, Origen y Nivel de scope se quitaron: la búsqueda ya cubre
+                      rol, scope y suscripción, y esos filtros guardaban valores del cliente anterior
+                      (un subscription_id no existe en otro tenant), dejando la tabla en cero filas con
+                      el select en blanco. Menos filtros, y ninguno que pueda mentir. */}
+                  <Select value={fClass} onValueChange={setFClass}>
+                    <SelectTrigger className="h-9 w-[190px]" aria-label="Filtrar por clase de rol">
+                      <SelectValue placeholder="Clase de rol: todas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Clase de rol: todas</SelectItem>
+                      {ROLE_CLASSES.map((c) => <SelectItem key={c} value={c}>{roleClassLabel(c)}</SelectItem>)}
+                      <SelectItem value="sin_clasificar">Sin clasificar</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={fEnv} onValueChange={setFEnv}>
+                    <SelectTrigger className="h-9 w-[170px]" aria-label="Filtrar por ambiente">
+                      <SelectValue placeholder="Ambiente: todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Ambiente: todos</SelectItem>
+                      {ENVIRONMENTS.map((e) => <SelectItem key={e} value={e}>{environmentLabel(e)}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={fDecision} onValueChange={(v) => setFDecision(v as DecisionFilter)}>
+                    <SelectTrigger className="h-9 w-[165px]" aria-label="Filtrar por decisión">
+                      <SelectValue placeholder="Decisión: todas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Decisión: todas</SelectItem>
+                      <SelectItem value="pendiente">Pendientes</SelectItem>
+                      <SelectItem value="mantener">Mantener</SelectItem>
+                      <SelectItem value="revocar">Revocar</SelectItem>
+                      <SelectItem value="justificado">Justificado</SelectItem>
+                    </SelectContent>
+                  </Select>
                   {/* En línea, no en el popover: en una revisión mensual "qué cambió" es lo primero
-                      que se filtra. Sin corrida anterior no se ofrece (nada sería nuevo). */}
-                  {delta?.has_previous && (
+                      que se filtra. Sin corrida anterior no se ofrece (nada sería nuevo), y con el
+                      inventario parcial tampoco: el recorte no sería "lo nuevo" sino lo que la corrida
+                      anterior no alcanzó a leer. */}
+                  {delta?.has_previous && deltaAccesosOk && (
                     <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
                       <input type="checkbox" checked={onlyNew} onChange={(e) => setOnlyNew(e.target.checked)} className="accent-primary h-4 w-4" />
                       Solo nuevos
@@ -1263,6 +1335,12 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                     <input type="checkbox" checked={onlyAlerts} onChange={(e) => setOnlyAlerts(e.target.checked)} className="accent-primary h-4 w-4" />
                     Solo con alertas
                   </label>
+                  {activeFilters > 0 && (
+                    <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground"
+                      onClick={clearAssignFilters}>
+                      Limpiar {activeFilters === 1 ? "el filtro" : `los ${activeFilters} filtros`}
+                    </Button>
+                  )}
                   {kpiFilter && (
                     <button type="button" onClick={() => setKpiFilter(null)}
                       className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
@@ -1279,35 +1357,46 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                       <X className="w-3 h-3" />
                     </button>
                   )}
-                  <div className="text-xs text-muted-foreground ml-auto">
-                    {assignments.length ? `${filteredAssignments.length} de ${assignments.length} asignaciones` : ""}
+                  {/* La decisión por lote vive en esta misma fila, no en una barra propia: aparecer y
+                      desaparecer un bloque empujaba la tabla hacia abajo justo cuando el usuario está
+                      marcando filas. Y las tres acciones van en un menú, no como botones sueltos, que
+                      es el patrón del resto de la app. Marcar no revoca nada en Azure (el módulo es de
+                      lectura): registra la decisión con responsable y fecha. */}
+                  <div className="ml-auto flex items-center gap-3">
+                    {editable && selectedCount > 0 && (
+                      <>
+                        <span className="text-xs text-muted-foreground">
+                          {selectedCount === 1 ? "1 seleccionada" : `${selectedCount} seleccionadas`}
+                        </span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline" className="h-8" disabled={savingDecision}>
+                              Decidir<ChevronDown className="w-4 h-4 ml-1" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => applyDecision("mantener")}>
+                              <Check className="w-4 h-4 mr-2" />Mantener
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => applyDecision("revocar")}>
+                              <Ban className="w-4 h-4 mr-2" />Revocar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setJustifyNote(""); setJustifyOpen(true); }}>
+                              <FileText className="w-4 h-4 mr-2" />Justificar…
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <button type="button" onClick={() => setRowSelection({})}
+                          className="text-xs text-muted-foreground hover:text-foreground">
+                          Quitar selección
+                        </button>
+                      </>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {assignments.length ? `${filteredAssignments.length} de ${assignments.length} asignaciones` : ""}
+                    </span>
                   </div>
                 </div>
-                {/* Barra de decisión por lote: aparece solo con filas seleccionadas. Marcar no revoca
-                    nada en Azure (el módulo es de lectura): registra la decisión con responsable y fecha. */}
-                {editable && selectedCount > 0 && (
-                  <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
-                    <span className="text-sm">
-                      {selectedCount === 1 ? "1 asignación seleccionada" : `${selectedCount} asignaciones seleccionadas`}
-                    </span>
-                    <Button size="sm" variant="outline" className="h-8" disabled={savingDecision}
-                      onClick={() => applyDecision("mantener")}>
-                      Mantener
-                    </Button>
-                    <Button size="sm" variant="outline" className="h-8" disabled={savingDecision}
-                      onClick={() => applyDecision("revocar")}>
-                      Revocar
-                    </Button>
-                    <Button size="sm" variant="outline" className="h-8" disabled={savingDecision}
-                      onClick={() => { setJustifyNote(""); setJustifyOpen(true); }}>
-                      Justificar
-                    </Button>
-                    <button type="button" onClick={() => setRowSelection({})}
-                      className="text-xs text-muted-foreground hover:text-foreground ml-auto">
-                      Quitar selección
-                    </button>
-                  </div>
-                )}
                 <DataTableBlock
                   table={assignTable}
                   emptyText={assignments.length ? "Sin asignaciones que coincidan con los filtros." : "Este cliente no tiene asignaciones RBAC activas registradas."}

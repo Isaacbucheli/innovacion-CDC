@@ -9,6 +9,12 @@ import {
 } from "@/lib/accessReview";
 import type { AccessAccount, AccessFinding } from "@/types";
 
+/** "1 informativa" / "2 informativas". `alcance_incompleto` es la única regla informativa, así que
+ *  ese segmento SIEMPRE decía "1 informativas". */
+function plural(n: number, singular: string, plural_: string): string {
+  return `${n} ${n === 1 ? singular : plural_}`;
+}
+
 function dateOrDash(iso: string | null): string {
   return iso ? new Date(iso).toLocaleString("es-EC") : "—";
 }
@@ -168,9 +174,12 @@ export default function FindingsPanel({
         <Stat value={String(pendientes)} label="Accesos sin decidir"
           note="Elevados, sin decisión registrada" />
         <Stat value={String(cuentasUnicas)} label="Cuentas con acceso" />
+        {/* Esta cifra NO es la cobertura de la revisión: es el porcentaje de asignaciones cuya
+            suscripción permitió inferir el ambiente, y solo la usa la regla de segregación. Rotularla
+            "del tenant evaluado" hacía leer que la revisión alcanzó una quinta parte del tenant. */}
         {cobertura !== null && (
-          <Stat value={`${cobertura}%`} label="Del tenant evaluado"
-            note="Ambiente inferido del nombre de la suscripción" />
+          <Stat value={`${cobertura}%`} label="Asignaciones con ambiente inferido"
+            note="Solo afecta a la regla de segregación de ambientes" />
         )}
         <p className="ml-auto text-xs text-muted-foreground max-w-[22ch] text-right">
           {abiertos.length === 0
@@ -283,10 +292,12 @@ export default function FindingsPanel({
             className="text-xs text-muted-foreground hover:text-foreground cursor-pointer inline-flex items-center gap-1.5">
             {showOtros ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
             {[
-              informativos.length > 0 ? `${informativos.length} informativas` : null,
+              informativos.length > 0 ? plural(informativos.length, "informativa", "informativas") : null,
               noEvaluables.length > 0 ? `${noEvaluables.length} sin datos para evaluar` : null,
-              limpios.length > 0 ? `${limpios.length} evaluadas sin hallazgos` : null,
-              aceptados.length > 0 ? `${aceptados.length} aceptadas con justificación` : null,
+              limpios.length > 0
+                ? plural(limpios.length, "evaluada sin hallazgos", "evaluadas sin hallazgos") : null,
+              aceptados.length > 0
+                ? plural(aceptados.length, "aceptada con justificación", "aceptadas con justificación") : null,
             ].filter(Boolean).join(" · ")}
           </button>
 

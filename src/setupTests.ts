@@ -21,6 +21,18 @@ if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => {};
 }
 
+// cmdk (el selector de cliente y el command palette) observa el tamaño de su lista con
+// ResizeObserver, que jsdom no trae: sin este stub, abrir el combobox tira "ResizeObserver is not
+// defined" y ningún test puede cambiar de cliente.
+if (typeof globalThis.ResizeObserver === "undefined") {
+  class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  globalThis.ResizeObserver = ResizeObserver as unknown as typeof globalThis.ResizeObserver;
+}
+
 // Radix UI DropdownMenu usa PointerEvent que jsdom no implementa completamente.
 if (typeof window.PointerEvent === "undefined") {
   class PointerEvent extends MouseEvent {

@@ -1059,12 +1059,20 @@ export interface AccessReviewDelta {
   has_previous: boolean;
   previous_run_id: number | null;
   previous_finished_at: string | null;
-  nuevos_accesos: number;
-  accesos_removidos: number;
-  nuevos_global_admins: string[];
-  global_admins_removidos: string[];
-  nuevos_guests: number;
-  guests_removidos: number;
+  /**
+   * Cada eje se compara solo si su insumo se leyó completo en LAS DOS corridas. Cuando es false los
+   * campos del eje vienen en null: es "no comparable", que no es lo mismo que "no cambió". Comparar
+   * contra una corrida parcial hacía que la franja afirmara altas y bajas que nadie hizo.
+   * Opcionales porque una corrida servida por una API anterior a este cambio no los trae.
+   */
+  accesos_comparables?: boolean;
+  directorio_comparable?: boolean;
+  nuevos_accesos: number | null;
+  accesos_removidos: number | null;
+  nuevos_global_admins: string[] | null;
+  global_admins_removidos: string[] | null;
+  nuevos_guests: number | null;
+  guests_removidos: number | null;
   /** Principals con al menos un acceso nuevo: para filtrar la pestaña Cuentas. */
   nuevos_principals: string[];
 }

@@ -121,6 +121,15 @@ async function openTab(name: RegExp) {
   fireEvent.mouseDown(await screen.findByRole("tab", { name }));
 }
 
+/** Abre el menú "Decidir" del lote y elige una acción. Radix abre en pointerdown, no en click
+ *  (mismo patrón que los tests de WafActions con el menú Opciones). */
+async function decidir(accion: RegExp) {
+  const trigger = await screen.findByRole("button", { name: /decidir/i });
+  fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+  fireEvent.click(trigger);
+  fireEvent.click(await screen.findByText(accion));
+}
+
 test("la vista por defecto es Cuentas, no Asignaciones", async () => {
   await renderPage();
   // "Accesos" es la columna de la tabla de cuentas; "Vía grupo" solo existe en Asignaciones.
@@ -179,6 +188,41 @@ test("los contadores de privilegio siguen medidos sin Graph, los de origen no", 
   const externas = screen.getAllByTitle(/el origen interna\/externa sale del UPN/i);
   expect(externas).toHaveLength(1);
   for (const c of externas) expect(c).toHaveTextContent("n/d");
+});
+
+// D5: el aviso de cobertura se arma de lo que realmente faltó. El texto único anterior mentía en los
+// dos sentidos, y el caso de ARM parcial —el más grave, porque deja la tabla corta— no se avisaba.
+test("sin licencia P1 avisa por la inactividad, no por el directorio", async () => {
+  resp.status = "partial";
+  resp.graph_complete = true;   // el directorio se leyó completo: solo falta el último login
+  resp.credentials = [{ credential_id: 1, credential_name: "cred", arm_status: "ok", graph_status: "sin_licencia_p1", detail: null }];
+  await renderPage();
+
+  expect(await screen.findByText(/no tiene licencia Entra ID P1\/P2/)).toBeInTheDocument();
+  expect(screen.queryByText(/No se pudo leer el directorio de Entra ID/)).toBeNull();
+  expect(screen.queryByText(/No se pudo listar las asignaciones/)).toBeNull();
+});
+
+test("con una credencial que falló en ARM avisa que los conteos son un piso", async () => {
+  resp.status = "partial";
+  resp.credentials = [
+    { credential_id: 1, credential_name: "cred A", arm_status: "ok", graph_status: "ok", detail: null },
+    { credential_id: 2, credential_name: "cred B", arm_status: "error", graph_status: "ok", detail: "403" },
+  ];
+  await renderPage();
+
+  expect(await screen.findByText(/la tabla y los conteos de asignaciones son un piso/)).toBeInTheDocument();
+  // El total deja de presentarse como el total del tenant.
+  expect(screen.getByTitle(/Piso, no el total.*Clic para ver las que sí se leyeron/)).toHaveTextContent("≥3");
+});
+
+test("una corrida que cubrió todo no muestra aviso de cobertura", async () => {
+  await renderPage();
+  await screen.findByText("Grupo Vivo");
+
+  expect(screen.queryByText(/No se pudo listar las asignaciones/)).toBeNull();
+  expect(screen.queryByText(/No se pudo leer el directorio/)).toBeNull();
+  expect(screen.queryByText(/licencia Entra ID P1/)).toBeNull();
 });
 
 test("avisa cuando la corrida es anterior a la clasificación de privilegio", async () => {
@@ -327,9 +371,9 @@ test("con permiso de edición, seleccionar una fila permite marcarla para revoca
   await openTab(/asignaciones/i);
 
   fireEvent.click(await screen.findByLabelText(/Seleccionar la asignación de Ana Perez/));
-  expect(await screen.findByText("1 asignación seleccionada")).toBeInTheDocument();
+  expect(await screen.findByText("1 seleccionada")).toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("button", { name: "Revocar" }));
+  await decidir(/^Revocar$/);
   await waitFor(() => expect(saveAccessDecisions).toHaveBeenCalledTimes(1));
   expect(saveAccessDecisions).toHaveBeenCalledWith(4, [{
     principal_object_id: "u1", role_definition_id: "def-1", scope: "/subscriptions/s1",
@@ -345,7 +389,7 @@ test("sin permiso de edición no hay selección ni barra de decisión", async ()
 
   await screen.findByText("Ana Perez");
   expect(screen.queryByLabelText(/Seleccionar la asignación de/)).toBeNull();
-  expect(screen.queryByRole("button", { name: "Revocar" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /decidir/i })).toBeNull();
 });
 
 test("justificar no permite guardar sin nota", async () => {
@@ -355,7 +399,7 @@ test("justificar no permite guardar sin nota", async () => {
   await renderPage();
   await openTab(/asignaciones/i);
   fireEvent.click(await screen.findByLabelText(/Seleccionar la asignación de Ana Perez/));
-  fireEvent.click(screen.getByRole("button", { name: "Justificar" }));
+  await decidir(/^Justificar…$/);
 
   const guardar = await screen.findByRole("button", { name: "Guardar justificación" });
   expect(guardar).toBeDisabled();
@@ -382,9 +426,9 @@ test("el filtro de decisión 'Pendientes' deja solo las asignaciones sin decidir
   await openTab(/asignaciones/i);
   await screen.findByText("Beto Decidido");
 
-  // El contador de la tira se quitó (lo resuelven los hallazgos); el filtro vive en el popover.
-  fireEvent.click(screen.getByRole("button", { name: /filtros/i }));
-  fireEvent.keyDown(await screen.findByText("Decisión: todas"), { key: "ArrowDown" });
+  // El contador de la tira se quitó (lo resuelven los hallazgos) y el popover también: los tres
+  // filtros que quedaron están en línea, con su etiqueta visible.
+  fireEvent.keyDown(screen.getByRole("combobox", { name: "Filtrar por decisión" }), { key: "ArrowDown" });
   fireEvent.click(await screen.findByRole("option", { name: "Pendientes" }));
 
   expect(screen.getByText("Ana Perez")).toBeInTheDocument();
@@ -427,7 +471,7 @@ test("un hallazgo aceptado no aparece entre los abiertos", async () => {
   await renderPage();
 
   expect(await screen.findByText("Sin hallazgos abiertos en esta corrida")).toBeInTheDocument();
-  fireEvent.click(screen.getByText(/1 aceptadas con justificación/));
+  fireEvent.click(screen.getByText(/1 aceptada con justificación/));
   expect(await screen.findByText(/aceptado por Ana Perez/)).toBeInTheDocument();
 });
 
@@ -476,6 +520,39 @@ test("sin diferencias con la corrida anterior lo dice explícitamente", async ()
 
   expect(await screen.findByText("Sin cambios respecto de la corrida anterior.")).toBeInTheDocument();
   expect(screen.queryByText("+0 accesos")).toBeNull();
+});
+
+// D2: el peor caso era la corrida ANTERIOR parcial con la actual completa. No había banner, nada
+// quedaba en n/d, y la franja imprimía en rojo "Global Admins nuevos: <todos los del tenant>" cuando
+// nadie recibió nada: el eje estaba vacío antes porque no se pudo leer el directorio.
+test("un directorio no comparable no afirma Global Admins nuevos ni sin cambios", async () => {
+  resp.delta = {
+    ...resp.delta!, accesos_comparables: true, directorio_comparable: false,
+    nuevos_global_admins: null, global_admins_removidos: null,
+    nuevos_guests: null, guests_removidos: null,
+  };
+  await renderPage();
+
+  expect(await screen.findByText(/Entra ID: n\/d/)).toBeInTheDocument();
+  expect(screen.queryByText(/Global Admins nuevos/)).toBeNull();
+  expect(screen.queryByText("Sin cambios respecto de la corrida anterior.")).toBeNull();
+  // El eje de accesos sí se midió: sus conteos siguen a la vista.
+  expect(screen.getByText("+2 accesos")).toBeInTheDocument();
+});
+
+test("un inventario no comparable deja Nuevos en n/d y retira el filtro solo nuevos", async () => {
+  resp.delta = {
+    ...resp.delta!, accesos_comparables: false, directorio_comparable: true,
+    nuevos_accesos: null, accesos_removidos: null, nuevos_principals: [],
+  };
+  await renderPage();
+
+  expect(await screen.findByText(/Accesos: n\/d/)).toBeInTheDocument();
+  // El contador existe (hay corrida anterior) pero no afirma un número.
+  expect(screen.getByTitle(/no leyó el inventario completo/)).toHaveTextContent("n/d");
+  expect(screen.queryByTitle(NUEVOS_HINT)).toBeNull();
+  await openTab(/asignaciones/i);
+  expect(screen.queryByText("Solo nuevos")).toBeNull();
 });
 
 test("el chip Nuevo aparece solo en las asignaciones nuevas, junto al de decisión", async () => {
@@ -536,13 +613,128 @@ test("el filtro por ambiente deja solo las asignaciones de ese ambiente", async 
   expect(await screen.findByText("Producción")).toBeInTheDocument();
   expect(screen.getByText("Desarrollo")).toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("button", { name: /filtros/i }));
-  const envTrigger = (await screen.findByText("Ambiente: todos")).closest("button")!;
-  fireEvent.keyDown(envTrigger, { key: "ArrowDown" });
+  fireEvent.keyDown(screen.getByRole("combobox", { name: "Filtrar por ambiente" }), { key: "ArrowDown" });
   fireEvent.click(await screen.findByRole("option", { name: "Producción" }));
 
   expect(screen.getByText("Ana Perez")).toBeInTheDocument();
   expect(screen.queryByText("Beto Dev")).toBeNull();
+});
+
+// ── Los tres filtros que quedaron en línea, ejercitados de punta a punta ──────────
+
+test("el filtro por clase de rol deja solo las asignaciones de esa clase", async () => {
+  resp.accounts = [];
+  resp.assignments = [
+    A({ principal_object_id: "u1", display_name: "Ana Dueña", role_name: "Owner", role_class: "owner", is_elevated: true }),
+    A({ principal_object_id: "u2", display_name: "Beto Lector", role_name: "Reader", role_class: "lectura" }),
+    A({ principal_object_id: "u3", display_name: "Caro Sin Clase", role_name: "Rol viejo", role_class: null }),
+  ];
+  await renderPage();
+  await openTab(/asignaciones/i);
+  await screen.findByText("Ana Dueña");
+
+  fireEvent.keyDown(screen.getByRole("combobox", { name: "Filtrar por clase de rol" }), { key: "ArrowDown" });
+  fireEvent.click(await screen.findByRole("option", { name: "Owner (otorga accesos)" }));
+
+  expect(screen.getByText("Ana Dueña")).toBeInTheDocument();
+  expect(screen.queryByText("Beto Lector")).toBeNull();
+  expect(screen.queryByText("Caro Sin Clase")).toBeNull();
+  expect(screen.getByText("1 de 3 asignaciones")).toBeInTheDocument();
+
+  // "Sin clasificar" es una opción propia: las corridas viejas no quedan inalcanzables.
+  fireEvent.keyDown(screen.getByRole("combobox", { name: "Filtrar por clase de rol" }), { key: "ArrowDown" });
+  fireEvent.click(await screen.findByRole("option", { name: "Sin clasificar" }));
+
+  expect(screen.getByText("Caro Sin Clase")).toBeInTheDocument();
+  expect(screen.queryByText("Ana Dueña")).toBeNull();
+});
+
+test("los filtros se combinan en AND, y Limpiar los quita todos", async () => {
+  resp.accounts = [];
+  resp.assignments = [
+    A({ principal_object_id: "u1", display_name: "Ana Dueña PRD", role_class: "owner", is_elevated: true, environment: "produccion" }),
+    A({ principal_object_id: "u2", display_name: "Beto Dueño DEV", role_class: "owner", is_elevated: true, environment: "desarrollo" }),
+    A({ principal_object_id: "u3", display_name: "Caro Lectora PRD", role_class: "lectura", environment: "produccion" }),
+  ];
+  await renderPage();
+  await openTab(/asignaciones/i);
+  await screen.findByText("Ana Dueña PRD");
+
+  fireEvent.keyDown(screen.getByRole("combobox", { name: "Filtrar por clase de rol" }), { key: "ArrowDown" });
+  fireEvent.click(await screen.findByRole("option", { name: "Owner (otorga accesos)" }));
+  fireEvent.keyDown(screen.getByRole("combobox", { name: "Filtrar por ambiente" }), { key: "ArrowDown" });
+  fireEvent.click(await screen.findByRole("option", { name: "Producción" }));
+
+  // Solo la que cumple LAS DOS condiciones.
+  expect(screen.getByText("Ana Dueña PRD")).toBeInTheDocument();
+  expect(screen.queryByText("Beto Dueño DEV")).toBeNull();
+  expect(screen.queryByText("Caro Lectora PRD")).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: /limpiar/i }));
+
+  expect(await screen.findByText("Beto Dueño DEV")).toBeInTheDocument();
+  expect(screen.getByText("Caro Lectora PRD")).toBeInTheDocument();
+  expect(screen.getByText("3 de 3 asignaciones")).toBeInTheDocument();
+});
+
+test("la búsqueda alcanza la suscripción y el tipo de principal", async () => {
+  // Los dos ejes perdieron su select propio: si la búsqueda no los cubriera, quedarían inalcanzables.
+  resp.accounts = [];
+  resp.assignments = [
+    A({ principal_object_id: "u1", display_name: "Ana Perez", subscription_name: "SAP Producción" }),
+    A({ principal_object_id: "sp-1", display_name: "App Backups", principal_type: "ServicePrincipal",
+        subscription_name: "Analitica", account_enabled: null, last_sign_in: null, mfa_status: null, user_type: null }),
+  ];
+  await renderPage();
+  await openTab(/asignaciones/i);
+  const buscar = await screen.findByPlaceholderText(/buscar/i);
+
+  fireEvent.change(buscar, { target: { value: "SAP" } });
+  expect(screen.getByText("Ana Perez")).toBeInTheDocument();
+  expect(screen.queryByText("App Backups")).toBeNull();
+
+  // Por la etiqueta del tipo, que es lo que se ve en la columna (no por el valor crudo de la API).
+  fireEvent.change(buscar, { target: { value: "service principal" } });
+  expect(screen.getByText("App Backups")).toBeInTheDocument();
+  expect(screen.queryByText("Ana Perez")).toBeNull();
+
+  // Guardián del toLowerCase(): buscar el nombre en minúsculas tiene que encontrar "Ana Perez".
+  fireEvent.change(buscar, { target: { value: "ana perez" } });
+  expect(screen.getByText("Ana Perez")).toBeInTheDocument();
+  expect(screen.queryByText("App Backups")).toBeNull();
+});
+
+test("cambiar de cliente no arrastra los filtros del anterior", async () => {
+  // Un filtro vivo entre clientes mostraba una tabla recortada por un criterio del cliente anterior,
+  // sin nada que lo explicara (y con la suscripción, un GUID de otro tenant, la dejaba en cero filas).
+  clients.push({
+    client_id: 9, client_name: "Otro Cliente", tax_id: null, contact_name: null,
+    contact_email: null, is_active: true, created_at: null, has_logo: false,
+  });
+  try {
+    resp.accounts = [];
+    resp.assignments = [
+      A({ principal_object_id: "u1", display_name: "Ana Dueña", role_class: "owner", is_elevated: true }),
+      A({ principal_object_id: "u2", display_name: "Beto Lector", role_class: "lectura" }),
+    ];
+    await renderPage();
+    await openTab(/asignaciones/i);
+    await screen.findByText("Ana Dueña");
+
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Filtrar por clase de rol" }), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("option", { name: "Owner (otorga accesos)" }));
+    expect(screen.queryByText("Beto Lector")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /cliente demo/i }));
+    fireEvent.click(await screen.findByText("Otro Cliente"));
+
+    // Mismo dataset (el mock no distingue cliente): el punto es que el filtro ya no recorta.
+    await openTab(/asignaciones/i);
+    expect(await screen.findByText("Beto Lector")).toBeInTheDocument();
+    expect(screen.getByText("2 de 2 asignaciones")).toBeInTheDocument();
+  } finally {
+    clients.pop();
+  }
 });
 
 test("un hallazgo de umbral se acepta con nota obligatoria", async () => {
@@ -640,7 +832,7 @@ test("el titular ejecutivo resume críticos, pendientes y cuentas", async () => 
   expect(within(resumen).getByText("Accesos sin decidir")).toBeInTheDocument();
   expect(within(resumen).getByText("12")).toBeInTheDocument();
   expect(within(resumen).getByText("340")).toBeInTheDocument();
-  expect(within(resumen).getByText("Del tenant evaluado")).toBeInTheDocument();
+  expect(within(resumen).getByText("Asignaciones con ambiente inferido")).toBeInTheDocument();
   expect(within(resumen).getByText("23%")).toBeInTheDocument();
 });
 
@@ -651,7 +843,7 @@ test("las informativas no van en ninguno de los dos bloques", async () => {
   })];
   await renderPage();
 
-  expect(await screen.findByText(/1 informativas/)).toBeInTheDocument();
+  expect(await screen.findByText(/1 informativa/)).toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "Requiere acción" })).toBeNull();
   expect(screen.queryByRole("region", { name: "Prácticas de administración" })).toBeNull();
 });
