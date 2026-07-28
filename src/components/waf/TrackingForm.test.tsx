@@ -7,7 +7,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const detail = {
   canonical_id: 9, matrix_code: "5.1", pillar_number: 5, review_scope_es: "RI",
-  business_impact: "High", resource_count: 2, completion_pct: 10,
+  advisor_name_en: null, business_impact: "High", resource_count: 2, completion_pct: 10,
   benefit_es: "", client_action_es: "", bit_action_es: "",
   remediation_start_date: null, remediation_end_date: null,
   projected_bit_effort: null, execution_log: null,

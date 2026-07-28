@@ -370,6 +370,9 @@ export interface WafRecommendation {
   matrix_code: string;
   pillar_number: number;
   review_scope_es: string | null;
+  // Título tal cual viene de Azure Advisor. null = no hay original (canónica de Excel/legacy, o
+  // cliente que aún no corre un sync): ahí el modo inglés cae a la traducción con IA.
+  advisor_name_en: string | null;
   business_impact: string | null;
   resource_count: number;
   completion_pct: number;

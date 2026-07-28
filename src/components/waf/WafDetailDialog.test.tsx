@@ -93,6 +93,46 @@ test("con inglés activo traduce el contenido curado", async () => {
   expect(screen.getByText("EN(Comprar)")).toBeInTheDocument();
 });
 
+test("en inglés el título usa el original de Azure y solo traduce el contenido BIT", async () => {
+  const api = await import("@/lib/api");
+  const tr = await import("@/lib/wafTranslate");
+  (api.getWafRecommendation as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    canonical_id: 9, matrix_code: "5.1", pillar_number: 5, review_scope_es: "RI",
+    advisor_name_en: "Buy virtual machine reserved instances to save money over pay-as-you-go",
+    business_impact: "High", resource_count: 2, completion_pct: 10,
+    benefit_es: "Ahorra", client_action_es: "Aprobar", bit_action_es: "Comprar",
+    remediation_start_date: null, remediation_end_date: null, projected_bit_effort: null,
+    execution_log: null, priority_override: null, internal_notes: null,
+  });
+  vi.mocked(tr.translateToEnglish).mockClear();
+
+  const { default: WafDetailDialog } = await import("@/components/waf/WafDetailDialog");
+  render(<WafDetailDialog clientId={3} canonicalId={9} pillarName="Costos" open english onOpenChange={() => {}} onChanged={() => {}} />);
+
+  await waitFor(() => expect(screen.getByText(/Buy virtual machine reserved instances/)).toBeInTheDocument());
+  expect(screen.queryByText(/EN\(RI\)/)).not.toBeInTheDocument(); // el ámbito NO se retraduce
+  expect(screen.getByText("Título: original de Azure Advisor")).toBeInTheDocument();
+  // El contenido BIT sí se traduce, y se avisa que es traducción.
+  expect(screen.getByText("EN(Ahorra)")).toBeInTheDocument();
+  expect(screen.getByText(/Traducido \(contenido BIT\)/)).toBeInTheDocument();
+  expect(vi.mocked(tr.translateToEnglish)).toHaveBeenCalledWith(["Ahorra", "Aprobar", "Comprar"]);
+});
+
+test("en inglés sin original de Azure avisa que el título es traducción", async () => {
+  const { default: WafDetailDialog } = await import("@/components/waf/WafDetailDialog");
+  render(<WafDetailDialog clientId={3} canonicalId={9} pillarName="Costos" open english onOpenChange={() => {}} onChanged={() => {}} />);
+  await waitFor(() => expect(screen.getByText(/EN\(RI\)/)).toBeInTheDocument());
+  expect(screen.getByText("Título: traducción automática")).toBeInTheDocument();
+});
+
+test("en español no aparece ninguna etiqueta de idioma", async () => {
+  const { default: WafDetailDialog } = await import("@/components/waf/WafDetailDialog");
+  render(<WafDetailDialog clientId={3} canonicalId={9} pillarName="Costos" open onOpenChange={() => {}} onChanged={() => {}} />);
+  await waitFor(() => expect(screen.getByText("Ahorra")).toBeInTheDocument());
+  expect(screen.queryByText(/Título:/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Traducido \(contenido BIT\)/)).not.toBeInTheDocument();
+});
+
 test("con inglés activo, al cambiar de recomendación no muestra la traducción de la anterior", async () => {
   const api = await import("@/lib/api");
   const { default: WafDetailDialog } = await import("@/components/waf/WafDetailDialog");

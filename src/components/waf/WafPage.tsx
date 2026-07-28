@@ -32,6 +32,11 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
   const highImpact = waf.sections.reduce((s, x) => s + (x.high_recs ?? 0), 0);
   // Fila abierta (de la lista): permite mostrar el título del detalle al instante, sin esperar la carga.
   const openRec = openId != null ? waf.recommendations.find((r) => r.canonical_id === openId) : undefined;
+  // En inglés el provisional usa el original de Azure si existe: si no, se vería español por un
+  // instante en una tabla que ya está en inglés.
+  const fallbackTitle = openRec
+    ? `${openRec.matrix_code} · ${(english ? openRec.advisor_name_en : null) ?? openRec.review_scope_es ?? "Recomendación"}`
+    : undefined;
 
   function open(canonicalId: number) { setOpenId(canonicalId); setDialogOpen(true); waf.markRecommendationRead(canonicalId); }
 
@@ -62,7 +67,7 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
         clientId={waf.clientId ?? 0}
         canonicalId={openId}
         pillarName={openRec ? (waf.pillarNames[openRec.pillar_number] ?? "") : ""}
-        fallbackTitle={openRec ? `${openRec.matrix_code} · ${openRec.review_scope_es ?? "Recomendación"}` : undefined}
+        fallbackTitle={fallbackTitle}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onChanged={waf.reloadData}

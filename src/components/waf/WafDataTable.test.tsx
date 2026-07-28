@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 import WafDataTable from "@/components/waf/WafDataTable";
+import { translateToEnglish } from "@/lib/wafTranslate";
 import type { WafRecommendation } from "@/types";
 
 vi.mock("@/lib/wafTranslate", () => ({
@@ -13,8 +14,14 @@ vi.mock("@/lib/wafTranslate", () => ({
 }));
 
 const recs: WafRecommendation[] = [
-  { canonical_id: 1, matrix_code: "2.1", pillar_number: 2, review_scope_es: "MFA admins", business_impact: "High", resource_count: 18, completion_pct: 20, remediation_end_date: "2026-08-15", is_new: true, source: "advisor" },
-  { canonical_id: 2, matrix_code: "5.1", pillar_number: 5, review_scope_es: "Reserved Instances", business_impact: "High", resource_count: 31, completion_pct: 10, remediation_end_date: null, is_new: false, source: "excel" },
+  { canonical_id: 1, matrix_code: "2.1", pillar_number: 2, review_scope_es: "MFA admins", advisor_name_en: null, business_impact: "High", resource_count: 18, completion_pct: 20, remediation_end_date: "2026-08-15", is_new: true, source: "advisor" },
+  { canonical_id: 2, matrix_code: "5.1", pillar_number: 5, review_scope_es: "Reserved Instances", advisor_name_en: null, business_impact: "High", resource_count: 31, completion_pct: 10, remediation_end_date: null, is_new: false, source: "excel" },
+];
+
+// Una con original de Azure (canónica que pasó por sync) y otra sin él (Excel/legacy).
+const recsConOriginal: WafRecommendation[] = [
+  { ...recs[0], advisor_name_en: "Enable multi-factor authentication for accounts with owner permissions" },
+  recs[1],
 ];
 
 const pillarNames = { 2: "Seguridad", 5: "Costos" };
@@ -83,4 +90,49 @@ test("con inglés activo traduce el ámbito de la lista", async () => {
   render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} english onEnglishChange={vi.fn()} />);
   expect(await screen.findByText("EN(MFA admins)")).toBeInTheDocument();
   expect(screen.getByText("EN(Reserved Instances)")).toBeInTheDocument();
+});
+
+test("en inglés muestra el texto original de Azure tal cual, sin traducirlo", async () => {
+  vi.mocked(translateToEnglish).mockClear();
+
+  render(<WafDataTable recommendations={recsConOriginal} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} english onEnglishChange={vi.fn()} />);
+
+  // La fila con original se ve literal (no "EN(...)").
+  expect(screen.getByText("Enable multi-factor authentication for accounts with owner permissions")).toBeInTheDocument();
+  expect(screen.queryByText("EN(MFA admins)")).not.toBeInTheDocument();
+  // La otra sí cae a la traducción.
+  expect(await screen.findByText("EN(Reserved Instances)")).toBeInTheDocument();
+  // Y solo se mandó a traducir la que no tiene original.
+  expect(translateToEnglish).toHaveBeenCalledTimes(1);
+  expect(translateToEnglish).toHaveBeenCalledWith(["Reserved Instances"]);
+});
+
+test("cuando todas las filas tienen original no se llama a la IA", () => {
+  const todas = recsConOriginal.map((r, i) => ({ ...r, advisor_name_en: `Original ${i}` }));
+  vi.mocked(translateToEnglish).mockClear();
+
+  render(<WafDataTable recommendations={todas} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} english onEnglishChange={vi.fn()} />);
+
+  expect(screen.getByText("Original 0")).toBeInTheDocument();
+  expect(translateToEnglish).not.toHaveBeenCalled();
+});
+
+test("en inglés etiqueta el origen del texto (Azure vs IA)", async () => {
+  render(<WafDataTable recommendations={recsConOriginal} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} english onEnglishChange={vi.fn()} />);
+  await screen.findByText("EN(Reserved Instances)"); // deja que asiente la traducción (re-render)
+  expect(screen.getByText("Azure")).toBeInTheDocument();
+  expect(screen.getByText("IA")).toBeInTheDocument();
+});
+
+test("en español no aparece la etiqueta de origen del texto", () => {
+  render(<WafDataTable recommendations={recsConOriginal} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
+  expect(screen.queryByText("Azure")).not.toBeInTheDocument();
+  expect(screen.queryByText("IA")).not.toBeInTheDocument();
+});
+
+test("el buscador encuentra por el texto original en inglés", () => {
+  render(<WafDataTable recommendations={recsConOriginal} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
+  fireEvent.change(screen.getByPlaceholderText("Buscar ámbito o código…"), { target: { value: "multi-factor" } });
+  expect(screen.getByText("MFA admins")).toBeInTheDocument();
+  expect(screen.queryByText("Reserved Instances")).not.toBeInTheDocument();
 });
