@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  asignacionesLabel, cuentasLabel, findingIsActionable, findingIsOpen,
-  severityChip, severityLabel,
+  accountPrivilege, asignacionesLabel, cuentasLabel, externalLabel, findingIsActionable, findingIsOpen,
+  roleClassShortLabel, severityChip, severityLabel,
 } from "@/lib/accessReview";
 import type { AccessAccount, AccessFinding } from "@/types";
 
@@ -41,7 +41,7 @@ function Stat({ value, label, note, alarm }: {
  *  2. "Requiere acción": los hallazgos con cuentas concretas, por severidad, con las críticas y altas
  *     prominentes y las medias en una línea compacta;
  *  3. "Prácticas de administración": los hallazgos de umbral (sin principals), que son propiedades
- *     estructurales del tenant y proyectos de meses, no alertas — barra de progreso y tono neutro.
+ *     estructurales del tenant y proyectos de meses, no alertas — tono neutro, sin severidad.
  *
  * Al final, colapsado: informativas, no evaluables (falta el dato), evaluadas sin hallazgos y
  * aceptadas con justificación. Los cuatro son información, no trabajo pendiente.
@@ -90,6 +90,14 @@ export default function FindingsPanel({
     return m;
   }, [accounts]);
 
+  // La cuenta completa por id: la usa el modal de "Ver cuentas" para mostrar origen, privilegio y
+  // último acceso sin volver a buscar en el array por cada fila.
+  const accountById = useMemo(() => {
+    const m = new Map<string, AccessAccount>();
+    for (const a of accounts) m.set(a.principal_object_id, a);
+    return m;
+  }, [accounts]);
+
   /** Nombres de las cuentas afectadas, solo cuando son pocas (si no, la fila se vuelve un párrafo). */
   function nombresAfectados(f: AccessFinding): string | null {
     if (f.affected_principals.length === 0 || f.affected_principals.length > MAX_NOMBRES_EN_FILA) return null;
@@ -102,6 +110,12 @@ export default function FindingsPanel({
   );
   const [showOtros, setShowOtros] = useState(false);
 
+  // "Ver cuentas" abre un modal con las cuentas del hallazgo. Antes filtraba la tabla, que está
+  // ~800px más abajo: la acción parecía no hacer nada hasta que bajabas a mirar.
+  // El modal es una LISTA compacta, no la tabla de 6 columnas: la tabla en un modal centrado queda
+  // apretada y obligaría a anidar diálogos cuando se quiere el detalle de una cuenta. Para trabajar
+  // en serio (filtros, decisiones por lote) el botón del pie lleva a la pestaña Cuentas ya filtrada.
+  const [verCuentas, setVerCuentas] = useState<AccessFinding | null>(null);
   // Aceptación con nota obligatoria: queda con responsable y fecha (la nota es el precio de bajar
   // un hallazgo de la cola).
   const [acceptTarget, setAcceptTarget] = useState<AccessFinding | null>(null);
@@ -202,7 +216,7 @@ export default function FindingsPanel({
                       </span>
                     </button>
                     <div className={`shrink-0 transition-opacity ${open ? "" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100"}`}>
-                      <Button variant="outline" size="sm" className="h-7" onClick={() => onDrillDown(f)}>
+                      <Button variant="outline" size="sm" className="h-7" onClick={() => setVerCuentas(f)}>
                         Ver cuentas
                       </Button>
                     </div>
@@ -311,6 +325,55 @@ export default function FindingsPanel({
           )}
         </div>
       )}
+
+      <Dialog open={verCuentas !== null} onOpenChange={(o) => { if (!o) setVerCuentas(null); }}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{verCuentas?.title}</DialogTitle>
+          </DialogHeader>
+          {verCuentas && (() => {
+            const afectadas = verCuentas.affected_principals
+              .map((id) => accountById.get(id))
+              .filter((a): a is AccessAccount => a !== undefined);
+            return (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">{verCuentas.detail}</p>
+                {afectadas.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Las cuentas de este hallazgo no están en la corrida actual.
+                  </p>
+                ) : (
+                  <div className="rounded-lg border divide-y">
+                    <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-3 px-3 py-1.5 text-[11px]
+                      font-medium uppercase tracking-wide text-muted-foreground">
+                      <span>Cuenta</span><span>Origen</span><span>Privilegio</span><span>Último acceso</span>
+                    </div>
+                    {afectadas.map((a) => (
+                      <div key={a.principal_object_id}
+                        className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-3 px-3 py-2 text-sm items-center">
+                        <span className="truncate" title={a.display_name ?? a.principal_object_id}>
+                          {a.display_name ?? <span className="font-mono text-xs">{a.principal_object_id}</span>}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{externalLabel(a.is_external)}</span>
+                        <span className="text-xs">{roleClassShortLabel(accountPrivilege(a))}</span>
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {dateOrDash(a.last_sign_in)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setVerCuentas(null)}>Cerrar</Button>
+                  <Button onClick={() => { onDrillDown(verCuentas); setVerCuentas(null); }}>
+                    Abrir en la pestaña Cuentas
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={acceptTarget !== null} onOpenChange={(o) => { if (!o) setAcceptTarget(null); }}>
         <DialogContent className="max-w-lg">

@@ -252,9 +252,12 @@ test("'Ver cuentas' filtra la tabla por las cuentas del hallazgo, y el chip lo q
   await renderPage();
 
   await screen.findByText("Beto Sano");
+  // El drill-down pasa por el modal: ahí se ven las cuentas, y de ahí se salta a la tabla filtrada.
   fireEvent.click(screen.getByRole("button", { name: "Ver cuentas" }));
+  const modal = await screen.findByRole("dialog");
+  fireEvent.click(within(modal).getByRole("button", { name: /Abrir en la pestaña Cuentas/ }));
 
-  expect(screen.getByText("Ana Afectada")).toBeInTheDocument();
+  expect(await screen.findByText("Ana Afectada")).toBeInTheDocument();
   expect(screen.queryByText("Beto Sano")).toBeNull();
 
   fireEvent.click(screen.getByLabelText(/Quitar filtro del hallazgo/));
@@ -386,6 +389,32 @@ test("el filtro de decisión 'Pendientes' deja solo las asignaciones sin decidir
 
   expect(screen.getByText("Ana Perez")).toBeInTheDocument();
   expect(screen.queryByText("Beto Decidido")).toBeNull();
+});
+
+test("'Ver cuentas' abre un modal con las cuentas, sin obligar a bajar a la tabla", async () => {
+  // El efecto de la acción tiene que verse donde se hizo el clic: filtrar una tabla que está mucho
+  // más abajo hacía que el botón pareciera no hacer nada.
+  resp.accounts = [
+    C({ principal_object_id: "u1", display_name: "Ana Afectada", is_external: true, owner: 2 }),
+    C({ principal_object_id: "u2", display_name: "Beto Sano" }),
+  ];
+  resp.findings = [F({
+    key: "externa_elevada", severity: "critica", title: "Cuenta externa con privilegio elevado",
+    detail: "1 cuenta externa tiene privilegio elevado.", affected_principals: ["u1"],
+  })];
+  await renderPage();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Ver cuentas" }));
+
+  const modal = await screen.findByRole("dialog");
+  expect(within(modal).getByText("Ana Afectada")).toBeInTheDocument();
+  expect(within(modal).getByText("Externa")).toBeInTheDocument();
+  // La cuenta que el hallazgo no señala no aparece.
+  expect(within(modal).queryByText("Beto Sano")).toBeNull();
+
+  // Y desde el modal se puede pasar a la tabla ya filtrada, para trabajar con filtros y decisiones.
+  fireEvent.click(within(modal).getByRole("button", { name: /Abrir en la pestaña Cuentas/ }));
+  expect(await screen.findByLabelText(/Quitar filtro del hallazgo/)).toBeInTheDocument();
 });
 
 test("un hallazgo aceptado no aparece entre los abiertos", async () => {

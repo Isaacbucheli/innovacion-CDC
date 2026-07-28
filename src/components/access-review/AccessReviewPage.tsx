@@ -493,12 +493,8 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     setKpiFilter(null);
     setOnlyNew(true);
   }
-  // Contador "Pendientes": la cola de trabajo. Lleva a Asignaciones con el filtro de decisión en
-  // "Pendientes" y limpia el filtro de otros contadores (cruzar dos criterios daría una tabla vacía
-  // sin explicación).
-  // Contador "Cuentas": tabla completa de cuentas.
-  // Clic en "Ver cuentas" de un hallazgo. Se limpia el filtro de contadores: combinar dos criterios
-  // sin avisar daría una tabla vacía sin explicación.
+  // "Abrir en la pestaña Cuentas" desde el modal de un hallazgo. Se limpia el filtro de contadores:
+  // combinar dos criterios sin avisar daría una tabla vacía sin explicación.
   function drillDownFinding(f: AccessFinding) {
     setTab("accounts");
     setAccountFilter(null);
