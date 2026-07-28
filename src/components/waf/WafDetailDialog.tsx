@@ -62,7 +62,12 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
     setTr({}); // limpia la traducción del detalle anterior antes de traducir el nuevo
     if (!english || !detail) return;
     let cancelled = false;
-    const fields = [detail.review_scope_es, detail.benefit_es, detail.client_action_es, detail.bit_action_es].map((x) => x ?? "");
+    // El ámbito solo se traduce si NO hay original de Azure; beneficio y acciones son autoría BIT
+    // (no existen en Azure), así que esos sí van siempre por traducción.
+    const fields = [
+      ...(detail.advisor_name_en ? [] : [detail.review_scope_es]),
+      detail.benefit_es, detail.client_action_es, detail.bit_action_es,
+    ].map((x) => x ?? "");
     translateToEnglish(fields)
       .then((map) => {
         if (cancelled) return;
@@ -74,6 +79,10 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
   }, [english, detail]);
 
   const pick = (en: string | undefined, es: string | null) => (english ? (en ?? es) : es) ?? "—";
+  // Título en inglés: manda el original de Azure; si no hay, la traducción del español curado.
+  const scopeShown = detail
+    ? (english ? (detail.advisor_name_en ?? tr.scope ?? detail.review_scope_es) : detail.review_scope_es)
+    : null;
 
   function refreshComments() { if (canonicalId != null) getWafComments(clientId, canonicalId).then(setComments); }
   function afterTracking() { if (canonicalId != null) loadDetail(canonicalId, false); onChanged(); }
@@ -98,7 +107,7 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
       <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
-            <span>{detail ? `${detail.matrix_code} · ${(english ? (tr.scope ?? detail.review_scope_es) : detail.review_scope_es) ?? "Recomendación"}` : (fallbackTitle ?? "Recomendación")}</span>
+            <span>{detail ? `${detail.matrix_code} · ${scopeShown ?? "Recomendación"}` : (fallbackTitle ?? "Recomendación")}</span>
           </DialogTitle>
         </DialogHeader>
         {loading || !detail ? (
@@ -109,6 +118,11 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-accent text-accent-foreground">{pillarName}</span>
               {m && <span className={`text-xs px-2.5 py-0.5 rounded-full ${m.chip}`}>Impacto {m.label}</span>}
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-secondary text-muted-foreground">{detail.resource_count} recursos</span>
+              {english && (
+                <span className="text-xs px-2.5 py-0.5 rounded-full border text-muted-foreground">
+                  {detail.advisor_name_en ? "Título: original de Azure Advisor" : "Título: traducción automática"}
+                </span>
+              )}
               {editable && (
                 <Button variant="outline" size="sm" className="ml-auto text-destructive hover:text-destructive"
                   onClick={() => setConfirmOpen(true)}>
@@ -119,6 +133,11 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
 
             <Section title="Resumen">
               <div className="space-y-3 text-sm">
+                {english && (
+                  <p className="text-xs text-muted-foreground">
+                    Traducido (contenido BIT): estos textos no existen en Azure Advisor.
+                  </p>
+                )}
                 <div><div className="text-muted-foreground text-xs mb-0.5">Beneficio</div>{pick(tr.benefit, detail.benefit_es)}</div>
                 <div><div className="text-muted-foreground text-xs mb-0.5">Acción del cliente</div>{pick(tr.client, detail.client_action_es)}</div>
                 <div><div className="text-muted-foreground text-xs mb-0.5">Acción Business IT</div>{pick(tr.bit, detail.bit_action_es)}</div>

@@ -34,8 +34,11 @@ const textFilter = textColumnFilter<WafRecommendation>;
 const impactFilter = labelColumnFilter<WafRecommendation>((raw) => impactMeta(raw as string | null).label);
 // Origen se filtra contra la etiqueta mostrada (Excel/CSV/Advisor), no contra el valor crudo.
 const sourceFilter = labelColumnFilter<WafRecommendation>((raw) => sourceMeta(raw as string | null)?.label ?? "—");
-// Búsqueda global sobre código + ámbito.
-const globalSearch = globalTextFilter<WafRecommendation>((r) => `${r.matrix_code} ${r.review_scope_es ?? ""}`);
+// Búsqueda global sobre código + ámbito (en español y en el original de Advisor, para que buscar
+// por el texto que se ve en modo inglés también encuentre la fila).
+const globalSearch = globalTextFilter<WafRecommendation>(
+  (r) => `${r.matrix_code} ${r.review_scope_es ?? ""} ${r.advisor_name_en ?? ""}`,
+);
 
 export default function WafDataTable({ recommendations, pillarNames, minPct, maxPct, onOpen, english = false, onEnglishChange }: {
   recommendations: WafRecommendation[];
@@ -55,15 +58,19 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
 
   const [scopeEn, setScopeEn] = useState<Map<string, string>>(new Map());
   const [translating, setTranslating] = useState(false);
+  // Solo las filas SIN original de Azure necesitan traducción; las demás no entran a la clave.
   const scopeKey = useMemo(
-    () => data.map((r) => r.review_scope_es ?? "").join("|"),
+    () => data.map((r) => (r.advisor_name_en ? "" : r.review_scope_es ?? "")).join("|"),
     [data],
   );
 
   useEffect(() => {
     if (!english) return;
-    const scopes = data.map((r) => r.review_scope_es ?? "").filter((s) => s.trim() !== "");
-    if (scopes.length === 0) return;
+    const scopes = data
+      .filter((r) => !r.advisor_name_en)
+      .map((r) => r.review_scope_es ?? "")
+      .filter((s) => s.trim() !== "");
+    if (scopes.length === 0) { setScopeEn(new Map()); return; } // todo tiene original: cero IA
     let cancelled = false;
     setTranslating(true);
     translateToEnglish(scopes)
@@ -97,14 +104,32 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
     col.accessor("pillar_number", { header: "Pilar", filterFn: pillarFilter, cell: (c) => pillarNames[c.getValue()] ?? c.getValue() }),
     col.accessor("review_scope_es", { header: "Ámbito", filterFn: textFilter, cell: (c) => {
       const es = c.getValue();
-      const shown = english && es ? (scopeEn.get(es) ?? es) : es;
+      const original = c.row.original.advisor_name_en;
+      // En inglés manda el texto original de Azure; solo si no existe se usa la traducción IA.
+      const shown = english ? (original ?? (es ? scopeEn.get(es) ?? es : es)) : es;
       return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="truncate block max-w-[280px] cursor-default">{shown ?? "—"}</span>
-          </TooltipTrigger>
-          {shown && <TooltipContent className="whitespace-normal">{shown}</TooltipContent>}
-        </Tooltip>
+        <span className="flex items-center gap-1.5 max-w-[320px]">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="truncate block max-w-[280px] cursor-default">{shown ?? "—"}</span>
+            </TooltipTrigger>
+            {shown && <TooltipContent className="whitespace-normal">{shown}</TooltipContent>}
+          </Tooltip>
+          {english && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="shrink-0 text-[10px] leading-none px-1.5 py-0.5 rounded-full border text-muted-foreground cursor-default">
+                  {original ? "Azure" : "IA"}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="whitespace-normal">
+                {original
+                  ? "Texto original de Azure Advisor"
+                  : "Traducción automática del contenido BIT"}
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </span>
       );
     } }),
     col.accessor("business_impact", {

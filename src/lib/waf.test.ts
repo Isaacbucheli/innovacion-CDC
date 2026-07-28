@@ -5,8 +5,8 @@ import type { WafRecommendation, WafAdvisorSyncResult, WafExcelPreviewRow, WafEx
 
 const rec = (over: Partial<WafRecommendation>): WafRecommendation => ({
   canonical_id: 1, matrix_code: "1.1", pillar_number: 1, review_scope_es: "x",
-  business_impact: "High", resource_count: 0, completion_pct: 0, remediation_end_date: null,
-  is_new: false, source: null, ...over,
+  advisor_name_en: null, business_impact: "High", resource_count: 0, completion_pct: 0,
+  remediation_end_date: null, is_new: false, source: null, ...over,
 });
 
 describe("filterRecommendations", () => {
