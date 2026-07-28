@@ -12,6 +12,7 @@ vi.mock("@/lib/api", () => ({
   previewWafExcel: vi.fn(async () => ({ file_name: "m.xlsx", client_id: 3, rows_total: 0, rows_matched: 0, rows_needs_review: 0, ai_enabled: true, rows: [] })),
   applyWafExcel: vi.fn(),
   getWafScoreHistory: vi.fn(async () => ({ granularity: "month", series: [] })),
+  wafSubsQuery: (subs?: string[]) => (subs && subs.length > 0 ? `subscriptions=${subs.join(",")}` : ""),
 }));
 vi.mock("@/lib/auth", () => ({ canEdit: () => true, canEditModule: vi.fn(() => true), getRole: vi.fn(() => "admin") }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -32,6 +33,30 @@ test("muestra el primario, Exportar y Opciones; Exportar descarga", async () => 
   expect(screen.getByRole("button", { name: /consultar advisor/i })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: /exportar excel/i }));
   await waitFor(() => expect(downloadFromApi).toHaveBeenCalled());
+});
+
+test("el Excel hereda el filtro de suscripciones (query y nombre del archivo)", async () => {
+  const { default: WafActions } = await import("@/components/waf/WafActions");
+  const { downloadFromApi } = await import("@/lib/api");
+  vi.mocked(downloadFromApi).mockClear();
+  render(<WafActions clientId={3} onChanged={vi.fn()} pillarNames={{}} subscriptions={["sub-a", "sub-b"]} />);
+  fireEvent.click(screen.getByRole("button", { name: /exportar excel/i }));
+  await waitFor(() => expect(downloadFromApi).toHaveBeenCalledWith(
+    "/waf/clients/3/export-excel?subscriptions=sub-a,sub-b",
+    "matriz-waf-cliente-3-2-suscripciones.xlsx",
+  ));
+});
+
+test("sin filtro el Excel se pide igual que siempre", async () => {
+  const { default: WafActions } = await import("@/components/waf/WafActions");
+  const { downloadFromApi } = await import("@/lib/api");
+  vi.mocked(downloadFromApi).mockClear();
+  render(<WafActions clientId={3} onChanged={vi.fn()} pillarNames={{}} />);
+  fireEvent.click(screen.getByRole("button", { name: /exportar excel/i }));
+  await waitFor(() => expect(downloadFromApi).toHaveBeenCalledWith(
+    "/waf/clients/3/export-excel",
+    "matriz-waf-cliente-3.xlsx",
+  ));
 });
 
 test("Consultar Advisor: selecciona, encola y guarda el job para el bloqueo global", async () => {

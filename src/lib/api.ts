@@ -50,6 +50,7 @@ import type {
   WafScoreHistory,
   WafScoreRefreshResult,
   WafSection,
+  WafSubscriptionOption,
   WafSummary,
   WafTrackingUpdate,
   ReportList,
@@ -334,21 +335,35 @@ export const generateExcel = (analysisId: number, marginPct?: number) =>
   );
 
 // ---- WAF (Matriz mejoras Azure): lecturas ----
-export const getWafSummary = (clientId: number) =>
-  request<WafSummary>(`/waf/clients/${clientId}/summary`);
-export const getWafSections = (clientId: number) =>
-  request<WafSection[]>(`/waf/clients/${clientId}/sections`);
+// Filtro por suscripción: se resuelve en el backend (el Excel también lo usa, y duplicar el conteo
+// en TypeScript sería la misma lógica escrita dos veces). Sin selección no se manda el parámetro.
+export const wafSubsQuery = (subscriptions?: string[]): string =>
+  subscriptions && subscriptions.length > 0
+    ? `subscriptions=${subscriptions.map(encodeURIComponent).join(",")}`
+    : "";
+const withSubs = (path: string, subscriptions?: string[]): string => {
+  const q = wafSubsQuery(subscriptions);
+  if (!q) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}${q}`;
+};
+
+export const getWafSummary = (clientId: number, subscriptions?: string[]) =>
+  request<WafSummary>(withSubs(`/waf/clients/${clientId}/summary`, subscriptions));
+export const getWafSections = (clientId: number, subscriptions?: string[]) =>
+  request<WafSection[]>(withSubs(`/waf/clients/${clientId}/sections`, subscriptions));
+export const getWafSubscriptions = (clientId: number) =>
+  request<WafSubscriptionOption[]>(`/waf/clients/${clientId}/subscriptions`);
 export const getWafSecurityManagement = (clientId: number) =>
   request<{ managed_externally: boolean; note: string }>(`/waf/clients/${clientId}/security-management`);
 export const setWafSecurityManagement = (clientId: number, managed_externally: boolean, note: string) =>
   request<{ message: string }>(`/waf/clients/${clientId}/security-management`, jsonOpts("PUT", { managed_externally, note }));
-export const getWafAdvisorScore = (clientId: number) =>
-  request<WafAdvisorScore>(`/waf/clients/${clientId}/advisor-score`);
+export const getWafAdvisorScore = (clientId: number, subscriptions?: string[]) =>
+  request<WafAdvisorScore>(withSubs(`/waf/clients/${clientId}/advisor-score`, subscriptions));
 export const getWafScoreHistory = (clientId: number, granularity: "day" | "week" | "month" = "month") =>
   request<WafScoreHistory>(`/waf/clients/${clientId}/advisor-score/history?granularity=${granularity}`);
-export const getWafRecommendations = (clientId: number, pillar?: number) =>
+export const getWafRecommendations = (clientId: number, pillar?: number, subscriptions?: string[]) =>
   request<WafRecommendation[]>(
-    `/waf/clients/${clientId}/recommendations${pillar ? `?pillar=${pillar}` : ""}`,
+    withSubs(`/waf/clients/${clientId}/recommendations${pillar ? `?pillar=${pillar}` : ""}`, subscriptions),
   );
 export const getWafRecommendation = (clientId: number, canonicalId: number) =>
   request<WafRecommendationDetail>(`/waf/clients/${clientId}/recommendations/${canonicalId}`);

@@ -6,6 +6,7 @@ import WafKpis from "@/components/waf/WafKpis";
 import PillarCards from "@/components/waf/PillarCards";
 import WafDataTable from "@/components/waf/WafDataTable";
 import WafDetailDialog from "@/components/waf/WafDetailDialog";
+import SubscriptionFilter from "@/components/waf/SubscriptionFilter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useWaf } from "@/hooks/useWaf";
 import { filterRecommendations } from "@/lib/waf";
@@ -45,11 +46,18 @@ export default function WafPage({ onNavigate }: { onNavigate?: (key: string) => 
       headerRight={<ClientHeader clients={waf.clients} clientId={waf.clientId} onSelect={waf.selectClient} />}>
       <BusyOverlay show={waf.loading || waf.dataLoading} title="Cargando recomendaciones" />
       <div className="space-y-5">
-        {waf.clientId != null && <WafActions clientId={waf.clientId} onChanged={waf.reloadData} pillarNames={waf.pillarNames} />}
+        {waf.clientId != null && (
+          <WafActions clientId={waf.clientId} onChanged={waf.reloadData} pillarNames={waf.pillarNames}
+            subscriptions={waf.selectedSubscriptions} />
+        )}
         <WafKpis summary={waf.summary} avgProgress={avgProgress} highImpact={highImpact} />
-        <PillarCards sections={waf.sections} activePillar={pillar} onPick={setPillar} scores={waf.scores} history={waf.history} />
+        <PillarCards sections={waf.sections} activePillar={pillar} onPick={setPillar} scores={waf.scores}
+          history={waf.history} subscriptionFilterActive={waf.selectedSubscriptions.length > 0}
+          scoreFiltered={waf.scoreFiltered} />
         {waf.error && <p className="text-sm text-destructive">{waf.error}</p>}
         <div className="flex items-center justify-end gap-2">
+          <SubscriptionFilter options={waf.subscriptionOptions} selected={waf.selectedSubscriptions}
+            onChange={waf.setSelectedSubscriptions} disabled={waf.dataLoading} />
           <span className="text-xs text-muted-foreground">Avance</span>
           <Select value={avance} onValueChange={setAvance}>
             <SelectTrigger className="h-9 w-[190px]"><SelectValue /></SelectTrigger>

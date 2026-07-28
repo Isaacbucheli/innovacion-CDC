@@ -13,13 +13,17 @@ import AdvisorScoreDialog from "@/components/waf/AdvisorScoreDialog";
 import ExcelImportDialog from "@/components/waf/ExcelImportDialog";
 import ScoreHistorySheet from "@/components/waf/ScoreHistorySheet";
 import SecurityManagementDialog from "@/components/waf/SecurityManagementDialog";
-import { uploadWafIngestion, downloadFromApi, consolidateWafDuplicates, refreshWafAdvisorScore } from "@/lib/api";
+import { uploadWafIngestion, downloadFromApi, consolidateWafDuplicates, refreshWafAdvisorScore, wafSubsQuery } from "@/lib/api";
 import { ADVISOR_SYNC_COMPLETED_EVENT, startAdvisorSyncJob } from "@/lib/advisorSync";
 import { canEditModule, getRole } from "@/lib/auth";
 
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
 
-export default function WafActions({ clientId, onChanged, pillarNames }: { clientId: number; onChanged: () => void; pillarNames: Record<number, string> }) {
+export default function WafActions({ clientId, onChanged, pillarNames, subscriptions = [] }: {
+  clientId: number; onChanged: () => void; pillarNames: Record<number, string>;
+  /** Selección del filtro: el Excel se exporta con el mismo recorte que la vista. */
+  subscriptions?: string[];
+}) {
   const editable = canEditModule("waf");
   const editableIngestions = canEditModule("waf-ingestions");
   const isAdmin = getRole() === "admin";
@@ -43,11 +47,19 @@ export default function WafActions({ clientId, onChanged, pillarNames }: { clien
   }, [clientId, onChanged]);
 
   async function doExport() {
-    setBusyMsg({ title: "Generando Excel", detail: "Matriz WAF…" });
+    const filtered = subscriptions.length > 0;
+    setBusyMsg({ title: "Generando Excel", detail: filtered ? `Matriz WAF · ${subscriptions.length} suscripciones…` : "Matriz WAF…" });
     setBusy(true);
     try {
-      await downloadFromApi(`/waf/clients/${clientId}/export-excel`, `matriz-waf-cliente-${clientId}.xlsx`);
-      toast.success("Excel de la matriz WAF descargado.");
+      const query = wafSubsQuery(subscriptions);
+      const suffix = filtered ? `-${subscriptions.length}-suscripciones` : "";
+      await downloadFromApi(
+        `/waf/clients/${clientId}/export-excel${query ? `?${query}` : ""}`,
+        `matriz-waf-cliente-${clientId}${suffix}.xlsx`,
+      );
+      toast.success(filtered
+        ? `Excel descargado con el filtro de ${subscriptions.length} suscripciones.`
+        : "Excel de la matriz WAF descargado.");
     } catch (e) {
       toast.error(`Error exportando Excel: ${msg(e)}`);
     } finally { setBusy(false); }

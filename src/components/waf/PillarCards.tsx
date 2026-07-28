@@ -6,12 +6,21 @@ import { pillarSeries, reconciledAxis, reconcilePillarSeries } from "@/lib/score
 import PillarSparkline from "@/components/waf/PillarSparkline";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
-export default function PillarCards({ sections, activePillar, onPick, scores, history }: {
+/** El histórico es por cliente: no existe serie por suscripción, así que con filtro se atenúa. */
+const HISTORY_NOT_FILTERED = "El histórico es del cliente completo: no refleja el filtro de suscripciones.";
+
+export default function PillarCards({
+  sections, activePillar, onPick, scores, history,
+  subscriptionFilterActive = false, scoreFiltered = true,
+}: {
   sections: WafSection[];
   activePillar: number | null;
   onPick: (pillar: number | null) => void;
   scores: Record<number, number> | null;
   history?: WafScoreHistory | null;
+  subscriptionFilterActive?: boolean;
+  /** false = el snapshot no tiene breakdown por suscripción y el score sigue siendo el global. */
+  scoreFiltered?: boolean;
 }) {
   // Si algún pilar tiene recomendaciones, los pilares vacíos significan "todo aplicado".
   const matrixPopulated = sections.some((x) => x.total_recs > 0);
@@ -56,6 +65,9 @@ export default function PillarCards({ sections, activePillar, onPick, scores, hi
                   <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Score</div>
                   <div className="text-xl font-bold tabular-nums leading-tight">{score}%</div>
                 </div>
+                {subscriptionFilterActive && !scoreFiltered && (
+                  <div className="text-[11px] text-muted-foreground">Score del cliente completo (sin detalle por suscripción)</div>
+                )}
                 {s.total_recs === 0 && (
                   <div className="text-[11px] text-[#5a7016] dark:text-[#a9c46a] inline-flex items-center gap-1"><Check className="w-3 h-3" />Estás siguiendo todas las recomendaciones</div>
                 )}
@@ -71,7 +83,12 @@ export default function PillarCards({ sections, activePillar, onPick, scores, hi
                 <span className="block h-full rounded-full" style={{ width: `${avance}%`, background: AZURE_BLUE }} />
               </div>
               <div className="text-[11px] text-muted-foreground">avance {avance}%</div>
-              {score != null && <PillarSparkline values={reconcilePillarSeries(pillarSeries(history ?? null, s.section_num), score, appendCurrent)} labels={labels} color={scoreColor(score)} />}
+              {score != null && (
+                <span className={subscriptionFilterActive ? "opacity-40" : undefined}
+                  title={subscriptionFilterActive ? HISTORY_NOT_FILTERED : undefined}>
+                  <PillarSparkline values={reconcilePillarSeries(pillarSeries(history ?? null, s.section_num), score, appendCurrent)} labels={labels} color={scoreColor(score)} />
+                </span>
+              )}
             </div>
           </button>
         );

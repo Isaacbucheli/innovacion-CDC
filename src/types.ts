@@ -381,6 +381,14 @@ export interface WafRecommendation {
   source: string | null;
 }
 
+/** Opción del filtro por suscripción; sale de los hallazgos, no de las suscripciones registradas. */
+export interface WafSubscriptionOption {
+  subscription_id: string;
+  subscription_name: string;
+  recommendations: number;
+  resources: number;
+}
+
 export interface WafRecommendationDetail extends WafRecommendation {
   benefit_es: string | null;
   client_action_es: string | null;
@@ -431,6 +439,8 @@ export interface WafTrackingUpdate {
 export interface WafAdvisorScore {
   has_connection: boolean;
   pillars: Record<string, number>;
+  /** Solo con filtro de suscripciones: false = el snapshot no trae breakdown y el score es global. */
+  filter_applied?: boolean;
 }
 
 /** Historial del Advisor Score (GET /waf/clients/{id}/advisor-score/history). */

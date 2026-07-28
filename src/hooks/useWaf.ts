@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getWafAdvisorScore, getWafRecommendations, getWafScoreHistory, getWafSections, getWafSummary, listClientsAdmin, markWafRecommendationRead } from "@/lib/api";
+import { getWafAdvisorScore, getWafRecommendations, getWafScoreHistory, getWafSections, getWafSubscriptions, getWafSummary, listClientsAdmin, markWafRecommendationRead } from "@/lib/api";
 import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
-import type { ClientAdmin, WafRecommendation, WafScoreHistory, WafSection, WafSummary } from "@/types";
+import type { ClientAdmin, WafRecommendation, WafScoreHistory, WafSection, WafSubscriptionOption, WafSummary } from "@/types";
 
 export function useWaf() {
   const [clients, setClients] = useState<ClientAdmin[]>([]);
@@ -10,7 +10,10 @@ export function useWaf() {
   const [sections, setSections] = useState<WafSection[]>([]);
   const [recommendations, setRecommendations] = useState<WafRecommendation[]>([]);
   const [scores, setScores] = useState<Record<number, number> | null>(null);
+  const [scoreFiltered, setScoreFiltered] = useState(true);
   const [history, setHistory] = useState<WafScoreHistory | null>(null);
+  const [subscriptionOptions, setSubscriptionOptions] = useState<WafSubscriptionOption[]>([]);
+  const [selectedSubscriptions, setSelectedSubscriptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
   const [error, setError] = useState("");
@@ -34,24 +37,27 @@ export function useWaf() {
     })();
   }, []);
 
-  const loadFor = useCallback(async (cid: number) => {
+  const loadFor = useCallback(async (cid: number, subs: string[]) => {
     setDataLoading(true); setError("");
     try {
       const [sum, secs, recs] = await Promise.all([
-        getWafSummary(cid), getWafSections(cid), getWafRecommendations(cid),
+        getWafSummary(cid, subs), getWafSections(cid, subs), getWafRecommendations(cid, undefined, subs),
       ]);
       if (!mountedRef.current) return;
       setSummary(sum); setSections(secs); setRecommendations(recs);
       // Advisor Score: enriquecimiento best-effort; si falla o no hay conexión, no rompe la vista.
       let sc: Record<number, number> | null = null;
+      let filtered = true;
       try {
-        const a = await getWafAdvisorScore(cid);
+        const a = await getWafAdvisorScore(cid, subs);
         if (a?.has_connection && a.pillars) {
           sc = {};
           for (const [k, v] of Object.entries(a.pillars)) sc[Number(k)] = Math.round(Number(v) || 0);
         }
+        // Snapshot viejo sin breakdown: el score mostrado es del cliente completo, no de la selección.
+        filtered = subs.length === 0 || a?.filter_applied !== false;
       } catch { sc = null; }
-      if (mountedRef.current) setScores(sc);
+      if (mountedRef.current) { setScores(sc); setScoreFiltered(filtered); }
       // Histórico mensual para las sparklines de las tarjetas; best-effort.
       let hist: WafScoreHistory | null = null;
       try { hist = await getWafScoreHistory(cid, "month"); } catch { hist = null; }
@@ -65,10 +71,23 @@ export function useWaf() {
     }
   }, []);
 
+  // Al cambiar de cliente se limpia la selección: las suscripciones son de otro.
+  useEffect(() => {
+    setSelectedSubscriptions([]);
+    if (clientId == null) { setSubscriptionOptions([]); return; }
+    let cancelled = false;
+    getWafSubscriptions(clientId)
+      .then((opts) => { if (!cancelled && mountedRef.current) setSubscriptionOptions(opts); })
+      .catch(() => { if (!cancelled && mountedRef.current) setSubscriptionOptions([]); });
+    return () => { cancelled = true; };
+  }, [clientId]);
+
+  // La clave por valor evita recargar cuando el array cambia de identidad pero no de contenido.
+  const subsKey = selectedSubscriptions.join(",");
   useEffect(() => {
     if (clientId == null) { setSummary(null); setSections([]); setRecommendations([]); setScores(null); setHistory(null); return; }
-    loadFor(clientId);
-  }, [clientId, loadFor]);
+    loadFor(clientId, subsKey ? subsKey.split(",") : []);
+  }, [clientId, subsKey, loadFor]);
 
   const pillarNames = useMemo(() => {
     const m: Record<number, string> = {};
@@ -81,7 +100,10 @@ export function useWaf() {
     setClientId(id);
   }, []);
 
-  const reloadData = useCallback(() => { if (clientId != null) loadFor(clientId); }, [clientId, loadFor]);
+  const reloadData = useCallback(
+    () => { if (clientId != null) loadFor(clientId, selectedSubscriptions); },
+    [clientId, selectedSubscriptions, loadFor],
+  );
 
   const markRecommendationRead = useCallback((canonicalId: number) => {
     if (clientId == null) return;
@@ -89,5 +111,9 @@ export function useWaf() {
     void markWafRecommendationRead(clientId, canonicalId).catch(() => { /* best-effort: la vista ya se actualizó */ });
   }, [clientId]);
 
-  return { clients, clientId, summary, sections, recommendations, scores, history, pillarNames, loading, dataLoading, error, selectClient, reloadData, markRecommendationRead };
+  return {
+    clients, clientId, summary, sections, recommendations, scores, scoreFiltered, history, pillarNames,
+    subscriptionOptions, selectedSubscriptions, setSelectedSubscriptions,
+    loading, dataLoading, error, selectClient, reloadData, markRecommendationRead,
+  };
 }

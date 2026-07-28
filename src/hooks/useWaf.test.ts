@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/api", () => ({
@@ -8,6 +8,10 @@ vi.mock("@/lib/api", () => ({
   getWafRecommendations: vi.fn(async () => [{ canonical_id: 9, matrix_code: "5.1", pillar_number: 5, review_scope_es: "x", business_impact: "High", resource_count: 2, completion_pct: 10 }]),
   getWafAdvisorScore: vi.fn(async () => ({ has_connection: true, pillars: { "5": 60 } })),
   getWafScoreHistory: vi.fn(async () => ({ granularity: "month", series: [] })),
+  getWafSubscriptions: vi.fn(async () => [
+    { subscription_id: "sub-a", subscription_name: "prod", recommendations: 1, resources: 2 },
+    { subscription_id: "sub-b", subscription_name: "dev", recommendations: 1, resources: 1 },
+  ]),
   markWafRecommendationRead: vi.fn(async () => undefined),
 }));
 
@@ -22,5 +26,22 @@ describe("useWaf", () => {
     expect(result.current.pillarNames[5]).toBe("Costos");
     await waitFor(() => expect(result.current.scores?.[5]).toBe(60));
     expect(result.current.history).toEqual({ granularity: "month", series: [] });
+    // Opciones del filtro cargadas y selección vacía (sin filtro) al entrar al cliente.
+    await waitFor(() => expect(result.current.subscriptionOptions).toHaveLength(2));
+    expect(result.current.selectedSubscriptions).toEqual([]);
+  });
+
+  it("al seleccionar suscripciones recarga los datos con el filtro", async () => {
+    const api = await import("@/lib/api");
+    const { useWaf } = await import("@/hooks/useWaf");
+    const { result } = renderHook(() => useWaf());
+    await waitFor(() => expect(result.current.recommendations).toHaveLength(1));
+
+    vi.mocked(api.getWafRecommendations).mockClear();
+    vi.mocked(api.getWafSummary).mockClear();
+    act(() => result.current.setSelectedSubscriptions(["sub-a"]));
+
+    await waitFor(() => expect(api.getWafRecommendations).toHaveBeenCalledWith(3, undefined, ["sub-a"]));
+    expect(api.getWafSummary).toHaveBeenCalledWith(3, ["sub-a"]);
   });
 });
