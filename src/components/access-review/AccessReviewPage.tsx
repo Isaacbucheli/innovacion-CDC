@@ -165,7 +165,35 @@ function DataTableBlock<T>({ table, emptyText, rowClassName, onRowClick, dense }
   );
 }
 
-const colAssign = createColumnHelper<AccessAssignment>();
+/**
+ * Mantiene la página de una tabla al recargar los datos, y la corrige si quedó fuera de rango.
+ *
+ * Recargar el snapshot (guardar una decisión, aceptar un hallazgo, mover el umbral) reemplaza el
+ * arreglo de datos, y con el reseteo automático de TanStack eso devolvía la tabla a la página 1: una
+ * revisión de cientos de filas se hace en tandas, y cada tanda expulsaba al principio. Las tablas que
+ * lo usan declaran `autoResetPageIndex: false`.
+ *
+ * Si el conjunto se achica y la página deja de existir, va a la ÚLTIMA que existe, no a la primera:
+ * es lo más cerca de donde se estaba, y evita la tabla vacía sin motivo aparente.
+ */
+function useStablePage(table: { getPageCount: () => number; setPageIndex: (i: number) => void;
+  getState: () => { pagination: { pageIndex: number } } }) {
+  const pageCount = table.getPageCount();
+  const pageIndex = table.getState().pagination.pageIndex;
+  useEffect(() => {
+    if (pageCount > 0 && pageIndex > pageCount - 1) table.setPageIndex(pageCount - 1);
+  }, [pageCount, pageIndex, table]);
+}
+
+/** Umbral de inactividad por defecto, en días. El usuario puede cambiarlo y ese cambio ACOMPAÑA al
+ *  cambio de cliente (comparar dos clientes con el mismo criterio es legítimo), así que cuando no es
+ *  este valor la vista lo dice: si no, el cliente nuevo se evalúa con un criterio invisible. */
+const DIAS_DEFAULT = 90;
+
+/** Asignación + la clave de fila estable que le pone la página (ver el memo `assignments`). */
+type AssignmentRow = AccessAssignment & { row_key: string };
+
+const colAssign = createColumnHelper<AssignmentRow>();
 const colAccount = createColumnHelper<AccessAccount>();
 const colAdmin = createColumnHelper<AccessGlobalAdmin>();
 const colGuest = createColumnHelper<AccessGuest>();
@@ -254,10 +282,10 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const [refreshing, setRefreshing] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState("");
-  const [dias, setDias] = useState(90);
+  const [dias, setDias] = useState(DIAS_DEFAULT);
   // Texto del input, separado del número: permite el estado intermedio vacío sin elegir un umbral
   // por el usuario ni disparar una recarga (ver el comentario junto al Input).
-  const [diasText, setDiasText] = useState("90");
+  const [diasText, setDiasText] = useState(String(DIAS_DEFAULT));
 
   const runId = useRef(0);
   // Cliente activo, para que una respuesta en vuelo no pinte datos de un cliente que ya no se está
@@ -367,6 +395,10 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     // el otro tenant) la dejaba en cero filas sin que nada lo explicara.
     setGuestsOnlyAlert(false); setAccountFilter(null); setFindingFilter(null); setQAccount("");
     clearAssignFilters();
+    // Y la selección: con claves estables sobrevive a todo lo demás, pero pertenece a los accesos de
+    // ESTE cliente. Lo mismo el detalle de cuenta abierto y la página de la tabla.
+    setRowSelection({}); setDetailAccountId(null);
+    assignTable.setPageIndex(0);
   }
 
   async function doSync() {
@@ -414,7 +446,32 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   const isRunning = status === "queued" || status === "running";
   const hasSnapshot = !!resp?.kpis;
 
-  const assignments = useMemo(() => resp?.assignments ?? [], [resp]);
+  const rawAssignments = useMemo(() => resp?.assignments ?? [], [resp]);
+  /**
+   * Cada asignación con una clave de fila ESTABLE: no depende del orden ni de qué filtro esté puesto,
+   * así que sobrevive a recargar el snapshot y a cambiar de filtro.
+   *
+   * Antes la clave llevaba el índice dentro del conjunto filtrado, y eso obligaba a descartar la
+   * selección en cada recarga: con el índice adentro, la fila 3 de un conjunto es otra fila distinta
+   * en el siguiente, y conservar la selección habría significado guardar decisiones sobre accesos que
+   * nadie marcó. El índice estaba ahí por un caso real: la misma cuenta puede tener el mismo rol en el
+   * mismo scope por dos vías (directa y heredada de un grupo). Eso se resuelve con la vía en la clave,
+   * que además es información y no posición.
+   *
+   * El contador final cubre el empate residual (dos filas idénticas en todo, incluida la vía) y se
+   * calcula sobre la lista COMPLETA, no sobre la filtrada: por eso filtrar no renumera nada. Dos filas
+   * así son intercambiables —mismo principal, rol y scope— y producen la misma decisión, con lo que
+   * cuál de las dos se lleve el sufijo 1 es indiferente.
+   */
+  const assignments = useMemo(() => {
+    const vistos = new Map<string, number>();
+    return rawAssignments.map((a) => {
+      const base = `${a.principal_object_id}|${a.role_definition_id}|${a.scope}|${a.via_group_id ?? "directo"}`;
+      const n = vistos.get(base) ?? 0;
+      vistos.set(base, n + 1);
+      return { ...a, row_key: n === 0 ? base : `${base}#${n}` };
+    });
+  }, [rawAssignments]);
   const accounts = useMemo(() => resp?.accounts ?? [], [resp]);
   const findings = useMemo(() => resp?.findings ?? [], [resp]);
   const globalAdmins = useMemo(() => resp?.global_admins ?? [], [resp]);
@@ -640,7 +697,14 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
   // Panel de detalle de una cuenta: lo que ya no cabe (ni conviene) en la tabla. Reemplaza a la
   // expansión en línea — dos formas de ver el mismo detalle competían entre sí, y la expansión no
   // podía crecer sin volver a apretar la tabla.
-  const [detailAccount, setDetailAccount] = useState<AccessAccount | null>(null);
+  // Se guarda el ID, no la cuenta: guardada como objeto, el panel seguía mostrando la foto del
+  // momento en que se abrió. Al decidir un acceso desde el panel, sus contadores de decisión no se
+  // movían aunque la tabla de atrás ya estuviera actualizada. Igual que el drill-down de hallazgos.
+  const [detailAccountId, setDetailAccountId] = useState<string | null>(null);
+  const detailAccount = useMemo(
+    () => (detailAccountId ? accounts.find((a) => a.principal_object_id === detailAccountId) ?? null : null),
+    [detailAccountId, accounts],
+  );
 
   // Densidad de las tablas (cómoda / compacta). Es preferencia de la persona, no del cliente: se
   // guarda en localStorage y se aplica a las cinco pestañas.
@@ -739,7 +803,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
         <span className="flex justify-end">
           <button type="button" aria-label="Ver asignaciones" aria-haspopup="dialog"
             title="Ver el detalle de la cuenta"
-            onClick={(e) => { e.stopPropagation(); setDetailAccount(c.row.original); }}
+            onClick={(e) => { e.stopPropagation(); setDetailAccountId(c.row.original.principal_object_id); }}
             className="text-muted-foreground hover:text-foreground cursor-pointer">
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -879,6 +943,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
 
   const [accountSorting, setAccountSorting] = useState<SortingState>([]);
   const accountTable = useReactTable({
+    autoResetPageIndex: false,   // ver useStablePage
     data: filteredAccounts, columns: accountColumns,
     state: { sorting: accountSorting },
     onSortingChange: setAccountSorting,
@@ -888,6 +953,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
+  useStablePage(accountTable);
 
   // Asignaciones de una cuenta, listadas en el panel de detalle.
   const accountAssignments = useCallback((a: AccessAccount) => {
@@ -931,19 +997,19 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     state: { sorting: assignSorting, rowSelection },
     onSortingChange: setAssignSorting, onRowSelectionChange: setRowSelection,
     enableRowSelection: true,
-    // El índice va en el id porque una misma cuenta puede tener el mismo rol en el mismo scope por
-    // dos vías (directa y por grupo): sin él habría ids repetidos.
-    getRowId: (a, i) => `${i}|${a.principal_object_id}|${a.role_definition_id}|${a.scope}`,
+    getRowId: (a) => a.row_key,
     enableColumnFilters: false,
+    autoResetPageIndex: false,   // ver useStablePage
     getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
 
-  // Los ids de fila dependen del índice dentro del conjunto filtrado: si el filtro (o el snapshot)
-  // cambia, una selección vieja apuntaría a otras filas. Se descarta.
-  useEffect(() => { setRowSelection({}); }, [filteredAssignments]);
+  useStablePage(assignTable);
 
-  const selectedCount = Object.values(rowSelection).filter(Boolean).length;
+  // Del modelo de filas, no de las claves de `rowSelection`: una fila seleccionada que ya no está en
+  // el conjunto vigente (la sacó un filtro, o desapareció del snapshot) no se puede decidir, así que
+  // tampoco debe contarse. Es exactamente lo que `applyDecision` va a mandar.
+  const selectedCount = assignTable.getSelectedRowModel().rows.length;
 
   // ---- Decisión por acceso (bloque 3) ----
   const [savingDecision, setSavingDecision] = useState(false);
@@ -994,30 +1060,36 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
 
   const [spSorting, setSpSorting] = useState<SortingState>([]);
   const spTable = useReactTable({
+    autoResetPageIndex: false,   // ver useStablePage
     data: servicePrincipals, columns: spColumns,
     state: { sorting: spSorting }, onSortingChange: setSpSorting,
     enableColumnFilters: false,
     getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
+  useStablePage(spTable);
 
   const [adminSorting, setAdminSorting] = useState<SortingState>([]);
   const adminTable = useReactTable({
+    autoResetPageIndex: false,   // ver useStablePage
     data: globalAdmins, columns: adminColumns,
     state: { sorting: adminSorting }, onSortingChange: setAdminSorting,
     enableColumnFilters: false,
     getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
+  useStablePage(adminTable);
 
   const [guestSorting, setGuestSorting] = useState<SortingState>([]);
   const guestTable = useReactTable({
+    autoResetPageIndex: false,   // ver useStablePage
     data: filteredGuests, columns: guestColumns,
     state: { sorting: guestSorting }, onSortingChange: setGuestSorting,
     enableColumnFilters: false,
     getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
+  useStablePage(guestTable);
 
   const badCredentials = credentials.filter((c) => c.arm_status !== "ok" || c.graph_status !== "ok");
 
@@ -1206,6 +1278,18 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                   }}
                   className="h-8 w-20 text-foreground" aria-label="Umbral de inactividad en días" />
               </label>
+              {/* El umbral sobrevive al cambio de cliente, y con él cambian los hallazgos de
+                  inactividad y el conteo de cuentas inactivas. Sin este aviso, el cliente nuevo se
+                  evaluaba con un criterio que nadie eligió para él y nada lo mostraba. */}
+              {dias !== DIAS_DEFAULT && (
+                <button type="button"
+                  onClick={() => { setDias(DIAS_DEFAULT); setDiasText(String(DIAS_DEFAULT)); }}
+                  title={`Volver al umbral por defecto de ${DIAS_DEFAULT} días`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900">
+                  Umbral no estándar ({dias} días)
+                  <X className="w-3 h-3" />
+                </button>
+              )}
               {refreshing && <span className="text-primary">Recalculando…</span>}
               <div className="ml-auto">
                 <DropdownMenu>
@@ -1272,7 +1356,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                   table={accountTable}
                   emptyText={accounts.length ? "Sin cuentas que coincidan con los filtros." : "Este cliente no tiene cuentas con asignaciones RBAC."}
                   rowClassName={(a) => (a.orphan || a.account_enabled === false ? "bg-red-50 dark:bg-red-950/30" : "")}
-                  onRowClick={setDetailAccount}
+                  onRowClick={(a) => setDetailAccountId(a.principal_object_id)}
                   dense={dense}
                 />
               </TabsContent>
@@ -1443,7 +1527,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
       {/* Panel de detalle de la cuenta: todo lo que salió de la tabla (tipo, correo, subs, scope, vía,
           MFA y el desglose por clase de rol), más sus asignaciones. Una sola forma de ver el detalle,
           en vez de una expansión en línea que apretaba la tabla y competía con este panel. */}
-      <Dialog open={detailAccount !== null} onOpenChange={(o) => { if (!o) setDetailAccount(null); }}>
+      <Dialog open={detailAccount !== null} onOpenChange={(o) => { if (!o) setDetailAccountId(null); }}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="pr-8 break-words">

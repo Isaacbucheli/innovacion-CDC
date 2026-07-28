@@ -740,6 +740,161 @@ test("cambiar de cliente no arrastra los filtros del anterior", async () => {
   }
 });
 
+// ── Lo que sobrevive a recargar el snapshot ──────────────────────────────────────
+// Guardar una decisión, aceptar un hallazgo y cambiar el umbral recargan la revisión. Con la clave
+// de fila anterior (que incluía el índice dentro del conjunto filtrado) toda recarga obligaba a tirar
+// la selección y devolvía la tabla a la página 1.
+
+test("guardar una decisión no devuelve la tabla a la primera página", async () => {
+  asEditor();
+  resp.accounts = [];
+  resp.assignments = Array.from({ length: 25 }, (_, i) =>
+    A({ principal_object_id: `u${i}`, display_name: `Cuenta ${String(i).padStart(2, "0")}` }));
+  await renderPage();
+  await openTab(/asignaciones/i);
+  await screen.findByText("Cuenta 00");
+
+  fireEvent.click(screen.getByRole("button", { name: /siguiente/i }));
+  expect(await screen.findByText("Cuenta 10")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByLabelText(/Seleccionar la asignación de Cuenta 10/));
+  await decidir(/^Mantener$/);
+  await waitFor(() => expect(saveAccessDecisions).toHaveBeenCalled());
+
+  // Sigue donde estaba: una revisión de cientos de filas se hace en tandas.
+  await waitFor(() => expect(screen.getByText("Cuenta 10")).toBeInTheDocument());
+  expect(screen.queryByText("Cuenta 00")).toBeNull();
+});
+
+test("si la página actual queda fuera de rango se va a la última, no a la primera", async () => {
+  resp.accounts = [];
+  resp.assignments = Array.from({ length: 25 }, (_, i) =>
+    A({ principal_object_id: `u${i}`, display_name: `Cuenta ${String(i).padStart(2, "0")}`,
+        role_class: i >= 20 ? "lectura" : "owner", is_elevated: i < 20 }));
+  await renderPage();
+  await openTab(/asignaciones/i);
+  await screen.findByText("Cuenta 00");
+
+  // A la página 3 (filas 20-24), y después un filtro que deja solo 20 filas → 2 páginas.
+  fireEvent.click(screen.getByRole("button", { name: /siguiente/i }));
+  fireEvent.click(screen.getByRole("button", { name: /siguiente/i }));
+  expect(await screen.findByText("Cuenta 24")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByLabelText(/Solo elevados/i));
+
+  // Última página del nuevo conjunto (filas 10-19), no la primera.
+  expect(await screen.findByText("Cuenta 19")).toBeInTheDocument();
+  expect(screen.queryByText("Cuenta 00")).toBeNull();
+});
+
+test("Cuentas tampoco salta a la primera página al aceptar un hallazgo", async () => {
+  asEditor();
+  resp.assignments = [];
+  resp.findings = [F({
+    key: "exceso_global_admins", severity: "alta", title: "Exceso de Global Admins",
+    affected_accounts: 0, affected_assignments: 6, affected_principals: [],
+  })];
+  resp.accounts = Array.from({ length: 25 }, (_, i) =>
+    C({ principal_object_id: `u${i}`, display_name: `Cuenta ${String(i).padStart(2, "0")}` }));
+  await renderPage();
+  await screen.findByText("Cuenta 00");
+
+  fireEvent.click(screen.getByRole("button", { name: /siguiente/i }));
+  expect(await screen.findByText("Cuenta 10")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Aceptar" }));
+  fireEvent.change(screen.getByLabelText("Nota de aceptación"),
+    { target: { value: "Son cuentas break-glass." } });
+  fireEvent.click(screen.getByRole("button", { name: "Aceptar hallazgo" }));
+  await waitFor(() => expect(acceptAccessFinding).toHaveBeenCalled());
+
+  await waitFor(() => expect(screen.getByText("Cuenta 10")).toBeInTheDocument());
+  expect(screen.queryByText("Cuenta 00")).toBeNull();
+});
+
+test("la selección sobrevive a aceptar un hallazgo", async () => {
+  asEditor();
+  resp.accounts = [];
+  resp.findings = [F({
+    key: "exceso_global_admins", severity: "alta", title: "Exceso de Global Admins",
+    affected_accounts: 0, affected_assignments: 6, affected_principals: [],
+  })];
+  resp.assignments = [
+    A({ principal_object_id: "u1", display_name: "Ana Perez" }),
+    A({ principal_object_id: "u2", display_name: "Beto Lopez" }),
+  ];
+  await renderPage();
+  await openTab(/asignaciones/i);
+  fireEvent.click(await screen.findByLabelText(/Seleccionar la asignación de Ana Perez/));
+  fireEvent.click(await screen.findByLabelText(/Seleccionar la asignación de Beto Lopez/));
+  expect(await screen.findByText("2 seleccionadas")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Aceptar" }));
+  fireEvent.change(screen.getByLabelText("Nota de aceptación"),
+    { target: { value: "Son cuentas break-glass." } });
+  fireEvent.click(screen.getByRole("button", { name: "Aceptar hallazgo" }));
+  await waitFor(() => expect(acceptAccessFinding).toHaveBeenCalled());
+
+  // El trabajo de marcar 40 filas no se pierde por aceptar un hallazgo del panel de arriba.
+  await waitFor(() => expect(screen.getByText("2 seleccionadas")).toBeInTheDocument());
+});
+
+test("una fila seleccionada que el filtro esconde no cuenta como seleccionada", async () => {
+  // Con claves estables la selección sobrevive al filtro, así que el contador tiene que salir del
+  // modelo de filas vigente: si contara las claves, prometería decidir filas que no se van a mandar.
+  asEditor();
+  resp.accounts = [];
+  resp.assignments = [
+    A({ principal_object_id: "u1", display_name: "Ana Dueña", role_class: "owner", is_elevated: true }),
+    A({ principal_object_id: "u2", display_name: "Beto Lector", role_class: "lectura" }),
+  ];
+  await renderPage();
+  await openTab(/asignaciones/i);
+  fireEvent.click(await screen.findByLabelText(/Seleccionar la asignación de Ana Dueña/));
+  fireEvent.click(await screen.findByLabelText(/Seleccionar la asignación de Beto Lector/));
+  expect(await screen.findByText("2 seleccionadas")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByLabelText(/Solo elevados/i));
+  expect(await screen.findByText("1 seleccionada")).toBeInTheDocument();
+
+  await decidir(/^Revocar$/);
+  await waitFor(() => expect(saveAccessDecisions).toHaveBeenCalled());
+  expect(saveAccessDecisions.mock.calls[0][1]).toHaveLength(1);
+  expect(saveAccessDecisions.mock.calls[0][1][0].principal_object_id).toBe("u1");
+});
+
+test("el panel de detalle de la cuenta se actualiza al recargar, no queda congelado", async () => {
+  resp.accounts = [C({ principal_object_id: "u1", display_name: "Ana Perez", decision_pendientes: 2 })];
+  resp.assignments = [];
+  await renderPage();
+  fireEvent.click(await screen.findByText("Ana Perez"));
+  // El panel es un diálogo: se busca dentro de él, no en la tabla de atrás (que dice lo mismo).
+  const panel = await screen.findByRole("dialog");
+  expect(await within(panel).findByText("2 pendientes")).toBeInTheDocument();
+
+  // Llega un snapshot nuevo (el que devolvería la API tras decidir uno de los dos accesos).
+  resp.accounts = [C({ principal_object_id: "u1", display_name: "Ana Perez",
+    decision_pendientes: 1, decision_revocar: 1 })];
+  fireEvent.change(screen.getByLabelText(/Umbral de inactividad en días/), { target: { value: "120" } });
+
+  await waitFor(() => expect(within(panel).getByText("1 pendiente · 1 revocar")).toBeInTheDocument());
+});
+
+test("un umbral distinto del estándar se anuncia y se puede restaurar", async () => {
+  // El umbral acompaña al cambio de cliente: sin este aviso, el cliente nuevo se evaluaría con un
+  // criterio que nadie eligió para él y nada lo mostraría.
+  await renderPage();
+  await screen.findByText("Grupo Vivo");
+  expect(screen.queryByText(/Umbral no estándar/)).toBeNull();
+
+  fireEvent.change(screen.getByLabelText(/Umbral de inactividad en días/), { target: { value: "365" } });
+  expect(await screen.findByText(/Umbral no estándar \(365 días\)/)).toBeInTheDocument();
+
+  // El texto visible es el nombre accesible del botón; el motivo va en el title.
+  fireEvent.click(screen.getByRole("button", { name: /Umbral no estándar/ }));
+  await waitFor(() => expect(screen.queryByText(/Umbral no estándar/)).toBeNull());
+});
+
 test("un hallazgo de umbral se acepta con nota obligatoria", async () => {
   asEditor();
   resp.findings = [F({

@@ -203,10 +203,14 @@ export function decisionTitle(a: Pick<AccessAssignment,
 export function decisionSummary(a: Pick<AccessAccount,
   "decision_pendientes" | "decision_mantener" | "decision_revocar" | "decision_justificado">): string {
   const parts: string[] = [];
-  if (a.decision_pendientes > 0) parts.push(`${a.decision_pendientes} pendientes`);
+  // "1 pendientes" / "2 justificado": una cuenta con un solo acceso es el caso más común, así que el
+  // error de concordancia se ve casi siempre. "mantener" y "revocar" son infinitivos y no varían.
+  if (a.decision_pendientes > 0)
+    parts.push(`${a.decision_pendientes} ${a.decision_pendientes === 1 ? "pendiente" : "pendientes"}`);
   if (a.decision_mantener > 0) parts.push(`${a.decision_mantener} mantener`);
   if (a.decision_revocar > 0) parts.push(`${a.decision_revocar} revocar`);
-  if (a.decision_justificado > 0) parts.push(`${a.decision_justificado} justificado`);
+  if (a.decision_justificado > 0)
+    parts.push(`${a.decision_justificado} ${a.decision_justificado === 1 ? "justificado" : "justificados"}`);
   return parts.length > 0 ? parts.join(" · ") : "—";
 }
 
