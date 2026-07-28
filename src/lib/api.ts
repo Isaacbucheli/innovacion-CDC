@@ -17,6 +17,9 @@ import type {
   KqlQuery,
   LighthouseClientGroup,
   LighthouseLinkResult,
+  PendienteClienteWrite,
+  PendientesPayload,
+  PendienteWrite,
   Person,
   Policy,
   PowerHistoryEnqueue,
@@ -159,6 +162,35 @@ export const listPolicies = () => request<Policy[]>("/policy-catalog");
 export const createPolicy = (p: Partial<Policy>) => request<{ policy_id: number }>("/policy-catalog", jsonOpts("POST", p));
 export const updatePolicy = (id: number, p: Partial<Policy>) => request("/policy-catalog/" + id, jsonOpts("PUT", p));
 export const deletePolicy = (id: number) => request("/policy-catalog/" + id, { method: "DELETE" });
+
+// ---- Pendientes y bloqueantes (Gestión CDC) ----
+// Área en la ruta: "CDC" o "INFRA". Son dos módulos de permiso distintos en el backend.
+// Ojo: este módulo lee y escribe la BD del tablero de Seguimiento CDC (la SWA original sigue viva
+// contra los mismos datos), así que un 409 significa "alguien más lo cambió" y toca recargar.
+const pendPath = (area: string, rest = "") => `/pendientes/${encodeURIComponent(area)}${rest}`;
+const itemPath = (area: string, id: string, rest = "") =>
+  pendPath(area, `/items/${encodeURIComponent(id)}${rest}`);
+
+export const getPendientes = (area: string) => request<PendientesPayload>(pendPath(area));
+export const createPendiente = (area: string, p: PendienteWrite) =>
+  request<{ id: string }>(pendPath(area, "/items"), jsonOpts("POST", p));
+export const updatePendiente = (area: string, id: string, p: PendienteWrite) =>
+  request(itemPath(area, id), jsonOpts("PUT", p));
+export const deletePendiente = (area: string, id: string) =>
+  request(itemPath(area, id), { method: "DELETE" });
+
+/** El autor lo pone el backend con el usuario de la sesión: no se manda desde acá. */
+export const addPendienteNota = (area: string, id: string, nota: string, fecha?: string | null) =>
+  request<{ hist_id: number }>(itemPath(area, id, "/notas"), jsonOpts("POST", { nota, fecha }));
+export const deletePendienteNota = (area: string, id: string, histId: number) =>
+  request(itemPath(area, id, `/notas/${histId}`), { method: "DELETE" });
+
+export const createPendienteCliente = (area: string, p: PendienteClienteWrite) =>
+  request<{ num: number }>(pendPath(area, "/clientes"), jsonOpts("POST", p));
+export const updatePendienteCliente = (area: string, num: number, p: PendienteClienteWrite) =>
+  request(pendPath(area, `/clientes/${num}`), jsonOpts("PUT", p));
+export const deletePendienteCliente = (area: string, num: number) =>
+  request(pendPath(area, `/clientes/${num}`), { method: "DELETE" });
 
 // ---- Asignación de consultores (Gestión CDC) ----
 export const listAssignments = () => request<ConsultantAssignment[]>("/consultant-assignments");

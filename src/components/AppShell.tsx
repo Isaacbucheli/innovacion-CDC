@@ -48,6 +48,8 @@ const MENU: Group[] = [
       { label: "Catálogo de políticas", section: "policies" },
       { label: "Asignación de consultores", section: "consultants" },
       { label: "Revisión de accesos", section: "access-review" },
+      { label: "Pendientes CDC", section: "pendientes-cdc" },
+      { label: "Pendientes Infra & SSAA", section: "pendientes-infra" },
     ],
   },
   {
