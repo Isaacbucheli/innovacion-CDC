@@ -17,6 +17,10 @@ de la API) y no se versiona.
 | `X-Frame-Options` | `DENY` (redundante con `frame-ancestors 'none'`, cubre escáneres legacy). |
 | `Referrer-Policy` | `strict-origin-when-cross-origin`. |
 | `Permissions-Policy` | Desactiva geolocation, cámara, micrófono, payment y usb (no se usan). |
+| `Cross-Origin-Opener-Policy` | `same-origin` — corta la relación con ventanas de otro origen. |
+| `Cross-Origin-Resource-Policy` | `same-origin` — impide que otros sitios embeban nuestros recursos. |
+| `Cross-Origin-Embedder-Policy` | `require-corp` — aislamiento de origen (ZAP 90004). Seguro aquí porque **todas** las subcargas son del propio origen, `data:` o `blob:`; si alguna vez se embebe una imagen o script de otro host, hay que darle CORP o bajar a `credentialless`. |
+| `X-Robots-Tag` | `noindex, nofollow` — herramienta interna, no debe indexarse. |
 | `cache-control` | `no-cache, no-store, must-revalidate` global (shell siempre fresco). Los bundles con hash en `/assets/*` son `immutable` (caché largo). |
 
 ## Endurecimiento de `style-src` (hallazgo ZAP cerrado)
@@ -38,7 +42,7 @@ inyección se redirigió a una forma que la CSP sí permite.
 |---|---|
 | `react-style-singleton` (scroll-lock de Radix, vía `react-remove-scroll`) | alias a un shim propio que usa `adoptedStyleSheets` — [`src/shims/react-style-singleton.ts`](src/shims/react-style-singleton.ts) |
 | `sonner` (`__insertCSS`) | plugin de Vite `csp-safe-sonner` que reescribe la inyección a `adoptedStyleSheets`, con guarda que **falla el build** si sonner sube de versión — [`vite.config.ts`](vite.config.ts) |
-| `@radix-ui/react-select` (oculta la scrollbar del viewport) | el CSS es estático: se sirve desde el bundle — [`src/index.css`](src/index.css) |
+| `@radix-ui/react-select` (oculta la scrollbar del viewport) | el CSS es estático: se sirve desde el bundle en [`src/index.css`](src/index.css) y el plugin `csp-safe-radix-select` elimina la inyección, con la misma guarda de build — [`vite.config.ts`](vite.config.ts) |
 | `next-themes` (`disableTransitionOnChange`) | opción retirada; la supresión de transiciones se hace con la clase `.theme-switching` (CSS del bundle) — [`src/components/ThemeToggle.tsx`](src/components/ThemeToggle.tsx) |
 
 Los estilos inline **dinámicos** que React aplica con el prop `style` (posición de
@@ -53,14 +57,26 @@ posicionan y se estilizan; el CSS de sonner y el del scroll-lock están en
 `adoptedStyleSheets`; el modo oscuro aplica; siete gráficos Recharts renderizan con
 dimensiones reales y los colores de marca.
 
-### Ruido residual conocido
+### Sin violaciones residuales
 
-`@radix-ui/react-select` sigue **intentando** insertar su `<style>` cada vez que se
-abre un Select, y el navegador lo sigue bloqueando: eso deja una violación
-`style-src-elem` en la consola. El efecto visual está cubierto por el CSS estático
-equivalente, así que no hay impacto funcional. No se parchea la librería porque un
-parche por regex sobre su bundle es frágil y el único beneficio sería una consola
-más limpia. ZAP no reporta esto: solo evalúa cabeceras.
+No queda ningún `<style>` inyectado en runtime: la consola del navegador cierra en
+**cero** violaciones de CSP recorriendo la app autenticada. Los cuatro orígenes de la
+tabla están cubiertos y los tres parches (shim + dos plugins de Vite) tienen guardas
+que **fallan el build** si la librería cambia, de modo que una regresión se detecta
+en CI y no en producción.
+
+### Si se agrega una dependencia nueva
+
+Cualquier librería que inyecte `<style>` en runtime volverá a fallar bajo este CSP.
+Para detectarlo sin abrir el navegador, buscar en las dependencias de runtime:
+
+- un `<style>` como elemento de React: `jsx("style"` / `createElement("style"`
+- una inyección imperativa: `document.createElement("style")`
+
+Si el CSS de la librería es **estático**, lo más simple es servirlo desde
+`src/index.css` y eliminar la inyección con un plugin. Si es **dinámico**, hay que
+enrutarlo a CSSOM (`adoptedStyleSheets`), como el shim y el parche de sonner. Los
+estilos que React aplica con el prop `style` no requieren nada.
 
 ## Alcance de los escaneos y limitaciones
 

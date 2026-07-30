@@ -48,8 +48,42 @@ function cspSafeSonner() {
   };
 }
 
+// @radix-ui/react-select renderiza un <style> (elemento de React, con
+// dangerouslySetInnerHTML) para ocultar la barra de desplazamiento del viewport del
+// dropdown. La CSP lo bloquea, así que servimos ese mismo CSS —que es estático—
+// desde index.css y aquí quitamos la inyección, que ya no aporta nada y solo deja
+// una violación en la consola. Radix acepta un prop `nonce` para este <style>, pero
+// Azure SWA es estático y no puede emitir un nonce por-respuesta.
+function cspSafeRadixSelect() {
+  const anchor = "[data-radix-select-viewport]{scrollbar-width:none";
+  const injection =
+    /jsx\(\s*"style",\s*\{\s*dangerouslySetInnerHTML:\s*\{\s*__html:\s*`\[data-radix-select-viewport\][^`]*`\s*\},\s*nonce\s*\}\s*\)/;
+  return {
+    name: "csp-safe-radix-select",
+    enforce: "pre" as const,
+    transform(code: string, id: string) {
+      if (!/@radix-ui[\\/]react-select[\\/]dist[\\/]index\.(mjs|js)$/.test(id)) return null;
+      if (!code.includes(anchor)) {
+        throw new Error(
+          "[csp-safe-radix-select] No se encontró el <style> del viewport en " +
+            "@radix-ui/react-select. Probablemente subió de versión: si ya no lo inyecta, " +
+            "borra este plugin y las reglas de [data-radix-select-viewport] en index.css.",
+        );
+      }
+      const patched = code.replace(injection, "null");
+      if (patched === code) {
+        throw new Error(
+          "[csp-safe-radix-select] El CSS sigue ahí pero cambió la forma de la inyección " +
+            "y no se pudo quitar. Revisa el patrón del plugin.",
+        );
+      }
+      return { code: patched, map: null };
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [cspSafeSonner(), react()],
+  plugins: [cspSafeSonner(), cspSafeRadixSelect(), react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
