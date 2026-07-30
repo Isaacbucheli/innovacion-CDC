@@ -53,3 +53,31 @@
   * { @apply border-border; }
   body { @apply bg-background text-foreground; font-family: "Montserrat", system-ui, sans-serif; }
 }
+
+/* ---------------------------------------------------------------------------
+   CSP: reglas que antes llegaban por un <style> inyectado en runtime
+   ---------------------------------------------------------------------------
+   El sitio se sirve con `style-src 'self'` (sin 'unsafe-inline'), así que el
+   navegador bloquea cualquier <style> creado en runtime. El CSS de abajo es
+   ESTÁTICO, por lo que lo servimos desde el bundle y el efecto se conserva.
+   Van fuera de @layer para que no las pise ninguna utilidad de Tailwind. */
+
+/* @radix-ui/react-select oculta la barra de desplazamiento del viewport del
+   dropdown con un <style> propio (no pasa por react-style-singleton, así que
+   el shim de CSSOM no lo cubre). */
+[data-radix-select-viewport] {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+[data-radix-select-viewport]::-webkit-scrollbar {
+  display: none;
+}
+
+/* Reemplaza a `disableTransitionOnChange` de next-themes: ThemeToggle pone esta
+   clase en <html> mientras conmuta el tema para que los colores no se animen. */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: none !important;
+}

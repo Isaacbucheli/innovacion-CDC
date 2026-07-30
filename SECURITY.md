@@ -3,7 +3,9 @@
 Postura de seguridad del sitio (Azure Static Web App). Las cabeceras HTTP son la
 principal superficie de defensa del front, ya que es una SPA estática sin servidor
 propio por-request. La fuente de verdad de las cabeceras es
-[`staticwebapp.config.json`](staticwebapp.config.json).
+[`staticwebapp.config.template.json`](staticwebapp.config.template.json);
+`staticwebapp.config.json` se genera a partir de ella en el build (inyectando el host
+de la API) y no se versiona.
 
 ## Cabeceras configuradas
 
@@ -17,43 +19,56 @@ propio por-request. La fuente de verdad de las cabeceras es
 | `Permissions-Policy` | Desactiva geolocation, cámara, micrófono, payment y usb (no se usan). |
 | `cache-control` | `no-cache, no-store, must-revalidate` global (shell siempre fresco). Los bundles con hash en `/assets/*` son `immutable` (caché largo). |
 
-## Riesgo residual aceptado
+## Endurecimiento de `style-src` (hallazgo ZAP cerrado)
 
-### CSP `style-src 'unsafe-inline'`
-
-**Estado:** aceptado y documentado — **no se corrige.**
+**Estado:** **corregido y desplegado.** La CSP ya no incluye `'unsafe-inline'` en
+`style-src`.
 **Detectado por:** OWASP ZAP 2.17.0 (escaneo del 2026-07-15), alerta "CSP: style-src
-unsafe-inline" (riesgo Medio según ZAP).
+unsafe-inline" (riesgo Medio).
 
-**Por qué existe:** la app usa Radix UI (dialog, dropdown, popover, select, tabs),
-Recharts, sonner y cmdk, además de estilos inline propios en varios componentes.
-Todas estas librerías inyectan estilos inline (`style="…"`) en tiempo de ejecución
-con valores dinámicos (transforms y posiciones calculadas según el viewport).
+**Por qué existía:** Radix UI (dialog, dropdown, popover, select, tabs), sonner y
+cmdk inyectan estilos en tiempo de ejecución con valores dinámicos. Los *nonces* de
+CSP no aplican a atributos `style=""`; los *hashes* no sirven para valores dinámicos;
+y un Static Web App estático no tiene servidor por-respuesta para emitir nonces.
 
-**Por qué no se puede quitar sin romper la UI:**
+**Cómo se resolvió:** el CSSOM no está gobernado por `style-src`, así que cada
+inyección se redirigió a una forma que la CSP sí permite.
 
-- Los *nonces* de CSP aplican a etiquetas `<style>` / `<script>`, **no** a atributos
-  `style=""` inline, que es justo lo que usan Radix/Recharts.
-- Los *hashes* solo sirven para valores estáticos conocidos; los estilos aquí son
-  dinámicos, así que no existe un hash estable.
-- Un Static Web App estático no tiene servidor por-request para emitir nonces de
-  todas formas.
+| Origen del estilo | Solución |
+|---|---|
+| `react-style-singleton` (scroll-lock de Radix, vía `react-remove-scroll`) | alias a un shim propio que usa `adoptedStyleSheets` — [`src/shims/react-style-singleton.ts`](src/shims/react-style-singleton.ts) |
+| `sonner` (`__insertCSS`) | plugin de Vite `csp-safe-sonner` que reescribe la inyección a `adoptedStyleSheets`, con guarda que **falla el build** si sonner sube de versión — [`vite.config.ts`](vite.config.ts) |
+| `@radix-ui/react-select` (oculta la scrollbar del viewport) | el CSS es estático: se sirve desde el bundle — [`src/index.css`](src/index.css) |
+| `next-themes` (`disableTransitionOnChange`) | opción retirada; la supresión de transiciones se hace con la clase `.theme-switching` (CSS del bundle) — [`src/components/ThemeToggle.tsx`](src/components/ThemeToggle.tsx) |
 
-Quitar `'unsafe-inline'` rompería dropdowns, popovers, selects, tabs, gráficos y toasts.
+Los estilos inline **dinámicos** que React aplica con el prop `style` (posición de
+los popovers de Radix, dimensiones de Recharts) no necesitan `'unsafe-inline'`:
+React los asigna por CSSOM, no escribiendo el atributo `style`. Lo que la CSP
+bloquea son los elementos `<style>` creados en runtime y los atributos `style=""`
+escritos con `setAttribute`.
 
-**Por qué el riesgo real es bajo:** `script-src` sigue en `'self'`, por lo que esta
-directiva **no habilita XSS de scripts**. El vector restante se limita a inyección
-vía CSS, de severidad menor y mitigada por el resto de la CSP (`default-src 'self'`,
-`object-src 'none'`, `base-uri 'self'`).
+**Verificado** (sesión autenticada contra producción, escuchando
+`securitypolicyviolation` en vivo): Select y DropdownMenu de Radix abren, se
+posicionan y se estilizan; el CSS de sonner y el del scroll-lock están en
+`adoptedStyleSheets`; el modo oscuro aplica; siete gráficos Recharts renderizan con
+dimensiones reales y los colores de marca.
 
-**Revisar si:** se migra a un modelo de estilos sin inline (poco probable con este
-stack) o el hosting pasa a tener render/edge por-request que permita nonces.
+### Ruido residual conocido
 
-## Alcance del último escaneo (2026-07-15) y limitaciones
+`@radix-ui/react-select` sigue **intentando** insertar su `<style>` cada vez que se
+abre un Select, y el navegador lo sigue bloqueando: eso deja una violación
+`style-src-elem` en la consola. El efecto visual está cubierto por el CSS estático
+equivalente, así que no hay impacto funcional. No se parchea la librería porque un
+parche por regex sobre su bundle es frágil y el único beneficio sería una consola
+más limpia. ZAP no reporta esto: solo evalúa cabeceras.
 
-El escaneo ZAP cubrió **solo el shell estático** (`/`, `/robots.txt`, `/sitemap.xml`).
-Al ser una SPA, el spider estándar no navegó las rutas del cliente, **no probó login,
-formularios ni la API**. No debe leerse como un pentest de la lógica de la aplicación.
+## Alcance de los escaneos y limitaciones
+
+El escaneo ZAP (2026-07-15 y 2026-07-17) cubrió **solo el shell estático** (`/`,
+`/robots.txt`, `/sitemap.xml`). Al ser una SPA, el spider estándar no navegó las
+rutas del cliente, **no probó login, formularios ni la API**. No debe leerse como un
+pentest de la lógica de la aplicación. El recorrido autenticado de la sección
+anterior validó el comportamiento de la CSP, no la autorización ni la lógica.
 
 **Próximo paso recomendado:** escaneo **autenticado** (Ajax Spider + contexto con
 sesión) y escaneo directo contra la **API .NET**, que es donde vive la superficie de
