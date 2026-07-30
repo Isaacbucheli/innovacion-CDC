@@ -22,11 +22,16 @@ export default function ThemeToggle() {
   // animará: es un caso de borde aceptado a cambio de no violar la CSP.
   const toggle = () => {
     const root = document.documentElement;
+    const clear = () => root.classList.remove("theme-switching");
     root.classList.add("theme-switching");
     setTheme(next);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => root.classList.remove("theme-switching"));
-    });
+    // Dos frames: al segundo, el navegador ya pintó los colores nuevos sin animar.
+    requestAnimationFrame(() => requestAnimationFrame(clear));
+    // Red de seguridad: en una pestaña oculta el navegador no corre
+    // requestAnimationFrame, así que la clase se quedaría pegada y la app entera
+    // perdería sus transiciones hasta el siguiente cambio de tema. `clear` es
+    // idempotente, así que gana el que dispare primero.
+    window.setTimeout(clear, 150);
   };
 
   return (
