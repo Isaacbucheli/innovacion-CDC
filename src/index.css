@@ -74,6 +74,51 @@
   display: none;
 }
 
+/* Barra de desplazamiento del menú lateral (AppShell). La nativa de Windows es
+   gruesa, oscura y con flechas: en el menú se ve sucia. Ojo: Chrome da
+   precedencia a `scrollbar-width`/`scrollbar-color` sobre las reglas
+   `::-webkit-scrollbar-*`, así que se usan las propiedades estándar y se
+   duplican las webkit solo para navegadores viejos. */
+.bit-nav {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+.bit-nav::-webkit-scrollbar {
+  width: 6px;
+}
+.bit-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.bit-nav::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 9999px;
+}
+
+/* Rail contraído: sin barra visible (como el portal de Azure). Son 5 iconos y la
+   barra nativa se comería 1/8 del ancho; sigue desplazándose con la rueda, con
+   el trackpad y al tabular entre iconos. */
+.bit-nav-rail {
+  scrollbar-width: none;
+}
+.bit-nav-rail::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Entrada del flyout del menú contraído (AppShell). Va aquí y no con las
+   utilidades `animate-in` de shadcn porque este proyecto NO usa el plugin
+   tailwindcss-animate (esas clases no existen en el bundle). */
+@keyframes bit-flyout-in {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: none; }
+}
+.bit-flyout {
+  animation: bit-flyout-in 120ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bit-flyout { animation: none; }
+}
+
 /* Reemplaza a `disableTransitionOnChange` de next-themes: ThemeToggle pone esta
    clase en <html> mientras conmuta el tema para que los colores no se animen. */
 html.theme-switching *,
