@@ -310,8 +310,15 @@ export default function AppShell({
           del icono + 6px de holgura. Sin esa holgura el icono desborda por
           fracciones de píxel y, como `overflow-y: auto` obliga a `overflow-x:
           auto`, Chrome dibuja una barra de desplazamiento horizontal en el nav. */}
+      {/* z-30 es OBLIGATORIO, no cosmético: `position: sticky` hace que el aside
+          cree su propio contexto de apilamiento, así que el z-50 del flyout solo
+          compite DENTRO del menú. Sin un z positivo aquí, el aside entero se
+          pinta en la capa "z-index: auto" y cualquier elemento posicionado con z
+          positivo del contenido (p. ej. la barra `sticky z-10` del informe) tapa
+          el flyout. 30 lo deja sobre el contenido y debajo de los overlays que se
+          montan en <body> (diálogos z-50, BusyOverlay z-100). */}
       <aside
-        className={`sticky top-0 h-screen flex flex-col gap-4 bg-card text-card-foreground border-r border-border py-6 ${
+        className={`sticky top-0 z-30 h-screen flex flex-col gap-4 bg-card text-card-foreground border-r border-border py-6 ${
           collapsed ? "px-3" : "px-4"
         }`}
       >

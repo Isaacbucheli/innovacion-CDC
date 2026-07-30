@@ -157,6 +157,17 @@ test("con teclado, la flecha derecha abre el flyout y pone el foco en la primera
   expect(within(flyout).getByRole("button", { name: "Recomendaciones" })).toHaveFocus();
 });
 
+test("el menú se apila sobre el contenido (z-index positivo en el aside)", () => {
+  renderShell();
+  // `position: sticky` hace que el aside cree su propio contexto de apilamiento,
+  // así que el z-50 del flyout solo compite dentro del menú: sin un z positivo
+  // en el aside, una barra `sticky z-10` del contenido tapa el flyout (bug real
+  // visto en el informe mensual, 2026-07-30). jsdom no pinta nada, así que lo
+  // único verificable aquí es que la clase siga puesta; el orden de pintado se
+  // comprobó en navegador con elementFromPoint sobre la zona de cruce.
+  expect(screen.getByRole("complementary").className).toMatch(/\bz-\d+\b/);
+});
+
 test("recuerda el estado contraído entre recargas", () => {
   const { unmount } = renderShell();
   collapseAndGetTrigger("Informes");
