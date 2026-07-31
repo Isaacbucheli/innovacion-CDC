@@ -1,6 +1,6 @@
 import {
   Coins, Award, Sparkles, History, Wallet, FileText, CalendarClock, Bell,
-  Building2, Users, Boxes, Radar, ShieldCheck, UserCheck, type LucideIcon,
+  Building2, Users, Boxes, Radar, ShieldCheck, UserCheck, Megaphone, type LucideIcon,
 } from "lucide-react";
 
 import { azIcon } from "@/lib/azureIcons";
@@ -34,6 +34,7 @@ export const MODULE_GROUPS: ModuleGroup[] = [
   { group: "Informes", items: [
     // Concepto interno (reportería): sin SVG oficial de Azure → icono lucide coherente.
     { key: "report", label: "Informe de gestión mensual", desc: "Resumen mensual de la plataforma.", icon: FileText },
+    { key: "boletin", label: "Boletín Azure", desc: "Retiros, fin de soporte y novedades de Azure que afectan al cliente.", icon: Megaphone },
   ] },
   { group: "Gestión CDC", items: [
     { key: "reservations", label: "Reservas por vencer", desc: "Reservas de capacidad Azure.", icon: CalendarClock, azureIcon: AZ("reservations") },

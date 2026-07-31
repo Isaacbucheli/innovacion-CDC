@@ -37,7 +37,10 @@ const MENU: Group[] = [
   {
     label: "Informes",
     icon: azIcon("waf-performance"),
-    items: [{ label: "Informe de gestión mensual", section: "report" }],
+    items: [
+      { label: "Informe de gestión mensual", section: "report" },
+      { label: "Boletín Azure", section: "boletin" },
+    ],
   },
   {
     label: "Gestión CDC",
