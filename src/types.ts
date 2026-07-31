@@ -1181,3 +1181,54 @@ export interface PendienteClienteWrite {
   coordinador?: string | null;
   consultor?: string | null;
 }
+
+// ---- Boletín Azure ----
+export interface BoletinResource {
+  fingerprint: string;
+  subscription_id: string;
+  resource_id: string | null;
+  resource_name: string;
+  resource_type: string;
+}
+export interface BoletinGroup {
+  source: "advisor" | "service_health";
+  announcement_key: string;
+  title: string;
+  retiring_feature: string;
+  retirement_date: string | null; // yyyy-MM-dd
+  urgency: "retirado" | "proximo" | "programado" | "sin_fecha";
+  recommended_action: string | null;
+  learn_more_url: string | null;
+  summary: string | null;
+  resource_count: number;
+  subscription_ids: string[];
+  resources: BoletinResource[];
+}
+export interface BoletinKpis {
+  announcements: number;
+  due_soon: number;
+  already_retired: number;
+  resources: number;
+  subscriptions_impacted: number;
+  subscriptions_total: number;
+}
+export interface BoletinSyncInfo {
+  id: number;
+  status: string;
+  started_at: string;
+  finished_at: string | null;
+  subscriptions_scanned: number;
+  advisor_items: number;
+  health_items: number;
+  error: string | null;
+}
+export interface BoletinSubscription {
+  subscription_id: string;
+  name: string;
+}
+export interface BoletinView {
+  last_sync: BoletinSyncInfo | null;
+  kpis: BoletinKpis;
+  groups: BoletinGroup[];
+  subscriptions: BoletinSubscription[];
+}

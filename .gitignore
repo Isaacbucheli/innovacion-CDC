@@ -18,6 +18,7 @@ staticwebapp.config.json
 # Herramientas locales / artefactos generados (no versionar; importante para repo público)
 .claude/
 graphify-out/
+.superpowers/
 
 # Editor directories and files
 .vscode/*

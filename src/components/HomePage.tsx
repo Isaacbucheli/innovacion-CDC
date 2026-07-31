@@ -23,7 +23,7 @@ type Area = {
 const AREAS: Area[] = [
   { key: "costos", label: "Matriz de costos", desc: "Costos PAYG y escenarios de ahorro. Abre Optimización de costos.", icon: azIcon("cost-management"), to: "costos" },
   { key: "mejoras", label: "Matriz Mejoras Azure", desc: "Well-Architected por pilar. Abre Recomendaciones.", icon: azIcon("advisor"), to: "waf" },
-  { key: "informes", label: "Informes", desc: "Informe de gestión mensual de la plataforma.", icon: azIcon("waf-performance"), to: "report" },
+  { key: "informes", label: "Informes", desc: "Informe de gestión mensual y Boletín Azure.", icon: azIcon("waf-performance"), groupKey: "Informes" },
   { key: "cdc", label: "Gestión CDC", desc: "Reservas, alertas, políticas y consultores.", icon: azIcon("subscriptions"), groupKey: "Gestión CDC" },
   { key: "admin", label: "Administración", desc: "Clientes y usuarios de la plataforma.", icon: azIcon("resource-groups"), groupKey: "Administración" },
 ];
