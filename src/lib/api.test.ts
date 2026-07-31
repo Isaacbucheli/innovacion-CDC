@@ -138,14 +138,27 @@ describe("WAF api", () => {
     expect((calls[0][1] as RequestInit).method).toBe("POST");
   });
 
-  it("refreshWafAdvisorScore POST con client_id en el body", async () => {
+  // Ruta por cliente (no la admin): el client_id va en la URL, no en el body, para que el
+  // backend pueda validar el acceso al cliente y el consultor no pueda apuntar a otro.
+  it("refreshWafAdvisorScore POST a la ruta del cliente, sin client_id en el body", async () => {
     const spy = vi.fn(async () => new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", spy);
     const { refreshWafAdvisorScore } = await import("@/lib/api");
     await refreshWafAdvisorScore(3, false);
     const calls = (spy as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0]).toContain("/waf/clients/3/advisor-score/refresh");
+    expect(calls[0][0]).not.toContain("/waf/admin/");
+    expect(JSON.parse((calls[0][1] as RequestInit).body as string)).toEqual({ include_in_reports: false });
+  });
+
+  it("refreshWafAdvisorScoreAll sigue usando la ruta admin (barrido de todos)", async () => {
+    const spy = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", spy);
+    const { refreshWafAdvisorScoreAll } = await import("@/lib/api");
+    await refreshWafAdvisorScoreAll(true);
+    const calls = (spy as unknown as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls[0][0]).toContain("/waf/admin/advisor-score/refresh");
-    expect(JSON.parse((calls[0][1] as RequestInit).body as string)).toEqual({ client_id: 3, include_in_reports: false });
+    expect(JSON.parse((calls[0][1] as RequestInit).body as string)).toEqual({ include_in_reports: true });
   });
 
   it("previewWafExcel postea multipart con use_ai", async () => {

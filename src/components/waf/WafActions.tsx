@@ -15,7 +15,7 @@ import ScoreHistorySheet from "@/components/waf/ScoreHistorySheet";
 import SecurityManagementDialog from "@/components/waf/SecurityManagementDialog";
 import { uploadWafIngestion, downloadFromApi, consolidateWafDuplicates, refreshWafAdvisorScore, wafSubsQuery } from "@/lib/api";
 import { ADVISOR_SYNC_COMPLETED_EVENT, startAdvisorSyncJob } from "@/lib/advisorSync";
-import { canEditModule, getRole } from "@/lib/auth";
+import { canEditModule } from "@/lib/auth";
 
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
 
@@ -26,7 +26,6 @@ export default function WafActions({ clientId, onChanged, pillarNames, subscript
 }) {
   const editable = canEditModule("waf");
   const editableIngestions = canEditModule("waf-ingestions");
-  const isAdmin = getRole() === "admin";
   const [busy, setBusy] = useState(false);
   const [busyMsg, setBusyMsg] = useState<{ title: string; detail?: string }>({ title: "Procesando…" });
   const [syncOpen, setSyncOpen] = useState(false);
@@ -141,13 +140,15 @@ export default function WafActions({ clientId, onChanged, pillarNames, subscript
               {editable && <DropdownMenuItem onClick={() => setExcelOpen(true)}>Importar matriz Excel</DropdownMenuItem>}
             </>
           )}
-          {(editable || isAdmin) && (
+          {editable && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Mantenimiento</DropdownMenuLabel>
-              {editable && <DropdownMenuItem onClick={() => setConsOpen(true)}><GitMerge className="w-4 h-4 mr-2" />Consolidar duplicados</DropdownMenuItem>}
-              {editable && <DropdownMenuItem onClick={() => setSecOpen(true)}><ShieldCheck className="w-4 h-4 mr-2" />Gestión de Vulnerabilidades…</DropdownMenuItem>}
-              {isAdmin && <DropdownMenuItem onClick={() => setScoreOpen(true)}><RefreshCw className="w-4 h-4 mr-2" />Actualizar Advisor Score</DropdownMenuItem>}
+              <DropdownMenuItem onClick={() => setConsOpen(true)}><GitMerge className="w-4 h-4 mr-2" />Consolidar duplicados</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSecOpen(true)}><ShieldCheck className="w-4 h-4 mr-2" />Gestión de Vulnerabilidades…</DropdownMenuItem>
+              {/* Antes era admin-only y el consultor no lo veía: ahora basta "Editar" en el módulo,
+                  y el backend restringe el refresh a los clientes asignados. */}
+              <DropdownMenuItem onClick={() => setScoreOpen(true)}><RefreshCw className="w-4 h-4 mr-2" />Actualizar Advisor Score</DropdownMenuItem>
             </>
           )}
         </DropdownMenuContent>

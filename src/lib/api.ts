@@ -491,8 +491,13 @@ export async function uploadWafIngestion(clientId: number, file: File, base: str
 
 export const consolidateWafDuplicates = (clientId: number, useAi: boolean) =>
   request<WafConsolidateResult>(`/waf/clients/${clientId}/consolidate-duplicates?use_ai=${useAi}`, { method: "POST" });
+/**
+ * Refresca el score de UN cliente por su ruta propia (no la admin): así un consultor con
+ * "Editar" en Recomendaciones puede actualizar los clientes que tiene asignados, y el
+ * backend valida el acceso por cliente. El admin también pasa por aquí.
+ */
 export const refreshWafAdvisorScore = (clientId: number, includeInReports: boolean) =>
-  request<WafScoreRefreshResult>(`/waf/admin/advisor-score/refresh`, jsonOpts("POST", { client_id: clientId, include_in_reports: includeInReports }));
+  request<WafScoreRefreshResult>(`/waf/clients/${clientId}/advisor-score/refresh`, jsonOpts("POST", { include_in_reports: includeInReports }));
 /** Refresca el Advisor Score de TODOS los clientes activos (sin client_id). */
 export const refreshWafAdvisorScoreAll = (includeInReports: boolean) =>
   request<WafScoreRefreshResult>(`/waf/admin/advisor-score/refresh`, jsonOpts("POST", { include_in_reports: includeInReports }));

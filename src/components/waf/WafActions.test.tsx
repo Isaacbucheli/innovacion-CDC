@@ -128,6 +128,35 @@ test("Actualizar Advisor Score llama a la API y refresca", async () => {
   await waitFor(() => expect(onChanged).toHaveBeenCalled());
 });
 
+// Regresión del reporte 2026-07-31: el ítem era admin-only y los consultores no lo veían.
+test("un consultor con Editar en el módulo ve y usa Actualizar Advisor Score", async () => {
+  const { canEditModule, getRole } = await import("@/lib/auth");
+  vi.mocked(canEditModule).mockImplementation((key: string) => key === "waf");
+  vi.mocked(getRole).mockReturnValue("consultor");
+  const { default: WafActions } = await import("@/components/waf/WafActions");
+  const { refreshWafAdvisorScore } = await import("@/lib/api");
+  render(<WafActions clientId={3} onChanged={vi.fn()} pillarNames={{}} />);
+  const opcionesBtn = screen.getByRole("button", { name: /opciones/i });
+  fireEvent.pointerDown(opcionesBtn, { button: 0, ctrlKey: false });
+  fireEvent.click(opcionesBtn);
+  fireEvent.click(await screen.findByText(/actualizar advisor score/i));
+  fireEvent.click(await screen.findByRole("button", { name: /^actualizar$/i }));
+  await waitFor(() => expect(refreshWafAdvisorScore).toHaveBeenCalledWith(3, false));
+});
+
+test("un consultor SIN Editar en el módulo no ve Actualizar Advisor Score", async () => {
+  const { canEditModule, getRole } = await import("@/lib/auth");
+  vi.mocked(canEditModule).mockImplementation((key: string) => key === "waf-ingestions");
+  vi.mocked(getRole).mockReturnValue("consultor");
+  const { default: WafActions } = await import("@/components/waf/WafActions");
+  render(<WafActions clientId={3} onChanged={vi.fn()} pillarNames={{}} />);
+  const opcionesBtn = screen.getByRole("button", { name: /opciones/i });
+  fireEvent.pointerDown(opcionesBtn, { button: 0, ctrlKey: false });
+  fireEvent.click(opcionesBtn);
+  expect(await screen.findByText(/importar advisor csv/i)).toBeInTheDocument();
+  expect(screen.queryByText(/actualizar advisor score/i)).not.toBeInTheDocument();
+});
+
 test("Importar matriz Excel abre el diálogo de preview", async () => {
   const { default: WafActions } = await import("@/components/waf/WafActions");
   render(<WafActions clientId={3} onChanged={vi.fn()} pillarNames={{}} />);
