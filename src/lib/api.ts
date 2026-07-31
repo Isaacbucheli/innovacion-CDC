@@ -3,6 +3,7 @@ import type {
   AnalysisSummary,
   AssignmentWrite,
   AzureUserSession,
+  BoletinView,
   CalculateRequest,
   CalculateResponse,
   ClientAdmin,
@@ -536,6 +537,14 @@ export const applyWafSuggestion = (canonicalId: number, suggestion: WafAiSuggest
   request<{ message: string; canonical_id: number }>(`/waf/admin/ai/recommendations/${canonicalId}/apply`, jsonOpts("PATCH", suggestion));
 export const updateWafCanonical = (canonicalId: number, body: WafCanonicalUpdate) =>
   request<{ message: string; canonical_id: number }>(`/waf/admin/catalog/${canonicalId}`, jsonOpts("PUT", body));
+
+// ---- Boletín Azure ----
+export function getBoletin(clientId: number): Promise<BoletinView> {
+  return request<BoletinView>(`/boletin/clients/${clientId}`);
+}
+export function syncBoletin(clientId: number): Promise<Record<string, unknown>> {
+  return request<Record<string, unknown>>(`/boletin/clients/${clientId}/sync`, { method: "POST" });
+}
 
 /** Descarga autenticada (blob) desde el backend .NET; usado por la exportación a Excel. */
 export async function downloadFromApi(path: string, fileName: string, base: string = apiBase()): Promise<void> {
