@@ -1,5 +1,6 @@
 import { Server, PlayCircle, PauseCircle, ShieldCheck, Cpu, MemoryStick, DatabaseBackup, CheckCircle2 } from "lucide-react";
 import ReportDonut from "@/components/reports/ReportDonut";
+import { fmtDateISO } from "@/lib/dates";
 import { REPORT_COLORS, vmStatusCounts, osCounts, healthCounts, slaAverage, perfAverages } from "@/lib/report";
 import type { MonthlyReport } from "@/types";
 
@@ -36,7 +37,7 @@ export default function ExecutiveSummary({ report }: { report: MonthlyReport }) 
             <h2 className="text-xl font-semibold">{report.client?.name ?? "—"}</h2>
             <p className="text-sm text-muted-foreground">Informe de gestión · {report.period?.label ?? ""}{report.period?.partial ? " (parcial)" : ""}</p>
           </div>
-          {report.generated_at && <span className="text-xs text-muted-foreground">generado {report.generated_at.slice(0, 10)}</span>}
+          {report.generated_at && <span className="text-xs text-muted-foreground">generado {fmtDateISO(report.generated_at)}</span>}
         </div>
         <div className="flex flex-wrap gap-1.5 mt-3">
           {(meta.regiones ?? []).map((r) => (

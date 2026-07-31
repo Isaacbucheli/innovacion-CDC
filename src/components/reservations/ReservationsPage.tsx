@@ -20,6 +20,7 @@ import {
   DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { listClientsAdmin, getReservations, getReservationUtilization } from "@/lib/api";
+import { fmtDateTime, parseApiDate } from "@/lib/dates";
 import {
   situacion, isInactive, RES_INACTIVE_STATES, utilChip, utilBucket, daysChip, daysLabel, stateChip, utilNum,
 } from "@/lib/reservations";
@@ -218,7 +219,7 @@ export default function ReservationsPage({ onNavigate }: { onNavigate?: (key: st
         </div>
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          {generatedAt && !Number.isNaN(new Date(generatedAt).getTime()) && <span>Actualizado: {new Date(generatedAt).toLocaleString("es-EC")}</span>}
+          {parseApiDate(generatedAt) && <span>Actualizado: {fmtDateTime(generatedAt)}</span>}
           {utilPending > 0 && <span className="text-primary">Calculando utilización {utilDone}/{utilTotal}…</span>}
         </div>
 

@@ -7,6 +7,7 @@ import DataTablePagination from "@/components/DataTablePagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePagedRows } from "@/hooks/usePagedRows";
 import { listClientsAdmin, getWafIngestionRuns } from "@/lib/api";
+import { fmtDateTime } from "@/lib/dates";
 import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
 import { humanizeSyncError, subStatusLabel, subStatusTone, syncOmittedNote, type SyncTone } from "@/lib/advisorSyncStatus";
 import type { ClientAdmin, WafIngestionRun } from "@/types";
@@ -25,7 +26,6 @@ function statusChip(status: string | null): string {
   if (s.includes("fail") || s.includes("error")) return "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200";
   return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
 }
-function fmtDate(d: string | null): string { return d ? new Date(d).toLocaleString("es-EC") : "—"; }
 
 export default function IngestionsPage({ onNavigate }: { onNavigate?: (key: string) => void }) {
   const [clients, setClients] = useState<ClientAdmin[]>([]);
@@ -89,8 +89,8 @@ export default function IngestionsPage({ onNavigate }: { onNavigate?: (key: stri
                     <TableCell className="tabular-nums">{r.rows_processed ?? 0}/{r.rows_total ?? 0}</TableCell>
                     <TableCell className="tabular-nums">{r.new_recommendations ?? 0} / {r.new_findings ?? 0}</TableCell>
                     <TableCell className="tabular-nums">{r.resolved_findings ?? 0}</TableCell>
-                    <TableCell className="text-xs">{fmtDate(r.started_at)}</TableCell>
-                    <TableCell className="text-xs">{fmtDate(r.completed_at)}</TableCell>
+                    <TableCell className="text-xs">{fmtDateTime(r.started_at)}</TableCell>
+                    <TableCell className="text-xs">{fmtDateTime(r.completed_at)}</TableCell>
                     <TableCell className="text-xs">{r.created_by ?? "—"}</TableCell>
                   </TableRow>
                   {isOpen && (

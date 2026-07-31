@@ -1,4 +1,5 @@
 import { ClipboardList, CloudDownload, Layers } from "lucide-react";
+import { fmtDate } from "@/lib/dates";
 import { useCountUp } from "@/lib/useCountUp";
 import { AZURE_BLUE } from "@/lib/waf";
 import type { WafSummary } from "@/types";
@@ -48,7 +49,7 @@ export default function WafKpis({ summary, avgProgress, highImpact }: {
   summary: WafSummary | null; avgProgress: number; highImpact: number;
 }) {
   const ing = summary?.latest_ingestion;
-  const ingLabel = ing?.completed_at ? new Date(ing.completed_at).toLocaleDateString("es-EC") : "—";
+  const ingLabel = ing?.completed_at ? fmtDate(ing.completed_at) : "—";
   const source = ing?.source_file_name ?? "";
   const ingSub = source ? (/advisor/i.test(source) ? "vía Azure Advisor" : source) : "sin ingestas aún";
   return (

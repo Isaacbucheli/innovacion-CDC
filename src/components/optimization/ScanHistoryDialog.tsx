@@ -1,12 +1,12 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatMoney } from "@/lib/costs";
+import { fmtDateTime, parseApiDate } from "@/lib/dates";
 import type { OptScan } from "@/types";
 
 const STATUS_LABEL: Record<string, string> = { completed: "Completado", running: "En curso", failed: "Con error" };
 
 function fmt(when: string): string {
-  const d = new Date(when);
-  return Number.isNaN(d.getTime()) ? when : d.toLocaleString("es-EC", { dateStyle: "medium", timeStyle: "short" });
+  return parseApiDate(when) ? fmtDateTime(when, { dateStyle: "medium", timeStyle: "short" }) : when;
 }
 
 export default function ScanHistoryDialog({ scans, open, onOpenChange }: {

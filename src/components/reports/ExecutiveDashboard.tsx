@@ -10,6 +10,7 @@ import ReportLine from "@/components/reports/ReportLine";
 import SimpleTable, { type SimpleCol } from "@/components/reports/SimpleTable";
 import ExecutiveActionPlan from "@/components/reports/ExecutiveActionPlan";
 import { getExecutive, generateExecutiveNarrative, fetchClientLogoObjectUrl, uploadClientLogo, deleteClientLogo } from "@/lib/api";
+import { fmtDateISO } from "@/lib/dates";
 import { REPORT_COLORS } from "@/lib/report";
 import {
   STATE_COLORS, STATE_LABELS, STATE_HEADLINES, WAF_PILLARS,
@@ -241,7 +242,7 @@ export default function ExecutiveDashboard({ report, clientId, year, month, canE
           <StatusPill estado={overall} />
           <h3 className="text-base font-semibold mt-2">{narrative?.titular || STATE_HEADLINES[overall] || "Resumen del periodo"}</h3>
           <p className="text-sm text-muted-foreground mt-1">{narrative?.sintesis || "Genera la lectura IA para obtener la síntesis gerencial del periodo."}</p>
-          {narrative?.sintesis && <span className="text-[11px] text-muted-foreground italic">Lectura generada con IA{narrative.generated_at ? ` · ${narrative.generated_at.slice(0, 10)}` : ""}</span>}
+          {narrative?.sintesis && <span className="text-[11px] text-muted-foreground italic">Lectura generada con IA{narrative.generated_at ? ` · ${fmtDateISO(narrative.generated_at)}` : ""}</span>}
         </div>
       </div>
 
@@ -402,7 +403,7 @@ export default function ExecutiveDashboard({ report, clientId, year, month, canE
             <div className="rounded-xl border bg-card p-4">
               <h3 className="text-sm font-medium mb-1">Evolución mensual Advisor Score</h3>
               <p className="text-xs text-muted-foreground mb-2">
-                {advisor?.current ? `Último snapshot guardado: ${advisor.current.snapshot_date || advisor.current.captured_at || "—"}.` : "Sin snapshots para el periodo; se completará con el refresh semanal."}
+                {advisor?.current ? `Último snapshot guardado: ${advisor.current.snapshot_date || fmtDateISO(advisor.current.captured_at) || "—"}.` : "Sin snapshots para el periodo; se completará con el refresh semanal."}
               </p>
               {advSeries.length > 0 ? (
                 <ReportLine data={advSeries.map((s) => ({ x: s.label ?? s.month ?? "", Promedio: Math.round(s.average) }))}

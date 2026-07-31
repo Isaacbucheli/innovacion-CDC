@@ -1,5 +1,6 @@
 // Helpers de presentación del módulo Revisión de accesos.
 
+import { fmtDateTime, parseApiDate } from "@/lib/dates";
 import type {
   AccessAccount, AccessAssignment, AccessDecisionValue, AccessFinding, AccessFindingSeverity,
   AccessPrincipalType, AccessRoleClass,
@@ -191,7 +192,7 @@ export function decisionTitle(a: Pick<AccessAssignment,
   if (!a.decision) return "Sin decisión registrada.";
   const parts: string[] = [decisionLabel(a.decision)];
   if (a.decision_decided_by) parts.push(`por ${a.decision_decided_by}`);
-  if (a.decision_decided_at) parts.push(`el ${new Date(a.decision_decided_at).toLocaleString("es-EC")}`);
+  if (a.decision_decided_at) parts.push(`el ${fmtDateTime(a.decision_decided_at)}`);
   const lines = [parts.join(" ")];
   if (a.decision === "revocar" && a.decision_runs_since !== null && a.decision_runs_since > 0) {
     lines.push(a.decision_runs_since === 1
@@ -289,8 +290,9 @@ export function subscriptionLabel(a: {
 }
 
 export function daysSince(iso: string | null): number | null {
-  if (!iso) return null;
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  const d = parseApiDate(iso);
+  if (!d) return null;
+  return Math.floor((Date.now() - d.getTime()) / 86_400_000);
 }
 
 /** Cuenta con riesgo: deshabilitada, sin MFA o inactiva sobre el umbral. */

@@ -13,6 +13,7 @@ import {
   updateSubscription, syncSubscriptions,
 } from "@/lib/api";
 import { getRole } from "@/lib/auth";
+import { fmtDateISO } from "@/lib/dates";
 import type { Credential, ClientSubscription } from "@/types";
 
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
@@ -168,7 +169,7 @@ export default function CredentialsManager({ clientId }: { clientId: number }) {
                     <div className="font-mono text-[11px] text-muted-foreground truncate" title={s.subscription_id}>{s.subscription_id}</div>
                     <div className="text-[11px] text-muted-foreground truncate">
                       {s.credential_name || (s.credential_id ? `#${s.credential_id}` : "—")}
-                      {s.last_synced_at ? ` · sync ${s.last_synced_at.slice(0, 10)}` : ""}
+                      {s.last_synced_at ? ` · sync ${fmtDateISO(s.last_synced_at)}` : ""}
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">

@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createService, updateService } from "@/lib/api";
+import { fmtDateTime } from "@/lib/dates";
 import type { ServiceCatalogItem } from "@/types";
 
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
@@ -120,7 +121,7 @@ export default function ServiceFormDialog({ item, inserterKeys, open, onOpenChan
             {field("RI: valores excluidos", <Input value={f.ri_exclude_values} onChange={(e) => set("ri_exclude_values", e.target.value)} placeholder="opcional (coma)" />)}
           </div>
           {field("Notas", <Textarea rows={2} value={f.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Observaciones de costeo…" />)}
-          {editing && <p className="text-xs text-muted-foreground">Creado: {item!.created_at?.slice(0, 19) ?? "—"}{item!.updated_at ? ` · Actualizado: ${item!.updated_at.slice(0, 19)}` : ""}</p>}
+          {editing && <p className="text-xs text-muted-foreground">Creado: {fmtDateTime(item!.created_at)}{item!.updated_at ? ` · Actualizado: ${fmtDateTime(item!.updated_at)}` : ""}</p>}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>

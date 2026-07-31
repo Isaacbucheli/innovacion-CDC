@@ -1,4 +1,5 @@
 import { ArrowLeftRight } from "lucide-react";
+import { fmtDate } from "@/lib/dates";
 import type { AccessReviewDelta } from "@/types";
 
 function accesos(n: number): string {
@@ -38,9 +39,7 @@ export default function DeltaStrip({ delta, onShowNew }: {
     );
   }
 
-  const fecha = delta.previous_finished_at
-    ? new Date(delta.previous_finished_at).toLocaleDateString("es-EC")
-    : null;
+  const fecha = delta.previous_finished_at ? fmtDate(delta.previous_finished_at) : null;
   // La comparabilidad se lee del backend, con el valor del campo como respaldo para respuestas de la
   // API anterior a este cambio (que nunca mandaban null en un eje).
   const accesosOk = delta.accesos_comparables ?? delta.nuevos_accesos !== null;

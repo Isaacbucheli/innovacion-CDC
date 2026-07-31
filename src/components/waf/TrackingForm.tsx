@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { updateWafTracking } from "@/lib/api";
 import { validateTracking } from "@/lib/waf";
 import { canEditModule } from "@/lib/auth";
+import { fmtDate } from "@/lib/dates";
 import type { WafRecommendationDetail, WafTrackingUpdate, WafHistoryEntry } from "@/types";
 
 const PRIORITY = [{ v: "1", l: "Alta" }, { v: "2", l: "Media" }, { v: "3", l: "Baja" }];
@@ -95,7 +96,7 @@ export default function TrackingForm({ clientId, canonicalId, detail, onSaved, l
               {logHistory.map((h) => (
                 <li key={h.history_id} className="text-xs">
                   <div className="text-muted-foreground">
-                    {new Date(h.changed_at).toLocaleDateString("es-EC")} · {h.changed_by ?? "—"}
+                    {fmtDate(h.changed_at)} · {h.changed_by ?? "—"}
                   </div>
                   <div className="whitespace-pre-wrap text-foreground">{h.new_value ?? "—"}</div>
                 </li>

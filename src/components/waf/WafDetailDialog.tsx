@@ -7,6 +7,7 @@ import { getWafRecommendation, getWafResources, getWafComments, getWafHistory, d
 import { impactMeta, wafHistoryFieldLabel, wafHistoryValue } from "@/lib/waf";
 import { translateToEnglish } from "@/lib/wafTranslate";
 import { canEditModule } from "@/lib/auth";
+import { fmtDate } from "@/lib/dates";
 import ConfirmDelete from "@/components/ConfirmDelete";
 import type { WafRecommendationDetail, WafResource, WafComment, WafHistoryEntry } from "@/types";
 import TrackingForm from "@/components/waf/TrackingForm";
@@ -184,7 +185,7 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
                       <li key={h.history_id}>
                         <span className="text-foreground">{wafHistoryFieldLabel(h.field_changed)}</span>
                         {showValues && <>: {wafHistoryValue(h.field_changed, h.old_value)} → {wafHistoryValue(h.field_changed, h.new_value)}</>}
-                        {" · "}{h.changed_by ?? "—"} · {new Date(h.changed_at).toLocaleDateString("es-EC")}
+                        {" · "}{h.changed_by ?? "—"} · {fmtDate(h.changed_at)}
                       </li>
                     );
                   })}

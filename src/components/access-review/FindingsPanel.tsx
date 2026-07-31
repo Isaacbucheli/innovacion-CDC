@@ -7,6 +7,7 @@ import {
   accountPrivilege, asignacionesLabel, cuentasLabel, externalLabel, findingIsActionable, findingIsOpen,
   roleClassShortLabel, severityChip, severityLabel,
 } from "@/lib/accessReview";
+import { fmtDateTime } from "@/lib/dates";
 import type { AccessAccount, AccessFinding } from "@/types";
 
 /** "1 informativa" / "2 informativas". `alcance_incompleto` es la única regla informativa, así que
@@ -16,7 +17,7 @@ function plural(n: number, singular: string, plural_: string): string {
 }
 
 function dateOrDash(iso: string | null): string {
-  return iso ? new Date(iso).toLocaleString("es-EC") : "—";
+  return fmtDateTime(iso);
 }
 
 /** Con pocas cuentas afectadas se muestran los nombres en la fila: "Cuenta externa con privilegio

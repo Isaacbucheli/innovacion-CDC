@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { DollarSign, ListChecks, Layers, CalendarClock } from "lucide-react";
 import { formatMoney } from "@/lib/costs";
+import { fmtDate } from "@/lib/dates";
 import { useCountUp } from "@/lib/useCountUp";
 import type { OptKpis } from "@/lib/optimization";
 import type { OptScan } from "@/types";
@@ -35,9 +36,8 @@ function scanStatusLabel(scan: OptScan | null): string {
 
 export default function OptimizationKpis({ kpis, latestScan }: { kpis: OptKpis; latestScan: OptScan | null }) {
   const { high, medium, low } = kpis.severity;
-  const when = latestScan ? new Date(latestScan.finished_at ?? latestScan.started_at) : null;
-  const whenLabel = when && !Number.isNaN(when.getTime())
-    ? when.toLocaleDateString("es-EC", { dateStyle: "medium" })
+  const whenLabel = latestScan
+    ? fmtDate(latestScan.finished_at ?? latestScan.started_at, { dateStyle: "medium" })
     : "—";
   return (
     <div className="grid grid-cols-2 gap-4">

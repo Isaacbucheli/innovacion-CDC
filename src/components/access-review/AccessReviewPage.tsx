@@ -40,6 +40,7 @@ import {
   environmentLabel, environmentChip,
 } from "@/lib/accessReview";
 import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
+import { fmtDateTime } from "@/lib/dates";
 import { canEditModule } from "@/lib/auth";
 import type {
   ClientAdmin, AccessAccount, AccessAssignment, AccessDecisionValue, AccessFinding, AccessGlobalAdmin,
@@ -52,7 +53,7 @@ function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
 const chip = (cls: string, text: React.ReactNode) => <span className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{text}</span>;
 
 function dateOrDash(iso: string | null | undefined): string {
-  return iso ? new Date(iso).toLocaleString("es-EC") : "—";
+  return fmtDateTime(iso);
 }
 
 function enabledChip(v: boolean | null | undefined) {

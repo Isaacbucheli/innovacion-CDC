@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { addWafComment } from "@/lib/api";
 import { canEditModule } from "@/lib/auth";
+import { fmtDate } from "@/lib/dates";
 import type { WafComment } from "@/types";
 
 export default function Comments({ clientId, canonicalId, comments, onAdded }: {
@@ -37,7 +38,7 @@ export default function Comments({ clientId, canonicalId, comments, onAdded }: {
               </div>
               <div>
                 <div className="text-sm">{c.comment_text}</div>
-                <div className="text-[11px] text-muted-foreground">{c.user_display} · {new Date(c.created_at).toLocaleDateString("es-EC")}</div>
+                <div className="text-[11px] text-muted-foreground">{c.user_display} · {fmtDate(c.created_at)}</div>
               </div>
             </li>
           ))}

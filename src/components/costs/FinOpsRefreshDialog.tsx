@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getFinOpsStatus, refreshFinOpsData } from "@/lib/api";
+import { fmtDateTime } from "@/lib/dates";
 import type { FinOpsRefreshStatus } from "@/types";
 
 function fmtDate(d: string | null): string {
-  return d ? new Date(d).toLocaleString("es-EC") : "—";
+  return fmtDateTime(d);
 }
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : "Error inesperado");
