@@ -116,7 +116,7 @@ export default function RetirementDetailSheet({ group, subscriptions, open, onOp
                     {group.subscription_ids.length > 0 ? (
                       <ul className="space-y-1">
                         {group.subscription_ids.map((sid) => (
-                          <li key={sid} className="truncate text-xs text-muted-foreground" title={sid}>
+                          <li key={sid} className="truncate text-xs text-muted-foreground" title={`${subscriptionName(sid)} (${sid})`}>
                             {subscriptionName(sid)}
                           </li>
                         ))}
@@ -145,7 +145,7 @@ export default function RetirementDetailSheet({ group, subscriptions, open, onOp
                             <td className="max-w-32 truncate px-3 py-2 text-xs text-muted-foreground" title={r.resource_type}>
                               {r.resource_type}
                             </td>
-                            <td className="max-w-32 truncate px-3 py-2 text-xs text-muted-foreground" title={r.subscription_id}>
+                            <td className="max-w-40 truncate px-3 py-2 text-xs text-muted-foreground" title={`${subscriptionName(r.subscription_id)} (${r.subscription_id})`}>
                               {subscriptionName(r.subscription_id)}
                             </td>
                             <td className="max-w-64 truncate px-3 py-2 font-mono text-xs text-muted-foreground" title={r.resource_id ?? undefined}>
