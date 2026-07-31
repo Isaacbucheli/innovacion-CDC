@@ -220,6 +220,11 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                           {g.learn_more_url ? (
                             <a href={g.learn_more_url} target="_blank" rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
+                              // El onKeyDown de la fila (abre el sheet con Enter/Espacio) intercepta
+                              // el Enter del link ANTES de que el navegador lo navegue, porque el
+                              // evento burbujea desde el <a> hasta el <tr>. stopPropagation acá corta
+                              // esa burbuja para el teclado igual que ya se hace con el click.
+                              onKeyDown={(e) => e.stopPropagation()}
                               className="mt-0.5 inline-flex items-center gap-1 text-primary hover:underline">
                               Más información <ExternalLink className="h-3 w-3" />
                             </a>
@@ -235,7 +240,12 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
           </Tabs>
         </div>
       )}
-      <RetirementDetailSheet group={detail} open={detail != null} onOpenChange={(o) => { if (!o) setDetail(null); }} />
+      <RetirementDetailSheet
+        group={detail}
+        subscriptions={view?.subscriptions}
+        open={detail != null}
+        onOpenChange={(o) => { if (!o) setDetail(null); }}
+      />
     </AppShell>
   );
 }

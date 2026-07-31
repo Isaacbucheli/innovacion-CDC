@@ -1222,8 +1222,13 @@ export interface BoletinSyncInfo {
   health_items: number;
   error: string | null;
 }
+export interface BoletinSubscription {
+  subscription_id: string;
+  name: string;
+}
 export interface BoletinView {
   last_sync: BoletinSyncInfo | null;
   kpis: BoletinKpis;
   groups: BoletinGroup[];
+  subscriptions: BoletinSubscription[];
 }

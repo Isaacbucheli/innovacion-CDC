@@ -3,7 +3,7 @@ import { ExternalLink } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import SearchInput from "@/components/SearchInput";
 import { URGENCY_META, SOURCE_LABEL, fmtDate, htmlToText } from "@/components/boletin/boletinMeta";
-import type { BoletinGroup } from "@/types";
+import type { BoletinGroup, BoletinSubscription } from "@/types";
 
 function UrgencyPill({ urgency }: { urgency: BoletinGroup["urgency"] }) {
   const m = URGENCY_META[urgency];
@@ -13,12 +13,21 @@ function UrgencyPill({ urgency }: { urgency: BoletinGroup["urgency"] }) {
 /** A partir de cuántos recursos aparece el filtro local de la lista. */
 const FILTER_THRESHOLD = 15;
 
-export default function RetirementDetailSheet({ group, open, onOpenChange }: {
+export default function RetirementDetailSheet({ group, subscriptions, open, onOpenChange }: {
   group: BoletinGroup | null;
+  /** view.subscriptions (BoletinPage): id -> nombre visible, para no mostrar el GUID crudo. */
+  subscriptions?: BoletinSubscription[];
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
   const [q, setQ] = useState("");
+
+  // Lookup id -> nombre. Si una suscripción no está en la lista (p.ej. dejó de administrarse),
+  // cae al propio GUID: nunca se deja la celda/lista en blanco.
+  const subscriptionName = useMemo(() => {
+    const byId = new Map((subscriptions ?? []).map((s) => [s.subscription_id, s.name]));
+    return (id: string) => byId.get(id) ?? id;
+  }, [subscriptions]);
 
   const resources = group?.resources ?? [];
   const needle = q.trim().toLowerCase();
@@ -107,8 +116,8 @@ export default function RetirementDetailSheet({ group, open, onOpenChange }: {
                     {group.subscription_ids.length > 0 ? (
                       <ul className="space-y-1">
                         {group.subscription_ids.map((sid) => (
-                          <li key={sid} className="truncate font-mono text-xs text-muted-foreground" title={sid}>
-                            {sid}
+                          <li key={sid} className="truncate text-xs text-muted-foreground" title={sid}>
+                            {subscriptionName(sid)}
                           </li>
                         ))}
                       </ul>
@@ -136,8 +145,8 @@ export default function RetirementDetailSheet({ group, open, onOpenChange }: {
                             <td className="max-w-32 truncate px-3 py-2 text-xs text-muted-foreground" title={r.resource_type}>
                               {r.resource_type}
                             </td>
-                            <td className="max-w-32 truncate px-3 py-2 font-mono text-xs text-muted-foreground" title={r.subscription_id}>
-                              {r.subscription_id}
+                            <td className="max-w-32 truncate px-3 py-2 text-xs text-muted-foreground" title={r.subscription_id}>
+                              {subscriptionName(r.subscription_id)}
                             </td>
                             <td className="max-w-64 truncate px-3 py-2 font-mono text-xs text-muted-foreground" title={r.resource_id ?? undefined}>
                               {r.resource_id ?? "—"}
