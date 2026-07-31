@@ -27,6 +27,16 @@ function UrgencyPill({ urgency }: { urgency: BoletinGroup["urgency"] }) {
   return <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${m.cls}`}>{m.label}</span>;
 }
 
+/** Traduce el status del último sync para mostrarlo al usuario (fallback: el valor crudo). */
+function syncStatusEs(status: string): string {
+  switch (status) {
+    case "partial": return "parcial";
+    case "failed": return "fallido";
+    case "running": return "en curso";
+    default: return status;
+  }
+}
+
 export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) => void }) {
   const { clients, clientId, view, loading, dataLoading, syncing, error, selectClient, sync } = useBoletin();
   const [q, setQ] = useState("");
@@ -47,6 +57,11 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
   const upcoming = useMemo(() =>
     (view?.groups ?? []).filter((g) => g.urgency === "proximo" || g.urgency === "programado").slice(0, 6),
   [view]);
+
+  const hasActiveFilters = q.trim() !== "" || urgency !== "todas";
+  const emptyRetirosText = hasActiveFilters
+    ? "Sin retiros que impacten a este cliente con los filtros actuales."
+    : "Sin retiros de Azure que impacten a este cliente.";
 
   const clientSelect = (
     <ClientHeader clients={clients} clientId={clientId} onSelect={selectClient} disabled={syncing || dataLoading} />
@@ -72,7 +87,7 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                 <span><b className="font-semibold text-foreground">Advisor</b> · {view.last_sync.advisor_items} avisos</span>
                 <span><b className="font-semibold text-foreground">Service Health</b> · {view.last_sync.health_items} avisos</span>
                 <span>Última sincronización: {new Date(view.last_sync.started_at).toLocaleString("es-EC")}
-                  {view.last_sync.status !== "completed" ? ` (${view.last_sync.status})` : ""}</span>
+                  {view.last_sync.status !== "completed" ? ` (${syncStatusEs(view.last_sync.status)})` : ""}</span>
               </>
             ) : (
               <span>Sin sincronizaciones todavía — usa &quot;Sincronizar&quot; para traer los avisos del tenant.</span>
@@ -140,11 +155,13 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Buscar servicio, feature o acción…"
+                  aria-label="Buscar servicio, feature o acción"
                   className="h-9 w-64 rounded-md border bg-background px-3 text-sm"
                 />
                 <select
                   value={urgency}
                   onChange={(e) => setUrgency(e.target.value)}
+                  aria-label="Filtrar por urgencia"
                   className="h-9 rounded-md border bg-background px-2 text-sm"
                 >
                   <option value="todas">Todas las urgencias</option>
@@ -175,7 +192,7 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                       <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Cargando…</td></tr>
                     ) : filtered.length === 0 ? (
                       <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                        Sin retiros que impacten a este cliente con los filtros actuales.
+                        {emptyRetirosText}
                       </td></tr>
                     ) : filtered.map((g) => (
                       <tr key={`${g.source}:${g.announcement_key}`} className="border-b last:border-b-0 align-top">
