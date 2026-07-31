@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBoletin } from "@/hooks/useBoletin";
 import { URGENCY_META, SOURCE_LABEL, fmtDate } from "@/components/boletin/boletinMeta";
+import RetirementDetailSheet from "@/components/boletin/RetirementDetailSheet";
 import { canEditModule } from "@/lib/auth";
 import type { BoletinGroup } from "@/types";
 
@@ -41,6 +42,7 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
   const { clients, clientId, view, loading, dataLoading, syncing, error, selectClient, sync } = useBoletin();
   const [q, setQ] = useState("");
   const [urgency, setUrgency] = useState<string>("todas");
+  const [detail, setDetail] = useState<BoletinGroup | null>(null);
   const canEdit = canEditModule("boletin");
 
   const filtered = useMemo(() => {
@@ -195,7 +197,17 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                         {emptyRetirosText}
                       </td></tr>
                     ) : filtered.map((g) => (
-                      <tr key={`${g.source}:${g.announcement_key}`} className="border-b last:border-b-0 align-top">
+                      <tr
+                        key={`${g.source}:${g.announcement_key}`}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Ver detalle de ${g.retiring_feature || g.title}`}
+                        onClick={() => setDetail(g)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetail(g); }
+                        }}
+                        className="cursor-pointer border-b align-top last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset"
+                      >
                         <td className="px-4 py-2.5">
                           <div className="font-medium">{g.retiring_feature || g.title}</div>
                           {g.retiring_feature ? <div className="text-xs text-muted-foreground">{g.title}</div> : null}
@@ -207,6 +219,7 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                           <span className="line-clamp-2">{g.recommended_action ?? "—"}</span>
                           {g.learn_more_url ? (
                             <a href={g.learn_more_url} target="_blank" rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
                               className="mt-0.5 inline-flex items-center gap-1 text-primary hover:underline">
                               Más información <ExternalLink className="h-3 w-3" />
                             </a>
@@ -222,6 +235,7 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
           </Tabs>
         </div>
       )}
+      <RetirementDetailSheet group={detail} open={detail != null} onOpenChange={(o) => { if (!o) setDetail(null); }} />
     </AppShell>
   );
 }

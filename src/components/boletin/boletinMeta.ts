@@ -18,3 +18,10 @@ export function fmtDate(iso: string | null): string {
   const d = new Date(`${iso}T00:00:00`);
   return d.toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric" });
 }
+
+/** El summary de Service Health llega como HTML: lo aplanamos a texto (nunca innerHTML). */
+export function htmlToText(html: string | null): string {
+  if (!html) return "";
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return (doc.body.textContent ?? "").replace(/\s+/g, " ").trim();
+}
