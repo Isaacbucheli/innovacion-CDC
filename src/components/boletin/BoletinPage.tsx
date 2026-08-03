@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
-import { RefreshCw, ExternalLink } from "lucide-react";
+import { RefreshCw, ExternalLink, Languages } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import ClientHeader from "@/components/ClientHeader";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBoletin } from "@/hooks/useBoletin";
-import { URGENCY_META, SOURCE_LABEL, fmtDate } from "@/components/boletin/boletinMeta";
+import { URGENCY_META, SOURCE_LABEL, fmtDate, groupTexts } from "@/components/boletin/boletinMeta";
 import RetirementDetailSheet from "@/components/boletin/RetirementDetailSheet";
 import { canEditModule } from "@/lib/auth";
 import type { BoletinGroup } from "@/types";
@@ -42,6 +42,7 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
   const { clients, clientId, view, loading, dataLoading, syncing, error, selectClient, sync } = useBoletin();
   const [q, setQ] = useState("");
   const [urgency, setUrgency] = useState<string>("todas");
+  const [english, setEnglish] = useState(false);
   const [detail, setDetail] = useState<BoletinGroup | null>(null);
   const canEdit = canEditModule("boletin");
 
@@ -52,8 +53,10 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
       (urgency === "todas" || g.urgency === urgency) &&
       (needle === "" ||
         g.title.toLowerCase().includes(needle) ||
+        (g.title_es ?? "").toLowerCase().includes(needle) ||
         g.retiring_feature.toLowerCase().includes(needle) ||
-        (g.recommended_action ?? "").toLowerCase().includes(needle)));
+        (g.recommended_action ?? "").toLowerCase().includes(needle) ||
+        (g.recommended_action_es ?? "").toLowerCase().includes(needle)));
   }, [view, q, urgency]);
 
   const upcoming = useMemo(() =>
@@ -129,17 +132,21 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                   <div className="px-4 py-6 text-sm text-muted-foreground">Sin vencimientos futuros registrados.</div>
                 ) : (
                   <ul className="divide-y">
-                    {upcoming.map((g) => (
-                      <li key={`${g.source}:${g.announcement_key}`} className="flex items-baseline gap-3 px-4 py-2.5 text-sm">
-                        <span className="w-24 shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground tabular-nums">
-                          {fmtDate(g.retirement_date)}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate">{g.title}</span>
-                        <span className="text-xs text-muted-foreground tabular-nums">
-                          {g.resource_count > 0 ? `${g.resource_count} recursos` : "aviso de suscripción"}
-                        </span>
-                      </li>
-                    ))}
+                    {upcoming.map((g) => {
+                      // El resumen siempre en español, sin importar el toggle del tab Retiros.
+                      const texts = groupTexts(g, false);
+                      return (
+                        <li key={`${g.source}:${g.announcement_key}`} className="flex items-baseline gap-3 px-4 py-2.5 text-sm">
+                          <span className="w-24 shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground tabular-nums">
+                            {fmtDate(g.retirement_date)}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate">{texts.title}</span>
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {g.resource_count > 0 ? `${g.resource_count} recursos` : "aviso de suscripción"}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>
@@ -172,6 +179,15 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                   <option value="programado">Programado</option>
                   <option value="sin_fecha">Sin fecha</option>
                 </select>
+                <Button
+                  variant={english ? "default" : "outline"}
+                  size="sm"
+                  aria-label="Alternar idioma inglés"
+                  onClick={() => setEnglish((v) => !v)}
+                >
+                  <Languages className="mr-1.5 h-3.5 w-3.5" />
+                  {english ? "Español" : "Inglés"}
+                </Button>
                 <span className="text-xs text-muted-foreground tabular-nums">
                   {filtered.length} de {view?.groups.length ?? 0} anuncios
                 </span>
@@ -196,43 +212,46 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                       <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                         {emptyRetirosText}
                       </td></tr>
-                    ) : filtered.map((g) => (
-                      <tr
-                        key={`${g.source}:${g.announcement_key}`}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`Ver detalle de ${g.retiring_feature || g.title}`}
-                        onClick={() => setDetail(g)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetail(g); }
-                        }}
-                        className="cursor-pointer border-b align-top last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset"
-                      >
-                        <td className="px-4 py-2.5">
-                          <div className="font-medium">{g.retiring_feature || g.title}</div>
-                          {g.retiring_feature ? <div className="text-xs text-muted-foreground">{g.title}</div> : null}
-                        </td>
-                        <td className="px-4 py-2.5"><UrgencyPill urgency={g.urgency} /></td>
-                        <td className="px-4 py-2.5 tabular-nums">{fmtDate(g.retirement_date)}</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums">{g.resource_count || "—"}</td>
-                        <td className="max-w-72 px-4 py-2.5 text-xs text-muted-foreground">
-                          <span className="line-clamp-2">{g.recommended_action ?? "—"}</span>
-                          {g.learn_more_url ? (
-                            <a href={g.learn_more_url} target="_blank" rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              // El onKeyDown de la fila (abre el sheet con Enter/Espacio) intercepta
-                              // el Enter del link ANTES de que el navegador lo navegue, porque el
-                              // evento burbujea desde el <a> hasta el <tr>. stopPropagation acá corta
-                              // esa burbuja para el teclado igual que ya se hace con el click.
-                              onKeyDown={(e) => e.stopPropagation()}
-                              className="mt-0.5 inline-flex items-center gap-1 text-primary hover:underline">
-                              Más información <ExternalLink className="h-3 w-3" />
-                            </a>
-                          ) : null}
-                        </td>
-                        <td className="px-4 py-2.5 text-xs text-muted-foreground">{SOURCE_LABEL[g.source]}</td>
-                      </tr>
-                    ))}
+                    ) : filtered.map((g) => {
+                      const texts = groupTexts(g, english);
+                      return (
+                        <tr
+                          key={`${g.source}:${g.announcement_key}`}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Ver detalle de ${g.retiring_feature || texts.title}`}
+                          onClick={() => setDetail(g)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetail(g); }
+                          }}
+                          className="cursor-pointer border-b align-top last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset"
+                        >
+                          <td className="px-4 py-2.5">
+                            <div className="font-medium">{g.retiring_feature || texts.title}</div>
+                            {g.retiring_feature ? <div className="text-xs text-muted-foreground">{texts.title}</div> : null}
+                          </td>
+                          <td className="px-4 py-2.5"><UrgencyPill urgency={g.urgency} /></td>
+                          <td className="px-4 py-2.5 tabular-nums">{fmtDate(g.retirement_date)}</td>
+                          <td className="px-4 py-2.5 text-right tabular-nums">{g.resource_count || "—"}</td>
+                          <td className="max-w-72 px-4 py-2.5 text-xs text-muted-foreground">
+                            <span className="line-clamp-2">{texts.action ?? "—"}</span>
+                            {g.learn_more_url ? (
+                              <a href={g.learn_more_url} target="_blank" rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                // El onKeyDown de la fila (abre el sheet con Enter/Espacio) intercepta
+                                // el Enter del link ANTES de que el navegador lo navegue, porque el
+                                // evento burbujea desde el <a> hasta el <tr>. stopPropagation acá corta
+                                // esa burbuja para el teclado igual que ya se hace con el click.
+                                onKeyDown={(e) => e.stopPropagation()}
+                                className="mt-0.5 inline-flex items-center gap-1 text-primary hover:underline">
+                                Más información <ExternalLink className="h-3 w-3" />
+                              </a>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-2.5 text-xs text-muted-foreground">{SOURCE_LABEL[g.source]}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -245,6 +264,7 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
         subscriptions={view?.subscriptions}
         open={detail != null}
         onOpenChange={(o) => { if (!o) setDetail(null); }}
+        english={english}
       />
     </AppShell>
   );

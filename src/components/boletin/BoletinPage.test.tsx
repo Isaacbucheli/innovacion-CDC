@@ -13,6 +13,9 @@ const group: BoletinGroup = {
   recommended_action: "Migrar a Standard SKU",
   learn_more_url: "https://aka.ms/basicip",
   summary: null,
+  title_es: "Las direcciones IP públicas SKU Basic se retirarán",
+  summary_es: null,
+  recommended_action_es: "Migrar a Standard SKU",
   resource_count: 1,
   subscription_ids: ["sub-1"],
   resources: [

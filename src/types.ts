@@ -1200,6 +1200,9 @@ export interface BoletinGroup {
   recommended_action: string | null;
   learn_more_url: string | null;
   summary: string | null;
+  title_es: string | null;
+  summary_es: string | null;
+  recommended_action_es: string | null;
   resource_count: number;
   subscription_ids: string[];
   resources: BoletinResource[];
