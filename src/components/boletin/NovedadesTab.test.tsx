@@ -76,6 +76,29 @@ test("aprobar manda decidirNovedad(id, {estado:'aprobada', por_que}) con el text
   }));
 });
 
+test("recargar tras aprobar UNA fila conserva el por_que editado (y aún sin guardar) de las demás", async () => {
+  // Clase de bug real: reload() reconstruía drafts completo desde el servidor, así que aprobar la
+  // fila A (o "Traer novedades"/"Evaluar") revertía en silencio el texto editado de B al de la IA.
+  const a = novedad({ id: 1, titulo_es: "Novedad A", por_que: "IA para A" });
+  const b = novedad({ id: 2, titulo_es: "Novedad B", por_que: "IA para B" });
+  await renderTab({ aprobadas: [], pendientes: [a, b] }, { canEdit: true });
+  const { getNovedades } = await import("@/lib/api");
+
+  const textareaB = await screen.findByDisplayValue("IA para B");
+  fireEvent.change(textareaB, { target: { value: "Editado por el consultor para B" } });
+
+  // El reload tras aprobar A devuelve solo B como pendiente, con el texto ORIGINAL de la IA.
+  (getNovedades as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    aprobadas: [{ ...a, estado: "aprobada" }],
+    pendientes: [b],
+  });
+  fireEvent.click(screen.getAllByRole("button", { name: "Aprobar" })[0]);
+
+  await waitFor(() => expect(screen.queryByText("Pendientes de revisión (1)")).toBeInTheDocument());
+  expect(screen.getByDisplayValue("Editado por el consultor para B")).toBeInTheDocument();
+  expect(screen.queryByDisplayValue("IA para B")).not.toBeInTheDocument();
+});
+
 test("rechazar manda decidirNovedad(id, {estado:'rechazada'})", async () => {
   const pendiente = novedad({ id: 12 });
   await renderTab({ aprobadas: [], pendientes: [pendiente] }, { canEdit: true });

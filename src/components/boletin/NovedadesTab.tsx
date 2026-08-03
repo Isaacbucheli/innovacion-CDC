@@ -95,7 +95,12 @@ export default function NovedadesTab({ clientId, english, canEdit }: {
     try {
       const v = await getNovedades(clientId);
       setView(v);
-      setDrafts(Object.fromEntries(v.pendientes.map((n) => [n.id, n.por_que ?? ""])));
+      // Merge, NO reemplazo: aprobar/rechazar UNA fila (o traer/evaluar) recarga la lista, y un
+      // reemplazo total revertía en silencio los por_que editados y aún sin guardar de las DEMÁS
+      // filas al texto de la IA. El draft vigente gana; filas nuevas arrancan con el texto del
+      // servidor; filas que ya no están pendientes se descartan (los id son únicos entre clientes,
+      // así que el cambio de cliente no arrastra drafts ajenos).
+      setDrafts((prev) => Object.fromEntries(v.pendientes.map((n) => [n.id, prev[n.id] ?? n.por_que ?? ""])));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudieron cargar las novedades.");
     } finally {
