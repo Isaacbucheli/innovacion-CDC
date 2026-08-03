@@ -1,4 +1,5 @@
-import type { BoletinGroup } from "@/types";
+import { Sparkles, ShieldCheck, Layers, Coins, type LucideIcon } from "lucide-react";
+import type { BoletinGroup, NovedadCliente } from "@/types";
 
 /** Pills de urgencia (desaturadas, patrón FindingBits/severity). Sin emojis. */
 export const URGENCY_META: Record<BoletinGroup["urgency"], { label: string; cls: string }> = {
@@ -13,6 +14,26 @@ export const SOURCE_LABEL: Record<BoletinGroup["source"], string> = {
   service_health: "Service Health",
   eol: "Catálogo BIT",
 };
+
+/** Metadata de las 4 categorías BIT de Novedades (tarjetas del tab homónimo). Orden fijo de
+ *  presentación: se recorre con Object.keys/for..of sobre este mismo objeto, así que el orden
+ *  de declaración importa (coincide con el mockup original). */
+export const NOVEDAD_CATEGORIA_META: Record<NovedadCliente["categoria_bit"], { label: string; icon: LucideIcon }> = {
+  productividad_ia: { label: "Productividad e IA", icon: Sparkles },
+  seguridad_identidad: { label: "Seguridad e identidad", icon: ShieldCheck },
+  resiliencia_plataforma: { label: "Resiliencia y plataforma", icon: Layers },
+  costo_operacion: { label: "Costo y operación", icon: Coins },
+};
+
+/** Título de una novedad según idioma: ES por defecto (traducción persistida), EN con el toggle. */
+export function novedadTitle(n: NovedadCliente, english: boolean): string {
+  return english ? n.titulo : (n.titulo_es ?? n.titulo);
+}
+
+/** Descripción de una novedad según idioma. Ya llega texto plano (sin HTML) desde el feed. */
+export function novedadDescripcion(n: NovedadCliente, english: boolean): string {
+  return english ? n.descripcion : (n.descripcion_es ?? n.descripcion);
+}
 
 export function fmtDate(iso: string | null): string {
   if (!iso) return "—";

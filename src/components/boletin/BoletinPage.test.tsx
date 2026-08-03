@@ -43,6 +43,13 @@ const mockState = {
 };
 
 vi.mock("@/hooks/useBoletin", () => ({ useBoletin: () => ({ ...mockState }) }));
+// El tab "Novedades" (NovedadesTab) hace su propio fetch perezoso vía @/lib/api: se deja el resto
+// del módulo real (importOriginal) y solo se sustituye getNovedades, para no interceptar llamadas
+// reales a la red en un componente que ni siquiera está montado en la mayoría de estos tests.
+vi.mock("@/lib/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api")>();
+  return { ...actual, getNovedades: vi.fn(async () => ({ aprobadas: [], pendientes: [] })) };
+});
 
 beforeEach(() => {
   mockState.view = view;
@@ -128,4 +135,15 @@ test("los grupos eol NO aparecen en Retiros y SÍ en Fin de soporte", async () =
 
   fireEvent.mouseDown(screen.getByRole("tab", { name: /Retiros y deprecaciones/ }));
   expect(screen.queryByText(/Windows Server 2012 R2/)).not.toBeInTheDocument();
+});
+
+test("el tab Novedades monta NovedadesTab con el cliente activo (fetch perezoso, sin conteo en el trigger)", async () => {
+  await renderPage();
+  const { getNovedades } = await import("@/lib/api");
+
+  expect(getNovedades).not.toHaveBeenCalled();
+  fireEvent.mouseDown(screen.getByRole("tab", { name: "Novedades" }));
+
+  expect(await screen.findByText(/Sin novedades aprobadas para este cliente\./)).toBeInTheDocument();
+  expect(getNovedades).toHaveBeenCalledWith(6);
 });
