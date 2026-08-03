@@ -35,7 +35,7 @@ const view: BoletinView = {
 };
 
 const mockState = {
-  clients: [{ client_id: 6, client_name: "BICSA", has_logo: false }],
+  clients: [{ client_id: 6, client_name: "CLIENTE DEMO", has_logo: false }],
   clientId: 6 as number | null,
   view: view as BoletinView | null,
   loading: false, dataLoading: false, syncing: false, error: "",

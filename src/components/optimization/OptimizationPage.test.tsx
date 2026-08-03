@@ -17,7 +17,7 @@ const F = (over: Partial<OptFinding>): OptFinding => ({
 });
 
 const mockState = {
-  clients: [{ client_id: 6, client_name: "BICSA", has_logo: false }],
+  clients: [{ client_id: 6, client_name: "CLIENTE DEMO", has_logo: false }],
   clientId: 6 as number | null,
   allowed: true as boolean | null,
   scans: [scan],
