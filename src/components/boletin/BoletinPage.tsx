@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { RefreshCw, ExternalLink, Languages } from "lucide-react";
+import { RefreshCw, ExternalLink, Languages, Settings2 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import ClientHeader from "@/components/ClientHeader";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBoletin } from "@/hooks/useBoletin";
 import { URGENCY_META, SOURCE_LABEL, fmtDate, groupTexts } from "@/components/boletin/boletinMeta";
 import RetirementDetailSheet from "@/components/boletin/RetirementDetailSheet";
+import LifecycleCatalogDialog from "@/components/boletin/LifecycleCatalogDialog";
 import { canEditModule } from "@/lib/auth";
 import type { BoletinGroup } from "@/types";
 
@@ -44,12 +45,17 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
   const [urgency, setUrgency] = useState<string>("todas");
   const [english, setEnglish] = useState(false);
   const [detail, setDetail] = useState<BoletinGroup | null>(null);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const canEdit = canEditModule("boletin");
 
+  // El catálogo de fin de soporte (source "eol") vive en su propio tab: Retiros y sus filtros
+  // locales ya no lo ven.
+  const retiroGroups = useMemo(() => (view?.groups ?? []).filter((g) => g.source !== "eol"), [view]);
+  const eolGroups = useMemo(() => (view?.groups ?? []).filter((g) => g.source === "eol"), [view]);
+
   const filtered = useMemo(() => {
-    const groups = view?.groups ?? [];
     const needle = q.trim().toLowerCase();
-    return groups.filter((g) =>
+    return retiroGroups.filter((g) =>
       (urgency === "todas" || g.urgency === urgency) &&
       (needle === "" ||
         g.title.toLowerCase().includes(needle) ||
@@ -57,7 +63,7 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
         g.retiring_feature.toLowerCase().includes(needle) ||
         (g.recommended_action ?? "").toLowerCase().includes(needle) ||
         (g.recommended_action_es ?? "").toLowerCase().includes(needle)));
-  }, [view, q, urgency]);
+  }, [retiroGroups, q, urgency]);
 
   const upcoming = useMemo(() =>
     (view?.groups ?? []).filter((g) => g.urgency === "proximo" || g.urgency === "programado").slice(0, 6),
@@ -112,6 +118,9 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
               <TabsTrigger value="resumen">Resumen</TabsTrigger>
               <TabsTrigger value="retiros">
                 Retiros y deprecaciones{view ? ` (${view.kpis.announcements})` : ""}
+              </TabsTrigger>
+              <TabsTrigger value="eol">
+                Fin de soporte{view ? ` (${view.kpis.eol_products})` : ""}
               </TabsTrigger>
             </TabsList>
 
@@ -189,7 +198,7 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                   {english ? "Español" : "Inglés"}
                 </Button>
                 <span className="text-xs text-muted-foreground tabular-nums">
-                  {filtered.length} de {view?.groups.length ?? 0} anuncios
+                  {filtered.length} de {retiroGroups.length} anuncios
                 </span>
               </div>
 
@@ -267,6 +276,86 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                 </table>
               </div>
             </TabsContent>
+
+            <TabsContent value="eol" className="space-y-3">
+              <div className="overflow-x-auto rounded-xl border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                      <th className="px-4 py-2.5 font-semibold">Producto</th>
+                      <th className="px-4 py-2.5 font-semibold">Urgencia</th>
+                      <th className="px-4 py-2.5 font-semibold">Fin de soporte</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Recursos</th>
+                      <th className="px-4 py-2.5 font-semibold">Recomendación</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dataLoading ? (
+                      <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">Cargando…</td></tr>
+                    ) : eolGroups.length === 0 ? (
+                      <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                        Ningún recurso del cliente coincide con el catálogo de fin de soporte.
+                      </td></tr>
+                    ) : eolGroups.map((g) => {
+                      const texts = groupTexts(g, english);
+                      return (
+                        <tr
+                          key={`${g.source}:${g.announcement_key}`}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Ver detalle de ${g.retiring_feature || texts.title}`}
+                          onClick={() => setDetail(g)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetail(g); }
+                          }}
+                          className="cursor-pointer border-b align-top last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset"
+                        >
+                          <td className="px-4 py-2.5 font-medium">{g.retiring_feature}</td>
+                          <td className="px-4 py-2.5"><UrgencyPill urgency={g.urgency} /></td>
+                          <td className="px-4 py-2.5 tabular-nums">{fmtDate(g.retirement_date)}</td>
+                          <td className="px-4 py-2.5 text-right tabular-nums">
+                            {g.resource_count > 0 ? (
+                              <div className="flex items-center justify-end gap-1">
+                                <span>{g.resource_count}</span>
+                                {g.derived_resource_count > 0 ? (
+                                  <span className="text-[10px] text-muted-foreground">({g.derived_resource_count} inv.)</span>
+                                ) : null}
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td className="max-w-72 px-4 py-2.5 text-xs text-muted-foreground">
+                            <span className="line-clamp-2">{texts.action ?? "—"}</span>
+                            {g.learn_more_url ? (
+                              <a href={g.learn_more_url} target="_blank" rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => e.stopPropagation()}
+                                className="mt-0.5 inline-flex items-center gap-1 text-primary hover:underline">
+                                Más información <ExternalLink className="h-3 w-3" />
+                              </a>
+                            ) : null}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="max-w-2xl text-xs text-muted-foreground">
+                  Cobertura: SO reportado por el agente de la VM e imagen SQL de los SQL VMs registrados.
+                  SQL Server instalado manualmente sin registrar no aparece.
+                </p>
+                {canEdit ? (
+                  <Button variant="outline" size="sm" onClick={() => setCatalogOpen(true)}>
+                    <Settings2 className="mr-1.5 h-3.5 w-3.5" />
+                    Administrar catálogo
+                  </Button>
+                ) : null}
+              </div>
+            </TabsContent>
           </Tabs>
         </div>
       )}
@@ -277,6 +366,9 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
         onOpenChange={(o) => { if (!o) setDetail(null); }}
         english={english}
       />
+      {canEdit ? (
+        <LifecycleCatalogDialog open={catalogOpen} onOpenChange={setCatalogOpen} />
+      ) : null}
     </AppShell>
   );
 }

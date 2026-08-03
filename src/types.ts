@@ -1192,7 +1192,7 @@ export interface BoletinResource {
   derived: boolean;
 }
 export interface BoletinGroup {
-  source: "advisor" | "service_health";
+  source: "advisor" | "service_health" | "eol";
   announcement_key: string;
   title: string;
   retiring_feature: string;
@@ -1216,6 +1216,9 @@ export interface BoletinKpis {
   resources: number;
   subscriptions_impacted: number;
   subscriptions_total: number;
+  // Catálogo de fin de soporte (source "eol"): productos únicos del catálogo con match y recursos que matchean.
+  eol_products: number;
+  eol_resources: number;
 }
 export interface BoletinSyncInfo {
   id: number;
@@ -1236,4 +1239,19 @@ export interface BoletinView {
   kpis: BoletinKpis;
   groups: BoletinGroup[];
   subscriptions: BoletinSubscription[];
+}
+
+/** Entrada del catálogo global de fin de soporte (GET/POST/PUT/DELETE /boletin/lifecycle).
+ *  El patrón se compara contra el SO reportado por la VM o la imagen SQL del SQL VM. */
+export interface LifecycleEntry {
+  id: number;
+  clave: string;
+  producto: string;
+  categoria: "so" | "bd";
+  match_field: "os_name" | "sql_image_offer";
+  match_pattern: string;
+  end_of_support: string; // "YYYY-MM-DD"
+  recomendacion: string;
+  learn_more_url: string | null;
+  is_active: boolean;
 }

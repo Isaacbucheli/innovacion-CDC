@@ -11,6 +11,7 @@ export const URGENCY_META: Record<BoletinGroup["urgency"], { label: string; cls:
 export const SOURCE_LABEL: Record<BoletinGroup["source"], string> = {
   advisor: "Advisor",
   service_health: "Service Health",
+  eol: "Catálogo BIT",
 };
 
 export function fmtDate(iso: string | null): string {

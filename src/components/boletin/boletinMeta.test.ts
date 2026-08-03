@@ -1,6 +1,10 @@
 import { expect, test } from "vitest";
-import { groupTexts, htmlToText } from "@/components/boletin/boletinMeta";
+import { groupTexts, htmlToText, SOURCE_LABEL } from "@/components/boletin/boletinMeta";
 import type { BoletinGroup } from "@/types";
+
+test("SOURCE_LABEL cubre la fuente eol", () => {
+  expect(SOURCE_LABEL.eol).toBe("Catálogo BIT");
+});
 
 test("aplana HTML con tags y entidades a texto plano de una sola línea", () => {
   const html = "<p>Este servicio se <b>retira</b>&nbsp;el&nbsp;próximo trimestre.</p>\n<p>Migra a la v2.</p>";
