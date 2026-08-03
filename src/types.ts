@@ -1255,3 +1255,24 @@ export interface LifecycleEntry {
   learn_more_url: string | null;
   is_active: boolean;
 }
+
+// ---- Boletín: Novedades (Fase 2) ----
+export interface NovedadCliente {
+  id: number; // id de la fila cliente (para PUT)
+  novedad_id: number;
+  titulo: string;
+  titulo_es: string | null;
+  descripcion: string;
+  descripcion_es: string | null;
+  link: string;
+  estado_feed: "launched" | "in_preview" | "otro";
+  categoria_bit: "productividad_ia" | "seguridad_identidad" | "resiliencia_plataforma" | "costo_operacion";
+  published_at: string;
+  por_que: string | null;
+  estado: "pendiente" | "aprobada" | "rechazada";
+}
+
+export interface NovedadesClienteView {
+  aprobadas: NovedadCliente[];
+  pendientes: NovedadCliente[];
+}

@@ -9,6 +9,7 @@ import { useBoletin } from "@/hooks/useBoletin";
 import { URGENCY_META, SOURCE_LABEL, fmtDate, groupTexts } from "@/components/boletin/boletinMeta";
 import RetirementDetailSheet from "@/components/boletin/RetirementDetailSheet";
 import LifecycleCatalogDialog from "@/components/boletin/LifecycleCatalogDialog";
+import NovedadesTab from "@/components/boletin/NovedadesTab";
 import { canEditModule } from "@/lib/auth";
 import type { BoletinGroup } from "@/types";
 
@@ -122,6 +123,7 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
               <TabsTrigger value="eol">
                 Fin de soporte{view ? ` (${view.kpis.eol_products})` : ""}
               </TabsTrigger>
+              <TabsTrigger value="novedades">Novedades</TabsTrigger>
             </TabsList>
 
             <TabsContent value="resumen" className="space-y-4">
@@ -362,6 +364,12 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                   </Button>
                 ) : null}
               </div>
+            </TabsContent>
+
+            <TabsContent value="novedades" className="space-y-3">
+              {clientId != null ? (
+                <NovedadesTab clientId={clientId} english={english} canEdit={canEdit} />
+              ) : null}
             </TabsContent>
           </Tabs>
         </div>
