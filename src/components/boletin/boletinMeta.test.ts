@@ -15,7 +15,7 @@ test("null o vacío devuelve cadena vacía", () => {
 const base: BoletinGroup = {
   source: "advisor", announcement_key: "k", title: "Support ends", retiring_feature: "F",
   retirement_date: null, urgency: "sin_fecha", recommended_action: "Migrate", learn_more_url: null,
-  summary: null, resource_count: 0, subscription_ids: [], resources: [],
+  summary: null, resource_count: 0, derived_resource_count: 0, subscription_ids: [], resources: [],
   title_es: "El soporte termina", summary_es: null, recommended_action_es: "Migra",
 };
 

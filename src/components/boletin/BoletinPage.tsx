@@ -232,7 +232,18 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                           </td>
                           <td className="px-4 py-2.5"><UrgencyPill urgency={g.urgency} /></td>
                           <td className="px-4 py-2.5 tabular-nums">{fmtDate(g.retirement_date)}</td>
-                          <td className="px-4 py-2.5 text-right tabular-nums">{g.resource_count || "—"}</td>
+                          <td className="px-4 py-2.5 text-right tabular-nums">
+                            {g.resource_count > 0 ? (
+                              <div className="flex items-center justify-end gap-1">
+                                <span>{g.resource_count}</span>
+                                {g.derived_resource_count > 0 ? (
+                                  <span className="text-[10px] text-muted-foreground">({g.derived_resource_count} inv.)</span>
+                                ) : null}
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
                           <td className="max-w-72 px-4 py-2.5 text-xs text-muted-foreground">
                             <span className="line-clamp-2">{texts.action ?? "—"}</span>
                             {g.learn_more_url ? (

@@ -17,9 +17,10 @@ const group: BoletinGroup = {
   summary_es: null,
   recommended_action_es: "Migrar a Standard SKU",
   resource_count: 1,
+  derived_resource_count: 0,
   subscription_ids: ["sub-1"],
   resources: [
-    { fingerprint: "fp-1", subscription_id: "sub-1", resource_id: "/r/ip1", resource_name: "ip1", resource_type: "t" },
+    { fingerprint: "fp-1", subscription_id: "sub-1", resource_id: "/r/ip1", resource_name: "ip1", resource_type: "t", derived: false },
   ],
 };
 
