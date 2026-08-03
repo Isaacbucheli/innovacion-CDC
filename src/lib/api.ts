@@ -1,4 +1,10 @@
 import type {
+  AccessDecisionItem,
+  AccessReviewResponse,
+  AccessReviewRun,
+  ActionPlanItem,
+  ActionPlanItemWrite,
+  ActionPlanResponse,
   Alert,
   AnalysisSummary,
   AssignmentWrite,
@@ -12,13 +18,25 @@ import type {
   ConsultantAssignment,
   CostResult,
   CoverageResult,
+  Credential,
+  CredentialAudit,
+  CredentialAuthResult,
+  ExecutiveNarrative,
+  ExecutivePayload,
+  FindingState,
   FinOpsLookups,
   FinOpsRefreshStatus,
+  GenerateReportResponse,
   InventoryRow,
   KqlQuery,
   LifecycleEntry,
   LighthouseClientGroup,
   LighthouseLinkResult,
+  MonthlyReport,
+  NovedadesClienteView,
+  OptFinding,
+  OptScan,
+  OptScanSummary,
   PendienteClienteWrite,
   PendientesPayload,
   PendienteWrite,
@@ -26,13 +44,19 @@ import type {
   Policy,
   PowerHistoryEnqueue,
   PowerHistoryJobStatus,
+  PublicUser,
   ReassignScope,
+  ReportList,
+  ReservationConsumer,
+  ReservationsResponse,
   RiCoverageResult,
   Role,
   Scenario,
+  Semaforo,
   ServiceCatalogItem,
   ServiceCreateBody,
   ServiceUpdateBody,
+  SubscriptionSyncSummary,
   WafAdvisorScore,
   WafAdvisorSyncRequest,
   WafAdvisorSyncResult,
@@ -58,29 +82,6 @@ import type {
   WafSubscriptionOption,
   WafSummary,
   WafTrackingUpdate,
-  ReportList,
-  MonthlyReport,
-  ExecutivePayload,
-  Semaforo,
-  ExecutiveNarrative,
-  ActionPlanResponse,
-  ActionPlanItem,
-  ActionPlanItemWrite,
-  GenerateReportResponse,
-  ReservationsResponse,
-  ReservationConsumer,
-  Credential,
-  CredentialAuthResult,
-  CredentialAudit,
-  SubscriptionSyncSummary,
-  PublicUser,
-  OptFinding,
-  OptScan,
-  OptScanSummary,
-  FindingState,
-  AccessReviewResponse,
-  AccessReviewRun,
-  AccessDecisionItem,
 } from "@/types";
 import { clearSession, getToken, setEmail, setSession } from "@/lib/auth";
 
@@ -559,6 +560,20 @@ export function updateLifecycle(id: number, p: Partial<LifecycleEntry>): Promise
 }
 export function deleteLifecycle(id: number): Promise<unknown> {
   return request(`/boletin/lifecycle/${id}`, { method: "DELETE" });
+}
+
+// ---- Boletín: Novedades (Fase 2) ----
+export function getNovedades(clientId: number): Promise<NovedadesClienteView> {
+  return request<NovedadesClienteView>(`/boletin/clients/${clientId}/novedades`);
+}
+export function ingestarNovedades(): Promise<{ nuevas: number; traducidas: number; total_activas: number }> {
+  return request<{ nuevas: number; traducidas: number; total_activas: number }>("/boletin/novedades/ingestar", { method: "POST" });
+}
+export function evaluarNovedades(clientId: number): Promise<{ evaluadas: number; candidatas: number }> {
+  return request<{ evaluadas: number; candidatas: number }>(`/boletin/clients/${clientId}/novedades/evaluar`, { method: "POST" });
+}
+export function decidirNovedad(id: number, p: { estado: string; por_que?: string | null }): Promise<unknown> {
+  return request(`/boletin/novedades-cliente/${id}`, jsonOpts("PUT", p));
 }
 
 /** Descarga autenticada (blob) desde el backend .NET; usado por la exportación a Excel. */
