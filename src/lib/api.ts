@@ -16,6 +16,7 @@ import type {
   FinOpsRefreshStatus,
   InventoryRow,
   KqlQuery,
+  LifecycleEntry,
   LighthouseClientGroup,
   LighthouseLinkResult,
   PendienteClienteWrite,
@@ -544,6 +545,20 @@ export function getBoletin(clientId: number): Promise<BoletinView> {
 }
 export function syncBoletin(clientId: number): Promise<Record<string, unknown>> {
   return request<Record<string, unknown>>(`/boletin/clients/${clientId}/sync`, { method: "POST" });
+}
+
+// ---- Boletín: catálogo de lifecycle (fin de soporte) ----
+export function listLifecycle(): Promise<LifecycleEntry[]> {
+  return request<LifecycleEntry[]>("/boletin/lifecycle");
+}
+export function createLifecycle(p: Partial<LifecycleEntry>): Promise<{ id: number }> {
+  return request<{ id: number }>("/boletin/lifecycle", jsonOpts("POST", p));
+}
+export function updateLifecycle(id: number, p: Partial<LifecycleEntry>): Promise<unknown> {
+  return request(`/boletin/lifecycle/${id}`, jsonOpts("PUT", p));
+}
+export function deleteLifecycle(id: number): Promise<unknown> {
+  return request(`/boletin/lifecycle/${id}`, { method: "DELETE" });
 }
 
 /** Descarga autenticada (blob) desde el backend .NET; usado por la exportación a Excel. */

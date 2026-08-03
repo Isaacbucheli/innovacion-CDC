@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { expect, test } from "vitest";
 import RetirementDetailSheet from "@/components/boletin/RetirementDetailSheet";
 import type { BoletinGroup, BoletinSubscription } from "@/types";
@@ -90,4 +90,9 @@ test("marca los recursos derivados del inventario con su badge y nota", () => {
   render(<RetirementDetailSheet group={group} subscriptions={[]} open onOpenChange={() => {}} />);
   expect(screen.getByText("Inventario")).toBeInTheDocument();
   expect(screen.getByText(/derivados del inventario/i)).toBeInTheDocument();
+
+  // Defer E1: el recurso NO derivado (fp-1: "conf") no debe llevar el badge "Inventario".
+  const confRow = screen.getByText("conf").closest("tr");
+  expect(confRow).not.toBeNull();
+  expect(within(confRow as HTMLElement).queryByText("Inventario")).not.toBeInTheDocument();
 });
