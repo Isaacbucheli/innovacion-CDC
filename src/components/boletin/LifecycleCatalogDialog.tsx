@@ -77,7 +77,14 @@ export default function LifecycleCatalogDialog({ open, onOpenChange, onChanged }
           </table>
         </div>
         {form !== undefined ? (
+          // key obligatorio: LifecycleForm siembra su estado con useState(entry) SOLO al montar.
+          // Sin key, al pasar de Editar A -> Editar B (sin cerrar el form) React reutiliza la misma
+          // instancia y el estado se queda con los valores de A; "Guardar" mandaría
+          // updateLifecycle(B.id, valores de A) y corrompería el catálogo GLOBAL en silencio.
+          // El key (id de la entrada, o "new" al crear) fuerza a React a desmontar/remontar el
+          // form cada vez que cambia el objetivo de edición.
           <LifecycleForm
+            key={form === null ? "new" : form.id}
             entry={form}
             onClose={() => setForm(undefined)}
             onSaved={() => { setForm(undefined); void reload(); onChanged?.(); }}
@@ -117,9 +124,21 @@ function LifecycleForm({ entry, onClose, onSaved }: {
       return;
     }
     setBusy(true);
+    // Solo los campos editables del form: v puede traer "id"/"is_active" sembrados desde
+    // `entry` (ver useState de arriba) y el backend no debe recibir campos de sistema en el PUT/POST.
+    const payload = {
+      clave: v.clave,
+      producto: v.producto,
+      categoria: v.categoria,
+      match_field: v.match_field,
+      match_pattern: v.match_pattern,
+      end_of_support: v.end_of_support,
+      recomendacion: v.recomendacion,
+      learn_more_url: v.learn_more_url,
+    };
     try {
-      if (entry) await updateLifecycle(entry.id, v);
-      else await createLifecycle(v);
+      if (entry) await updateLifecycle(entry.id, payload);
+      else await createLifecycle(payload);
       toast.success(entry ? "Entrada actualizada." : "Entrada creada.");
       onSaved();
     } catch (e) {
