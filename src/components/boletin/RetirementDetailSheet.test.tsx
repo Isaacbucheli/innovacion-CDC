@@ -13,7 +13,11 @@ const baseGroup: BoletinGroup = {
   recommended_action: "Migrar a Standard SKU",
   learn_more_url: "https://aka.ms/basicip",
   summary: null,
+  title_es: "Las direcciones IP públicas SKU Basic se retirarán",
+  summary_es: null,
+  recommended_action_es: "Migrar a Standard SKU",
   resource_count: 1,
+  derived_resource_count: 0,
   subscription_ids: ["11111111-1111-1111-1111-111111111111"],
   resources: [
     {
@@ -22,6 +26,7 @@ const baseGroup: BoletinGroup = {
       resource_id: "/subscriptions/1111.../ip1",
       resource_name: "ip1",
       resource_type: "Microsoft.Network/publicIPAddresses",
+      derived: false,
     },
   ],
 };
@@ -55,6 +60,7 @@ test("aviso a nivel de suscripcion muestra el nombre en la lista (nombre complet
     ...baseGroup,
     source: "service_health",
     resource_count: 0,
+    derived_resource_count: 0,
     resources: [],
     subscription_ids: ["22222222-2222-2222-2222-222222222222"],
   };
@@ -69,4 +75,19 @@ test("aviso a nivel de suscripcion muestra el nombre en la lista (nombre complet
   const item = screen.getByText("Desarrollo");
   expect(item).toBeInTheDocument();
   expect(item.getAttribute("title")).toBe("Desarrollo (22222222-2222-2222-2222-222222222222)");
+});
+
+test("marca los recursos derivados del inventario con su badge y nota", () => {
+  const group: BoletinGroup = {
+    ...baseGroup,
+    resource_count: 2,
+    derived_resource_count: 1,
+    resources: [
+      { fingerprint: "f1", subscription_id: "11111111-1111-1111-1111-111111111111", resource_id: "/r/1", resource_name: "conf", resource_type: "T", derived: false },
+      { fingerprint: "f2", subscription_id: "11111111-1111-1111-1111-111111111111", resource_id: "/r/2", resource_name: "inf", resource_type: "T", derived: true },
+    ],
+  };
+  render(<RetirementDetailSheet group={group} subscriptions={[]} open onOpenChange={() => {}} />);
+  expect(screen.getByText("Inventario")).toBeInTheDocument();
+  expect(screen.getByText(/derivados del inventario/i)).toBeInTheDocument();
 });

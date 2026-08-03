@@ -25,3 +25,16 @@ export function htmlToText(html: string | null): string {
   const doc = new DOMParser().parseFromString(html, "text/html");
   return (doc.body.textContent ?? "").replace(/\s+/g, " ").trim();
 }
+
+/** Textos del grupo según idioma. ES por defecto (traducción fiel persistida);
+ *  fallback al original EN cuando la traducción aún no existe. */
+export function groupTexts(g: BoletinGroup, english: boolean): {
+  title: string; summary: string | null; action: string | null;
+} {
+  if (english) return { title: g.title, summary: g.summary, action: g.recommended_action };
+  return {
+    title: g.title_es ?? g.title,
+    summary: g.summary_es ?? g.summary,
+    action: g.recommended_action_es ?? g.recommended_action,
+  };
+}

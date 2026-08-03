@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import SearchInput from "@/components/SearchInput";
-import { URGENCY_META, SOURCE_LABEL, fmtDate, htmlToText } from "@/components/boletin/boletinMeta";
+import { URGENCY_META, SOURCE_LABEL, fmtDate, htmlToText, groupTexts } from "@/components/boletin/boletinMeta";
 import type { BoletinGroup, BoletinSubscription } from "@/types";
 
 function UrgencyPill({ urgency }: { urgency: BoletinGroup["urgency"] }) {
@@ -13,12 +13,14 @@ function UrgencyPill({ urgency }: { urgency: BoletinGroup["urgency"] }) {
 /** A partir de cuántos recursos aparece el filtro local de la lista. */
 const FILTER_THRESHOLD = 15;
 
-export default function RetirementDetailSheet({ group, subscriptions, open, onOpenChange }: {
+export default function RetirementDetailSheet({ group, subscriptions, open, onOpenChange, english }: {
   group: BoletinGroup | null;
   /** view.subscriptions (BoletinPage): id -> nombre visible, para no mostrar el GUID crudo. */
   subscriptions?: BoletinSubscription[];
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  /** Espejo del toggle del tab Retiros: ambos idiomas ya vienen persistidos, sin llamada a IA. */
+  english?: boolean;
 }) {
   const [q, setQ] = useState("");
 
@@ -40,7 +42,8 @@ export default function RetirementDetailSheet({ group, subscriptions, open, onOp
       (r.resource_id ?? "").toLowerCase().includes(needle));
   }, [group, needle]);
 
-  const summaryText = htmlToText(group?.summary ?? null);
+  const texts = group ? groupTexts(group, english ?? false) : { title: "", summary: null, action: null };
+  const summaryText = htmlToText(texts.summary);
 
   return (
     <Sheet open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setQ(""); }}>
@@ -48,7 +51,7 @@ export default function RetirementDetailSheet({ group, subscriptions, open, onOp
         {group && (
           <>
             <SheetHeader>
-              <SheetTitle>{group.retiring_feature || group.title}</SheetTitle>
+              <SheetTitle>{group.retiring_feature || texts.title}</SheetTitle>
             </SheetHeader>
 
             <div className="mt-4 space-y-4">
@@ -60,14 +63,14 @@ export default function RetirementDetailSheet({ group, subscriptions, open, onOp
                 </span>
               </div>
 
-              {group.retiring_feature && group.title !== group.retiring_feature ? (
-                <div className="text-sm text-muted-foreground">{group.title}</div>
+              {group.retiring_feature && texts.title !== group.retiring_feature ? (
+                <div className="text-sm text-muted-foreground">{texts.title}</div>
               ) : null}
 
               <div>
                 <div className="mb-1 text-xs font-medium uppercase tracking-wide text-primary">Acción recomendada</div>
                 <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                  {group.recommended_action || "Sin acción recomendada registrada."}
+                  {texts.action || "Sin acción recomendada registrada."}
                 </div>
                 {group.learn_more_url ? (
                   <a
@@ -108,6 +111,14 @@ export default function RetirementDetailSheet({ group, subscriptions, open, onOp
                   ) : null}
                 </div>
 
+                {group.derived_resource_count > 0 ? (
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    {group.derived_resource_count} de {group.resource_count} recursos son derivados del
+                    inventario del cliente por BIT (Microsoft no publica el detalle para este aviso).
+                    Verifícalos antes de planificar la migración.
+                  </p>
+                ) : null}
+
                 {resources.length === 0 ? (
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">
@@ -139,8 +150,18 @@ export default function RetirementDetailSheet({ group, subscriptions, open, onOp
                       <tbody>
                         {filtered.map((r) => (
                           <tr key={r.fingerprint} className="border-b last:border-b-0 align-top">
-                            <td className="max-w-48 truncate px-3 py-2 font-medium" title={r.resource_name}>
-                              {r.resource_name}
+                            <td className="px-3 py-2 font-medium">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="max-w-32 truncate" title={r.resource_name}>{r.resource_name}</span>
+                                {r.derived ? (
+                                  <span
+                                    className="ml-1 inline-block shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:bg-blue-950 dark:text-blue-300"
+                                    title="Detectado por BIT en el inventario del cliente (no confirmado por Microsoft)"
+                                  >
+                                    Inventario
+                                  </span>
+                                ) : null}
+                              </div>
                             </td>
                             <td className="max-w-32 truncate px-3 py-2 text-xs text-muted-foreground" title={r.resource_type}>
                               {r.resource_type}
