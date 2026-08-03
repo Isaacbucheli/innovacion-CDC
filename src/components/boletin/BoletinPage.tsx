@@ -149,7 +149,14 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                           <span className="w-24 shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground tabular-nums">
                             {fmtDate(g.retirement_date)}
                           </span>
-                          <span className="min-w-0 flex-1 truncate">{texts.title}</span>
+                          <span className="min-w-0 flex-1 truncate">
+                            {texts.title}
+                            {g.source === "eol" ? (
+                              // El KPI "Vencen en < 6 meses" solo cuenta retiros, pero la agenda de vencimientos
+                              // debe incluir también fin de soporte: la pill evita que parezca un retiro más.
+                              <span className="ml-1.5 inline-block rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Fin de soporte</span>
+                            ) : null}
+                          </span>
                           <span className="text-xs text-muted-foreground tabular-nums">
                             {g.resource_count > 0 ? `${g.resource_count} recursos` : "aviso de suscripción"}
                           </span>

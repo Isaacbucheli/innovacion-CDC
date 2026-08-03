@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "next-themes";
-import { beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { BoletinGroup, BoletinView } from "@/types";
 
 const group: BoletinGroup = {
@@ -45,6 +45,12 @@ const mockState = {
 vi.mock("@/hooks/useBoletin", () => ({ useBoletin: () => ({ ...mockState }) }));
 
 beforeEach(() => {
+  mockState.view = view;
+});
+
+// El test de eol reasigna mockState.view a un objeto con grupos extra: restaurar acá (no solo en
+// beforeEach) evita que un test futuro agregado después herede esa mutación si cambia el orden.
+afterEach(() => {
   mockState.view = view;
 });
 
