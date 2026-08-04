@@ -24,11 +24,14 @@ function novedad(overrides: Partial<NovedadCliente>): NovedadCliente {
     published_at: "2026-07-20T17:00:00Z",
     por_que: "Reduce el tiempo de triage de incidentes en un 30%.",
     estado: "pendiente",
+    recursos: null,
+    decidido_por: null,
+    decidido_at: null,
     ...overrides,
   };
 }
 
-const emptyView: NovedadesClienteView = { aprobadas: [], pendientes: [] };
+const emptyView: NovedadesClienteView = { aprobadas: [], pendientes: [], ultima_evaluacion: null, feed_actualizado: null };
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -44,7 +47,7 @@ async function renderTab(view: NovedadesClienteView, opts?: { english?: boolean;
 
 test("la sección de pendientes solo se muestra con canEdit", async () => {
   const pendiente = novedad({ id: 1, estado: "pendiente" });
-  await renderTab({ aprobadas: [], pendientes: [pendiente] }, { canEdit: false });
+  await renderTab({ aprobadas: [], pendientes: [pendiente], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: false });
 
   // Espera a que termine de cargar (el estado vacío global de aprobadas siempre se pinta).
   await screen.findByText(/Sin novedades aprobadas/i);
@@ -54,7 +57,7 @@ test("la sección de pendientes solo se muestra con canEdit", async () => {
 
 test("con canEdit se ve 'Pendientes de revisión (N)' y el título/por_que de cada una", async () => {
   const pendiente = novedad({ id: 5, estado: "pendiente" });
-  await renderTab({ aprobadas: [], pendientes: [pendiente] }, { canEdit: true });
+  await renderTab({ aprobadas: [], pendientes: [pendiente], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: true });
 
   expect(await screen.findByText("Pendientes de revisión (1)")).toBeInTheDocument();
   expect(screen.getByText(pendiente.titulo_es!)).toBeInTheDocument();
@@ -63,7 +66,7 @@ test("con canEdit se ve 'Pendientes de revisión (N)' y el título/por_que de ca
 
 test("aprobar manda decidirNovedad(id, {estado:'aprobada', por_que}) con el texto EDITADO", async () => {
   const pendiente = novedad({ id: 9, por_que: "Texto original de la IA" });
-  await renderTab({ aprobadas: [], pendientes: [pendiente] }, { canEdit: true });
+  await renderTab({ aprobadas: [], pendientes: [pendiente], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: true });
   const { decidirNovedad } = await import("@/lib/api");
 
   const textarea = await screen.findByDisplayValue("Texto original de la IA");
@@ -81,7 +84,7 @@ test("recargar tras aprobar UNA fila conserva el por_que editado (y aún sin gua
   // fila A (o "Traer novedades"/"Evaluar") revertía en silencio el texto editado de B al de la IA.
   const a = novedad({ id: 1, titulo_es: "Novedad A", por_que: "IA para A" });
   const b = novedad({ id: 2, titulo_es: "Novedad B", por_que: "IA para B" });
-  await renderTab({ aprobadas: [], pendientes: [a, b] }, { canEdit: true });
+  await renderTab({ aprobadas: [], pendientes: [a, b], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: true });
   const { getNovedades } = await import("@/lib/api");
 
   const textareaB = await screen.findByDisplayValue("IA para B");
@@ -91,6 +94,8 @@ test("recargar tras aprobar UNA fila conserva el por_que editado (y aún sin gua
   (getNovedades as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
     aprobadas: [{ ...a, estado: "aprobada" }],
     pendientes: [b],
+    ultima_evaluacion: null,
+    feed_actualizado: null,
   });
   fireEvent.click(screen.getAllByRole("button", { name: "Aprobar" })[0]);
 
@@ -101,7 +106,7 @@ test("recargar tras aprobar UNA fila conserva el por_que editado (y aún sin gua
 
 test("rechazar manda decidirNovedad(id, {estado:'rechazada'})", async () => {
   const pendiente = novedad({ id: 12 });
-  await renderTab({ aprobadas: [], pendientes: [pendiente] }, { canEdit: true });
+  await renderTab({ aprobadas: [], pendientes: [pendiente], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: true });
   const { decidirNovedad } = await import("@/lib/api");
 
   await screen.findByText(pendiente.titulo_es!);
@@ -116,7 +121,7 @@ test("tarjetas aprobadas agrupan por categoría y muestran el por_que; categorí
     id: 2, categoria_bit: "seguridad_identidad", titulo: "New Conditional Access template",
     titulo_es: "Nueva plantilla de Acceso Condicional", por_que: "Cierra un gap de MFA.",
   });
-  await renderTab({ aprobadas: [ia, seguridad], pendientes: [] }, { canEdit: false });
+  await renderTab({ aprobadas: [ia, seguridad], pendientes: [], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: false });
 
   expect(await screen.findByText("Productividad e IA")).toBeInTheDocument();
   expect(screen.getByText("Seguridad e identidad")).toBeInTheDocument();
@@ -130,7 +135,7 @@ test("tarjetas aprobadas agrupan por categoría y muestran el por_que; categorí
 
 test("el toggle english cambia el título de las tarjetas aprobadas", async () => {
   const item = novedad({ id: 1 });
-  const { rerender } = await renderTab({ aprobadas: [item], pendientes: [] }, { english: false, canEdit: false });
+  const { rerender } = await renderTab({ aprobadas: [item], pendientes: [], ultima_evaluacion: null, feed_actualizado: null }, { english: false, canEdit: false });
 
   expect(await screen.findByText(item.titulo_es!)).toBeInTheDocument();
 
@@ -143,7 +148,7 @@ test("el toggle english cambia el título de las tarjetas aprobadas", async () =
 
 test("el toggle english también cambia el título de las novedades pendientes", async () => {
   const pendiente = novedad({ id: 3 });
-  const { rerender } = await renderTab({ aprobadas: [], pendientes: [pendiente] }, { english: false, canEdit: true });
+  const { rerender } = await renderTab({ aprobadas: [], pendientes: [pendiente], ultima_evaluacion: null, feed_actualizado: null }, { english: false, canEdit: true });
 
   expect(await screen.findByText(pendiente.titulo_es!)).toBeInTheDocument();
 
@@ -167,7 +172,7 @@ test("estado vacío global sin el hint de edición cuando canEdit es false", asy
 
 test("pill 'Preview' solo cuando estado_feed es in_preview, y el link 'Ver anuncio' es seguro", async () => {
   const preview = novedad({ id: 1, estado_feed: "in_preview" });
-  await renderTab({ aprobadas: [preview], pendientes: [] }, { canEdit: false });
+  await renderTab({ aprobadas: [preview], pendientes: [], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: false });
 
   expect(await screen.findByText("Preview")).toBeInTheDocument();
   const link = screen.getByRole("link", { name: /Ver anuncio/i });

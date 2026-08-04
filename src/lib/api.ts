@@ -565,8 +565,11 @@ export function deleteLifecycle(id: number): Promise<unknown> {
 }
 
 // ---- Boletín: Novedades (Fase 2) ----
-export function getNovedades(clientId: number): Promise<NovedadesClienteView> {
-  return request<NovedadesClienteView>(`/boletin/clients/${clientId}/novedades`);
+export function getNovedades(clientId: number, opts?: { includeRechazadas?: boolean }): Promise<NovedadesClienteView> {
+  const q = new URLSearchParams();
+  if (opts?.includeRechazadas) q.set("include_rechazadas", "true");
+  const qs = q.toString();
+  return request<NovedadesClienteView>(`/boletin/clients/${clientId}/novedades${qs ? `?${qs}` : ""}`);
 }
 export function ingestarNovedades(): Promise<{ nuevas: number; traducidas: number; total_activas: number }> {
   return request<{ nuevas: number; traducidas: number; total_activas: number }>("/boletin/novedades/ingestar", { method: "POST" });
