@@ -3,7 +3,7 @@ import { ExternalLink } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import SearchInput from "@/components/SearchInput";
 import { URGENCY_META, SOURCE_LABEL, fmtDate, htmlToText, groupTexts } from "@/components/boletin/boletinMeta";
-import type { BoletinGroup, BoletinSubscription } from "@/types";
+import type { BoletinGroup, BoletinSubscription, MigracionRuta } from "@/types";
 
 function UrgencyPill({ urgency }: { urgency: BoletinGroup["urgency"] }) {
   const m = URGENCY_META[urgency];
@@ -13,7 +13,7 @@ function UrgencyPill({ urgency }: { urgency: BoletinGroup["urgency"] }) {
 /** A partir de cuántos recursos aparece el filtro local de la lista. */
 const FILTER_THRESHOLD = 15;
 
-export default function RetirementDetailSheet({ group, subscriptions, open, onOpenChange, english }: {
+export default function RetirementDetailSheet({ group, subscriptions, open, onOpenChange, english, migracionRuta }: {
   group: BoletinGroup | null;
   /** view.subscriptions (BoletinPage): id -> nombre visible, para no mostrar el GUID crudo. */
   subscriptions?: BoletinSubscription[];
@@ -21,6 +21,8 @@ export default function RetirementDetailSheet({ group, subscriptions, open, onOp
   onOpenChange: (o: boolean) => void;
   /** Espejo del toggle del tab Retiros: ambos idiomas ya vienen persistidos, sin llamada a IA. */
   english?: boolean;
+  /** Ruta de migración del catálogo (BoletinPage.rutaPorAnuncio) que matchea este anuncio, si hay. */
+  migracionRuta?: MigracionRuta;
 }) {
   const [q, setQ] = useState("");
 
@@ -90,6 +92,28 @@ export default function RetirementDetailSheet({ group, subscriptions, open, onOp
                   <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground">
                     {summaryText}
                   </div>
+                </div>
+              ) : null}
+
+              {migracionRuta ? (
+                <div>
+                  <div className="mb-1 text-xs font-medium uppercase tracking-wide text-primary">Ruta de migración</div>
+                  <div className="text-sm font-medium">{migracionRuta.desde} → {migracionRuta.hacia}</div>
+                  {migracionRuta.notas ? (
+                    <div className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground">
+                      {migracionRuta.notas}
+                    </div>
+                  ) : null}
+                  {migracionRuta.learn_more_url ? (
+                    <a
+                      href={migracionRuta.learn_more_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1.5 inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                    >
+                      Más información <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  ) : null}
                 </div>
               ) : null}
 

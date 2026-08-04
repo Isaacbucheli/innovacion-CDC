@@ -1239,6 +1239,7 @@ export interface BoletinView {
   kpis: BoletinKpis;
   groups: BoletinGroup[];
   subscriptions: BoletinSubscription[];
+  migracion?: MigracionSection;
 }
 
 /** Entrada del catálogo global de fin de soporte (GET/POST/PUT/DELETE /boletin/lifecycle).
@@ -1275,4 +1276,24 @@ export interface NovedadCliente {
 export interface NovedadesClienteView {
   aprobadas: NovedadCliente[];
   pendientes: NovedadCliente[];
+}
+
+// ---- Boletín: Migración (Fase 2 Entrega 4) ----
+export interface MigracionEntry {
+  id: number; clave: string; desde: string; hacia: string; notas: string;
+  match_pattern: string; learn_more_url: string | null; is_active: boolean;
+}
+export interface MigracionAnnouncement {
+  source: string; announcement_key: string; title: string; title_es: string | null;
+  retirement_date: string | null; urgency: string; resource_count: number;
+}
+export interface MigracionRuta {
+  id: number; clave: string; desde: string; hacia: string; notas: string;
+  learn_more_url: string | null; announcements: MigracionAnnouncement[];
+  nearest_date: string | null; total_resources: number;
+}
+export interface MigracionSection { rutas: MigracionRuta[]; sin_ruta: MigracionAnnouncement[]; }
+export interface MigracionSugerencia {
+  clave: string; desde: string; hacia: string; notas: string;
+  match_pattern: string; learn_more_url: string | null; announcement_title: string;
 }

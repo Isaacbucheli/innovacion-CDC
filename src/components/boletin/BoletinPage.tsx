@@ -10,8 +10,9 @@ import { URGENCY_META, SOURCE_LABEL, fmtDate, groupTexts } from "@/components/bo
 import RetirementDetailSheet from "@/components/boletin/RetirementDetailSheet";
 import LifecycleCatalogDialog from "@/components/boletin/LifecycleCatalogDialog";
 import NovedadesTab from "@/components/boletin/NovedadesTab";
+import MigracionTab from "@/components/boletin/MigracionTab";
 import { canEditModule } from "@/lib/auth";
-import type { BoletinGroup } from "@/types";
+import type { BoletinGroup, MigracionRuta } from "@/types";
 
 function Kpi({ label, value, sub, tone }: { label: string; value: number; sub?: string; tone?: "red" | "amber" }) {
   const toneCls = tone === "red" ? "text-red-700 dark:text-red-400"
@@ -41,7 +42,7 @@ function syncStatusEs(status: string): string {
 }
 
 export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) => void }) {
-  const { clients, clientId, view, loading, dataLoading, syncing, error, selectClient, sync } = useBoletin();
+  const { clients, clientId, view, loading, dataLoading, syncing, error, selectClient, sync, reload } = useBoletin();
   const [q, setQ] = useState("");
   const [urgency, setUrgency] = useState<string>("todas");
   const [english, setEnglish] = useState(false);
@@ -69,6 +70,16 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
   const upcoming = useMemo(() =>
     (view?.groups ?? []).filter((g) => g.urgency === "proximo" || g.urgency === "programado").slice(0, 6),
   [view]);
+
+  // announcement_key -> MigracionRuta que lo agrupa (una ruta puede cubrir varios anuncios),
+  // para pintar el bloque "Ruta de migración" en el sheet de detalle sin que el sheet recalcule nada.
+  const rutaPorAnuncio = useMemo(() => {
+    const m = new Map<string, MigracionRuta>();
+    for (const r of view?.migracion?.rutas ?? []) {
+      for (const a of r.announcements) m.set(a.announcement_key, r);
+    }
+    return m;
+  }, [view]);
 
   const hasActiveFilters = q.trim() !== "" || urgency !== "todas";
   const emptyRetirosText = hasActiveFilters
@@ -124,6 +135,7 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                 Fin de soporte{view ? ` (${view.kpis.eol_products})` : ""}
               </TabsTrigger>
               <TabsTrigger value="novedades">Novedades</TabsTrigger>
+              <TabsTrigger value="migracion">Migración ({view?.migracion?.rutas.length ?? 0})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="resumen" className="space-y-4">
@@ -371,6 +383,18 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                 <NovedadesTab clientId={clientId} english={english} canEdit={canEdit} />
               ) : null}
             </TabsContent>
+
+            <TabsContent value="migracion" className="space-y-3">
+              {clientId != null ? (
+                <MigracionTab
+                  clientId={clientId}
+                  section={view?.migracion ?? { rutas: [], sin_ruta: [] }}
+                  english={english}
+                  canEdit={canEdit}
+                  onChanged={() => void reload()}
+                />
+              ) : null}
+            </TabsContent>
           </Tabs>
         </div>
       )}
@@ -380,9 +404,12 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
         open={detail != null}
         onOpenChange={(o) => { if (!o) setDetail(null); }}
         english={english}
+        migracionRuta={detail ? rutaPorAnuncio.get(detail.announcement_key) : undefined}
       />
       {canEdit ? (
-        <LifecycleCatalogDialog open={catalogOpen} onOpenChange={setCatalogOpen} />
+        // onChanged: editar el catálogo de lifecycle debe refrescar la vista igual que el de
+        // migración (inconsistencia señalada por el review final E4 — el dialog ya exponía la prop).
+        <LifecycleCatalogDialog open={catalogOpen} onOpenChange={setCatalogOpen} onChanged={() => void reload()} />
       ) : null}
     </AppShell>
   );

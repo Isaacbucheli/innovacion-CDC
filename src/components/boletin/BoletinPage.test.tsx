@@ -39,7 +39,7 @@ const mockState = {
   clientId: 6 as number | null,
   view: view as BoletinView | null,
   loading: false, dataLoading: false, syncing: false, error: "",
-  selectClient: vi.fn(), sync: vi.fn(),
+  selectClient: vi.fn(), sync: vi.fn(), reload: vi.fn(),
 };
 
 vi.mock("@/hooks/useBoletin", () => ({ useBoletin: () => ({ ...mockState }) }));
@@ -146,4 +146,24 @@ test("el tab Novedades monta NovedadesTab con el cliente activo (fetch perezoso,
 
   expect(await screen.findByText(/Sin novedades aprobadas para este cliente\./)).toBeInTheDocument();
   expect(getNovedades).toHaveBeenCalledWith(6);
+});
+
+test("el 5º trigger 'Migración' muestra el conteo de rutas de la vista, sin fetch extra", async () => {
+  mockState.view = {
+    ...view,
+    migracion: {
+      rutas: [
+        { id: 1, clave: "r1", desde: "VM clásica", hacia: "VM ARM", notas: "", learn_more_url: null, announcements: [], nearest_date: null, total_resources: 0 },
+        { id: 2, clave: "r2", desde: "IP Basic", hacia: "IP Standard", notas: "", learn_more_url: null, announcements: [], nearest_date: null, total_resources: 0 },
+      ],
+      sin_ruta: [],
+    },
+  };
+  const api = await import("@/lib/api");
+  const spy = vi.spyOn(api, "getMigracionCatalogo");
+
+  await renderPage();
+
+  expect(screen.getByRole("tab", { name: "Migración (2)" })).toBeInTheDocument();
+  expect(spy).not.toHaveBeenCalled();
 });
