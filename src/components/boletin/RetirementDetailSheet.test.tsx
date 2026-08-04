@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { expect, test } from "vitest";
 import RetirementDetailSheet from "@/components/boletin/RetirementDetailSheet";
-import type { BoletinGroup, BoletinSubscription } from "@/types";
+import type { BoletinGroup, BoletinSubscription, MigracionRuta } from "@/types";
 
 const baseGroup: BoletinGroup = {
   source: "advisor",
@@ -95,4 +95,28 @@ test("marca los recursos derivados del inventario con su badge y nota", () => {
   const confRow = screen.getByText("conf").closest("tr");
   expect(confRow).not.toBeNull();
   expect(within(confRow as HTMLElement).queryByText("Inventario")).not.toBeInTheDocument();
+});
+
+test("muestra el bloque 'Ruta de migración' con desde -> hacia, notas y link cuando se pasa migracionRuta", () => {
+  const migracionRuta: MigracionRuta = {
+    id: 1, clave: "basic-a-standard-ip", desde: "IP pública Basic", hacia: "IP pública Standard",
+    notas: "Migrar antes del retiro.", learn_more_url: "https://aka.ms/otra-guia",
+    announcements: [], nearest_date: "2025-09-30", total_resources: 1,
+  };
+  render(
+    <RetirementDetailSheet group={baseGroup} subscriptions={subs} open onOpenChange={() => {}} migracionRuta={migracionRuta} />,
+  );
+
+  const label = screen.getByText("Ruta de migración");
+  const block = label.parentElement as HTMLElement;
+  expect(within(block).getByText("IP pública Basic → IP pública Standard")).toBeInTheDocument();
+  expect(within(block).getByText("Migrar antes del retiro.")).toBeInTheDocument();
+  const link = within(block).getByRole("link", { name: /Más información/i });
+  expect(link).toHaveAttribute("href", "https://aka.ms/otra-guia");
+  expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+});
+
+test("no muestra el bloque 'Ruta de migración' cuando no hay ruta asociada", () => {
+  render(<RetirementDetailSheet group={baseGroup} subscriptions={subs} open onOpenChange={() => {}} />);
+  expect(screen.queryByText("Ruta de migración")).not.toBeInTheDocument();
 });

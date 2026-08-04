@@ -13,6 +13,9 @@ export interface UseBoletin {
   error: string;
   selectClient: (id: number) => void;
   sync: () => Promise<void>;
+  /** Recarga getBoletin del cliente activo sin re-sincronizar Advisor/Service Health (p.ej. tras
+   *  editar el catálogo de rutas de migración: el backend recalcula las rutas al leer). */
+  reload: () => Promise<void>;
 }
 
 /** Estado del Boletín Azure: clientes + vista persistida del cliente activo. Espejo de useOptimization. */
@@ -87,5 +90,9 @@ export function useBoletin(): UseBoletin {
     }
   }, [clientId, loadFor]);
 
-  return { clients, clientId, view, loading, dataLoading, syncing, error, selectClient, sync };
+  const reload = useCallback(async () => {
+    if (clientId != null) await loadFor(clientId);
+  }, [clientId, loadFor]);
+
+  return { clients, clientId, view, loading, dataLoading, syncing, error, selectClient, sync, reload };
 }
