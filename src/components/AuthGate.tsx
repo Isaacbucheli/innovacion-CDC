@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 import LoginScreen from "@/components/LoginScreen";
 import ChangePasswordScreen from "@/components/ChangePasswordScreen";
 import { me } from "@/lib/api";
-import { clearSession, getToken, setEmail, setModulePerms, setSession } from "@/lib/auth";
+import { clearSession, setCsrfToken, setEmail, setModulePerms, setSession } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
 
 // Pantalla breve mientras se valida el token guardado contra /auth/me: misma tarjeta
@@ -32,11 +32,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<"checking" | "in" | "out" | "change">("checking");
 
   async function check() {
-    if (!getToken()) { setState("out"); return; }
     try {
       const u = await me();
-      setSession(getToken(), u.role, u.full_name || u.email || "Usuario BIT");
+      setSession(u.role, u.full_name || u.email || "Usuario BIT");
       setEmail(u.email || "");
+      setCsrfToken(u.csrf_token);
       setModulePerms(Object.fromEntries(
         (u.modules ?? []).map((m) => [m.key, { can_view: m.can_view, can_edit: m.can_edit }]),
       ));

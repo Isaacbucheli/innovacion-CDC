@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { changePassword } from "@/lib/api";
+import { changePassword, logout } from "@/lib/api";
 import { clearSession } from "@/lib/auth";
 
 // Pantalla forzada tras el login cuando la contraseña es temporal (must_change_password=1):
@@ -33,9 +33,8 @@ export default function ChangePasswordScreen({ onChanged }: { onChanged: () => v
     }
   }
 
-  function logout() {
-    clearSession();
-    location.reload();
+  function handleLogout() {
+    void logout().catch(() => undefined).finally(() => { clearSession(); location.reload(); });
   }
 
   return (
@@ -85,7 +84,7 @@ export default function ChangePasswordScreen({ onChanged }: { onChanged: () => v
             </Button>
           </form>
 
-          <button type="button" onClick={logout} className="mt-4 block w-full text-center text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">
+              <button type="button" onClick={handleLogout} className="mt-4 block w-full text-center text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">
             Salir e ingresar con otra cuenta
           </button>
           <p className="mt-4 text-center text-[11px] text-muted-foreground">© Business IT · Uso interno</p>
