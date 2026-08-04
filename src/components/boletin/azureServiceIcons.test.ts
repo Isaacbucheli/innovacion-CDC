@@ -7,13 +7,13 @@ import {
 test("resolveServiceIcon devuelve URL para producto mapeado (feed)", () => {
   const url = resolveServiceIcon(["azure sql database"]);
   expect(url).toBeTruthy();
-  expect(url).toMatch(/^(data:|.*\.svg)/);
+  expect(url).toMatch(/^data:image\/svg\+xml/);
 });
 
 test("resolveServiceIcon devuelve URL para primera coincidencia en array", () => {
   const url = resolveServiceIcon(["unmapped-product", "virtual machines"]);
   expect(url).toBeTruthy();
-  expect(url).toMatch(/^(data:|.*\.svg)/);
+  expect(url).toMatch(/^data:image\/svg\+xml/);
 });
 
 test("resolveServiceIcon devuelve null si ningún producto está mapeado", () => {
@@ -92,7 +92,7 @@ test("mapea productos del feed observados en E2E", () => {
   for (const product of cases) {
     const url = resolveServiceIcon([product]);
     expect(url).toBeTruthy();
-    expect(url).toMatch(/^(data:|.*\.svg)/);
+    expect(url).toMatch(/^data:image\/svg\+xml/);
   }
 });
 
@@ -112,7 +112,7 @@ test("mapea tipos ARG a labels correctos", () => {
     ["microsoft.containerservice/managedclusters", "AKS"],
     ["microsoft.apimanagement/service", "API Management"],
     ["microsoft.keyvault/vaults", "Key Vaults"],
-    ["microsoft.insights/components", "Application Insights"],
+    ["microsoft.insights/components", "App Insights"],
     ["microsoft.automation/automationaccounts", "Automation"],
     ["microsoft.eventhub/namespaces", "Event Hubs"],
     ["microsoft.servicebus/namespaces", "Service Bus"],
@@ -140,6 +140,6 @@ test("ServiceIconInfo exporta icon URLs y shortNames", () => {
   // This will be tested via implementation
   const url = resolveServiceIcon(["virtual machines"]);
   expect(url).toBeTruthy();
-  // The icon should be a valid import URL (either data URI or SVG path)
-  expect(url).toMatch(/^(data:|.*\.svg)/);
+  // The icon should be a data URI
+  expect(url).toMatch(/^data:image\/svg\+xml/);
 });

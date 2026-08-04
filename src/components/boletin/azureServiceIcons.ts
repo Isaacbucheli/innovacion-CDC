@@ -1,38 +1,20 @@
-// SVG imports from Vite
-import vmUrl from "@/assets/azure-icons/virtual-machines.svg";
-import vmScaleSetsUrl from "@/assets/azure-icons/vm-scale-sets.svg";
-import sqlDatabaseUrl from "@/assets/azure-icons/sql-database.svg";
-import sqlManagedInstanceUrl from "@/assets/azure-icons/sql-managed-instance.svg";
-import sqlVmUrl from "@/assets/azure-icons/sql-vm.svg";
-import postgresqlUrl from "@/assets/azure-icons/postgresql.svg";
-import mysqlUrl from "@/assets/azure-icons/mysql.svg";
-import cosmosDbUrl from "@/assets/azure-icons/cosmos-db.svg";
-import storageAccountsUrl from "@/assets/azure-icons/storage-accounts.svg";
-import functionsUrl from "@/assets/azure-icons/functions.svg";
-import appServiceUrl from "@/assets/azure-icons/app-service.svg";
-import aksUrl from "@/assets/azure-icons/aks.svg";
-import apiManagementUrl from "@/assets/azure-icons/api-management.svg";
-import keyVaultUrl from "@/assets/azure-icons/key-vault.svg";
-import monitorUrl from "@/assets/azure-icons/monitor.svg";
-import appInsightsUrl from "@/assets/azure-icons/application-insights.svg";
-import automationUrl from "@/assets/azure-icons/automation.svg";
-import eventHubsUrl from "@/assets/azure-icons/event-hubs.svg";
-import serviceBusUrl from "@/assets/azure-icons/service-bus.svg";
-import virtualNetworkUrl from "@/assets/azure-icons/virtual-network.svg";
-import vpnGatewayUrl from "@/assets/azure-icons/vpn-gateway.svg";
-import ddosProtectionUrl from "@/assets/azure-icons/ddos-protection.svg";
-import frontDoorUrl from "@/assets/azure-icons/front-door.svg";
-import backupUrl from "@/assets/azure-icons/backup.svg";
-import databricksUrl from "@/assets/azure-icons/databricks.svg";
-import loadBalancerUrl from "@/assets/azure-icons/load-balancer.svg";
-import applicationGatewayUrl from "@/assets/azure-icons/application-gateway.svg";
-import networkWatcherUrl from "@/assets/azure-icons/network-watcher.svg";
-import logAnalyticsUrl from "@/assets/azure-icons/log-analytics.svg";
-import azureOpenaiUrl from "@/assets/azure-icons/azure-openai.svg";
-import aiFoundryUrl from "@/assets/azure-icons/ai-foundry.svg";
+// Iconos SVG cargados como data URIs vía import.meta.glob con query "?raw"
+// (reusa el patrón de src/lib/azureIcons.ts para evitar bug de cache del SWA)
+const raws = import.meta.glob("../../assets/azure-icons/*.svg", {
+  eager: true,
+  query: "?raw",
+  import: "default",
+}) as Record<string, string>;
+
+// Mapa de nombre de archivo → data URI
+const iconUrls = new Map<string, string>();
+for (const [path, raw] of Object.entries(raws)) {
+  const name = path.split("/").pop()!.replace(".svg", "");
+  iconUrls.set(name, `data:image/svg+xml,${encodeURIComponent(raw)}`);
+}
 
 export interface ServiceIconInfo {
-  icon: string; // URL del import Vite
+  icon: string; // Data URI del SVG
   shortName: string; // Label en español para chips
 }
 
@@ -40,128 +22,128 @@ export interface ServiceIconInfo {
 // Las claves están en minúsculas para búsqueda case-insensitive
 const iconMapping = new Map<string, ServiceIconInfo>([
   // Virtual Machines
-  ["virtual machines", { icon: vmUrl, shortName: "Virtual Machines" }],
-  ["microsoft.compute/virtualmachines", { icon: vmUrl, shortName: "Virtual Machines" }],
+  ["virtual machines", { icon: iconUrls.get("virtual-machines")!, shortName: "Virtual Machines" }],
+  ["microsoft.compute/virtualmachines", { icon: iconUrls.get("virtual-machines")!, shortName: "Virtual Machines" }],
 
   // VM Scale Sets
-  ["microsoft.compute/virtualmachinescalesets", { icon: vmScaleSetsUrl, shortName: "VM Scale Sets" }],
+  ["microsoft.compute/virtualmachinescalesets", { icon: iconUrls.get("vm-scale-sets")!, shortName: "VM Scale Sets" }],
 
   // SQL Database
-  ["azure sql database", { icon: sqlDatabaseUrl, shortName: "SQL Databases" }],
-  ["sql database", { icon: sqlDatabaseUrl, shortName: "SQL Databases" }],
-  ["microsoft.sql/servers/databases", { icon: sqlDatabaseUrl, shortName: "SQL Databases" }],
+  ["azure sql database", { icon: iconUrls.get("sql-database")!, shortName: "SQL Databases" }],
+  ["sql database", { icon: iconUrls.get("sql-database")!, shortName: "SQL Databases" }],
+  ["microsoft.sql/servers/databases", { icon: iconUrls.get("sql-database")!, shortName: "SQL Databases" }],
 
   // SQL Managed Instance
-  ["azure sql managed instance", { icon: sqlManagedInstanceUrl, shortName: "SQL Managed Instances" }],
-  ["microsoft.sql/managedinstances", { icon: sqlManagedInstanceUrl, shortName: "SQL Managed Instances" }],
+  ["azure sql managed instance", { icon: iconUrls.get("sql-managed-instance")!, shortName: "SQL Managed Instances" }],
+  ["microsoft.sql/managedinstances", { icon: iconUrls.get("sql-managed-instance")!, shortName: "SQL Managed Instances" }],
 
   // SQL VM
-  ["microsoft.sqlvirtualmachine/sqlvirtualmachines", { icon: sqlVmUrl, shortName: "SQL VMs" }],
+  ["microsoft.sqlvirtualmachine/sqlvirtualmachines", { icon: iconUrls.get("sql-vm")!, shortName: "SQL VMs" }],
 
   // PostgreSQL
-  ["azure database for postgresql", { icon: postgresqlUrl, shortName: "PostgreSQL" }],
-  ["microsoft.dbforpostgresql/flexibleservers", { icon: postgresqlUrl, shortName: "PostgreSQL" }],
+  ["azure database for postgresql", { icon: iconUrls.get("postgresql")!, shortName: "PostgreSQL" }],
+  ["microsoft.dbforpostgresql/flexibleservers", { icon: iconUrls.get("postgresql")!, shortName: "PostgreSQL" }],
 
   // MySQL
-  ["azure database for mysql", { icon: mysqlUrl, shortName: "MySQL" }],
-  ["microsoft.dbformysql/flexibleservers", { icon: mysqlUrl, shortName: "MySQL" }],
+  ["azure database for mysql", { icon: iconUrls.get("mysql")!, shortName: "MySQL" }],
+  ["microsoft.dbformysql/flexibleservers", { icon: iconUrls.get("mysql")!, shortName: "MySQL" }],
 
   // Cosmos DB
-  ["azure cosmos db", { icon: cosmosDbUrl, shortName: "Cosmos DB" }],
-  ["microsoft.documentdb/databaseaccounts", { icon: cosmosDbUrl, shortName: "Cosmos DB" }],
+  ["azure cosmos db", { icon: iconUrls.get("cosmos-db")!, shortName: "Cosmos DB" }],
+  ["microsoft.documentdb/databaseaccounts", { icon: iconUrls.get("cosmos-db")!, shortName: "Cosmos DB" }],
 
   // Storage Accounts
-  ["storage accounts", { icon: storageAccountsUrl, shortName: "Storage Accounts" }],
-  ["azure blob storage", { icon: storageAccountsUrl, shortName: "Storage Accounts" }],
-  ["microsoft.storage/storageaccounts", { icon: storageAccountsUrl, shortName: "Storage Accounts" }],
+  ["storage accounts", { icon: iconUrls.get("storage-accounts")!, shortName: "Storage Accounts" }],
+  ["azure blob storage", { icon: iconUrls.get("storage-accounts")!, shortName: "Storage Accounts" }],
+  ["microsoft.storage/storageaccounts", { icon: iconUrls.get("storage-accounts")!, shortName: "Storage Accounts" }],
 
   // Functions
-  ["azure functions", { icon: functionsUrl, shortName: "Function Apps" }],
-  ["microsoft.web/sites", { icon: functionsUrl, shortName: "Function Apps" }],
+  ["azure functions", { icon: iconUrls.get("functions")!, shortName: "Function Apps" }],
+  ["microsoft.web/sites", { icon: iconUrls.get("functions")!, shortName: "Function Apps" }],
 
   // App Service
-  ["app service", { icon: appServiceUrl, shortName: "App Services" }],
-  ["azure app service", { icon: appServiceUrl, shortName: "App Services" }],
+  ["app service", { icon: iconUrls.get("app-service")!, shortName: "App Services" }],
+  ["azure app service", { icon: iconUrls.get("app-service")!, shortName: "App Services" }],
 
   // AKS
-  ["azure kubernetes service (aks)", { icon: aksUrl, shortName: "AKS" }],
-  ["microsoft.containerservice/managedclusters", { icon: aksUrl, shortName: "AKS" }],
+  ["azure kubernetes service (aks)", { icon: iconUrls.get("aks")!, shortName: "AKS" }],
+  ["microsoft.containerservice/managedclusters", { icon: iconUrls.get("aks")!, shortName: "AKS" }],
 
   // API Management
-  ["api management", { icon: apiManagementUrl, shortName: "API Management" }],
-  ["microsoft.apimanagement/service", { icon: apiManagementUrl, shortName: "API Management" }],
+  ["api management", { icon: iconUrls.get("api-management")!, shortName: "API Management" }],
+  ["microsoft.apimanagement/service", { icon: iconUrls.get("api-management")!, shortName: "API Management" }],
 
   // Key Vault
-  ["key vault", { icon: keyVaultUrl, shortName: "Key Vaults" }],
-  ["azure key vault", { icon: keyVaultUrl, shortName: "Key Vaults" }],
-  ["microsoft.keyvault/vaults", { icon: keyVaultUrl, shortName: "Key Vaults" }],
+  ["key vault", { icon: iconUrls.get("key-vault")!, shortName: "Key Vaults" }],
+  ["azure key vault", { icon: iconUrls.get("key-vault")!, shortName: "Key Vaults" }],
+  ["microsoft.keyvault/vaults", { icon: iconUrls.get("key-vault")!, shortName: "Key Vaults" }],
 
   // Azure Monitor / Application Insights
-  ["azure monitor", { icon: monitorUrl, shortName: "Azure Monitor" }],
-  ["application insights", { icon: appInsightsUrl, shortName: "Application Insights" }],
-  ["microsoft.insights/components", { icon: appInsightsUrl, shortName: "Application Insights" }],
+  ["azure monitor", { icon: iconUrls.get("monitor")!, shortName: "Azure Monitor" }],
+  ["application insights", { icon: iconUrls.get("application-insights")!, shortName: "App Insights" }],
+  ["microsoft.insights/components", { icon: iconUrls.get("application-insights")!, shortName: "App Insights" }],
 
   // Automation
-  ["azure automation", { icon: automationUrl, shortName: "Automation" }],
-  ["microsoft.automation/automationaccounts", { icon: automationUrl, shortName: "Automation" }],
+  ["azure automation", { icon: iconUrls.get("automation")!, shortName: "Automation" }],
+  ["microsoft.automation/automationaccounts", { icon: iconUrls.get("automation")!, shortName: "Automation" }],
 
   // Event Hubs
-  ["event hubs", { icon: eventHubsUrl, shortName: "Event Hubs" }],
-  ["microsoft.eventhub/namespaces", { icon: eventHubsUrl, shortName: "Event Hubs" }],
+  ["event hubs", { icon: iconUrls.get("event-hubs")!, shortName: "Event Hubs" }],
+  ["microsoft.eventhub/namespaces", { icon: iconUrls.get("event-hubs")!, shortName: "Event Hubs" }],
 
   // Service Bus
-  ["service bus", { icon: serviceBusUrl, shortName: "Service Bus" }],
-  ["microsoft.servicebus/namespaces", { icon: serviceBusUrl, shortName: "Service Bus" }],
+  ["service bus", { icon: iconUrls.get("service-bus")!, shortName: "Service Bus" }],
+  ["microsoft.servicebus/namespaces", { icon: iconUrls.get("service-bus")!, shortName: "Service Bus" }],
 
   // Virtual Network
-  ["virtual network", { icon: virtualNetworkUrl, shortName: "VNets" }],
-  ["microsoft.network/virtualnetworks", { icon: virtualNetworkUrl, shortName: "VNets" }],
+  ["virtual network", { icon: iconUrls.get("virtual-network")!, shortName: "VNets" }],
+  ["microsoft.network/virtualnetworks", { icon: iconUrls.get("virtual-network")!, shortName: "VNets" }],
 
   // VPN Gateway
-  ["vpn gateway", { icon: vpnGatewayUrl, shortName: "VPN Gateways" }],
-  ["microsoft.network/virtualnetworkgateways", { icon: vpnGatewayUrl, shortName: "VPN Gateways" }],
+  ["vpn gateway", { icon: iconUrls.get("vpn-gateway")!, shortName: "VPN Gateways" }],
+  ["microsoft.network/virtualnetworkgateways", { icon: iconUrls.get("vpn-gateway")!, shortName: "VPN Gateways" }],
 
   // DDoS Protection
-  ["azure ddos protection", { icon: ddosProtectionUrl, shortName: "DDoS Protection" }],
-  ["microsoft.network/ddosprotectionplans", { icon: ddosProtectionUrl, shortName: "DDoS Protection" }],
+  ["azure ddos protection", { icon: iconUrls.get("ddos-protection")!, shortName: "DDoS Protection" }],
+  ["microsoft.network/ddosprotectionplans", { icon: iconUrls.get("ddos-protection")!, shortName: "DDoS Protection" }],
 
   // Front Door
-  ["azure front door", { icon: frontDoorUrl, shortName: "Front Door" }],
-  ["microsoft.cdn/profiles", { icon: frontDoorUrl, shortName: "Front Door" }],
+  ["azure front door", { icon: iconUrls.get("front-door")!, shortName: "Front Door" }],
+  ["microsoft.cdn/profiles", { icon: iconUrls.get("front-door")!, shortName: "Front Door" }],
 
   // Backup
-  ["azure backup", { icon: backupUrl, shortName: "Recovery Vaults" }],
-  ["microsoft.recoveryservices/vaults", { icon: backupUrl, shortName: "Recovery Vaults" }],
+  ["azure backup", { icon: iconUrls.get("backup")!, shortName: "Recovery Vaults" }],
+  ["microsoft.recoveryservices/vaults", { icon: iconUrls.get("backup")!, shortName: "Recovery Vaults" }],
 
   // Databricks
-  ["azure databricks", { icon: databricksUrl, shortName: "Databricks" }],
-  ["microsoft.databricks/workspaces", { icon: databricksUrl, shortName: "Databricks" }],
+  ["azure databricks", { icon: iconUrls.get("databricks")!, shortName: "Databricks" }],
+  ["microsoft.databricks/workspaces", { icon: iconUrls.get("databricks")!, shortName: "Databricks" }],
 
   // Load Balancer
-  ["load balancer", { icon: loadBalancerUrl, shortName: "Load Balancers" }],
-  ["microsoft.network/loadbalancers", { icon: loadBalancerUrl, shortName: "Load Balancers" }],
+  ["load balancer", { icon: iconUrls.get("load-balancer")!, shortName: "Load Balancers" }],
+  ["microsoft.network/loadbalancers", { icon: iconUrls.get("load-balancer")!, shortName: "Load Balancers" }],
 
   // Application Gateway
-  ["application gateway", { icon: applicationGatewayUrl, shortName: "App Gateways" }],
-  ["microsoft.network/applicationgateways", { icon: applicationGatewayUrl, shortName: "App Gateways" }],
+  ["application gateway", { icon: iconUrls.get("application-gateway")!, shortName: "App Gateways" }],
+  ["microsoft.network/applicationgateways", { icon: iconUrls.get("application-gateway")!, shortName: "App Gateways" }],
 
   // Network Watcher
-  ["network watcher", { icon: networkWatcherUrl, shortName: "Network Watcher" }],
-  ["microsoft.network/networkwatchers", { icon: networkWatcherUrl, shortName: "Network Watcher" }],
+  ["network watcher", { icon: iconUrls.get("network-watcher")!, shortName: "Network Watcher" }],
+  ["microsoft.network/networkwatchers", { icon: iconUrls.get("network-watcher")!, shortName: "Network Watcher" }],
 
   // Log Analytics
-  ["log analytics", { icon: logAnalyticsUrl, shortName: "Log Analytics" }],
-  ["microsoft.operationalinsights/workspaces", { icon: logAnalyticsUrl, shortName: "Log Analytics" }],
+  ["log analytics", { icon: iconUrls.get("log-analytics")!, shortName: "Log Analytics" }],
+  ["microsoft.operationalinsights/workspaces", { icon: iconUrls.get("log-analytics")!, shortName: "Log Analytics" }],
 
   // Azure OpenAI
-  ["azure openai service", { icon: azureOpenaiUrl, shortName: "Azure OpenAI" }],
-  ["microsoft.cognitiveservices/accounts", { icon: azureOpenaiUrl, shortName: "Azure OpenAI" }],
+  ["azure openai service", { icon: iconUrls.get("azure-openai")!, shortName: "Azure OpenAI" }],
+  ["microsoft.cognitiveservices/accounts", { icon: iconUrls.get("azure-openai")!, shortName: "Azure OpenAI" }],
 
   // AI Foundry
-  ["azure ai foundry", { icon: aiFoundryUrl, shortName: "AI Foundry" }],
+  ["azure ai foundry", { icon: iconUrls.get("ai-foundry")!, shortName: "AI Foundry" }],
 
   // Public IPs (fallback to virtual network icon)
-  ["microsoft.network/publicipaddresses", { icon: virtualNetworkUrl, shortName: "Public IPs" }],
+  ["microsoft.network/publicipaddresses", { icon: iconUrls.get("virtual-network")!, shortName: "Public IPs" }],
 ]);
 
 /**
