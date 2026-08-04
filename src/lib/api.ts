@@ -32,6 +32,8 @@ import type {
   LifecycleEntry,
   LighthouseClientGroup,
   LighthouseLinkResult,
+  MigracionEntry,
+  MigracionSugerencia,
   MonthlyReport,
   NovedadesClienteView,
   OptFinding,
@@ -574,6 +576,26 @@ export function evaluarNovedades(clientId: number): Promise<{ evaluadas: number;
 }
 export function decidirNovedad(id: number, p: { estado: string; por_que?: string | null }): Promise<unknown> {
   return request(`/boletin/novedades-cliente/${id}`, jsonOpts("PUT", p));
+}
+
+// ---- Boletín: Migración (Fase 2 Entrega 4) ----
+export function getMigracionCatalogo(includeInactive = false): Promise<MigracionEntry[]> {
+  const params = new URLSearchParams();
+  if (includeInactive) params.set("include_inactive", "true");
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return request<MigracionEntry[]>(`/boletin/migracion${query}`);
+}
+export function createMigracionEntry(p: Partial<MigracionEntry>): Promise<unknown> {
+  return request(`/boletin/migracion`, jsonOpts("POST", p));
+}
+export function updateMigracionEntry(id: number, p: Partial<MigracionEntry>): Promise<unknown> {
+  return request(`/boletin/migracion/${id}`, jsonOpts("PUT", p));
+}
+export function deleteMigracionEntry(id: number): Promise<unknown> {
+  return request(`/boletin/migracion/${id}`, { method: "DELETE" });
+}
+export function sugerirMigracion(clientId: number): Promise<{ sugerencias: MigracionSugerencia[]; sin_sugerencia: string[] }> {
+  return request<{ sugerencias: MigracionSugerencia[]; sin_sugerencia: string[] }>(`/boletin/clients/${clientId}/migracion/sugerir`, { method: "POST" });
 }
 
 /** Descarga autenticada (blob) desde el backend .NET; usado por la exportación a Excel. */
