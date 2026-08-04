@@ -407,7 +407,9 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
         migracionRuta={detail ? rutaPorAnuncio.get(detail.announcement_key) : undefined}
       />
       {canEdit ? (
-        <LifecycleCatalogDialog open={catalogOpen} onOpenChange={setCatalogOpen} />
+        // onChanged: editar el catálogo de lifecycle debe refrescar la vista igual que el de
+        // migración (inconsistencia señalada por el review final E4 — el dialog ya exponía la prop).
+        <LifecycleCatalogDialog open={catalogOpen} onOpenChange={setCatalogOpen} onChanged={() => void reload()} />
       ) : null}
     </AppShell>
   );
