@@ -33,6 +33,13 @@ function novedad(overrides: Partial<NovedadCliente>): NovedadCliente {
 
 const emptyView: NovedadesClienteView = { aprobadas: [], pendientes: [], ultima_evaluacion: null, feed_actualizado: null };
 
+// Fechas relativas al momento REAL de ejecución del test (sin fake timers): así "N llegaron esta
+// semana" y "Última evaluación" quedan deterministas sin acoplarse a una fecha fija del sistema.
+const AHORA_MS = Date.now();
+function haceDias(dias: number): string {
+  return new Date(AHORA_MS - dias * 24 * 60 * 60 * 1000).toISOString();
+}
+
 beforeEach(() => vi.clearAllMocks());
 
 async function renderTab(view: NovedadesClienteView, opts?: { english?: boolean; canEdit?: boolean }) {
@@ -45,22 +52,26 @@ async function renderTab(view: NovedadesClienteView, opts?: { english?: boolean;
   return utils;
 }
 
-test("la sección de pendientes solo se muestra con canEdit", async () => {
+test("sin canEdit se ve el resumen de KPIs, pero no 'Actualizar novedades' ni la tabla de triage", async () => {
   const pendiente = novedad({ id: 1, estado: "pendiente" });
   await renderTab({ aprobadas: [], pendientes: [pendiente], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: false });
 
   // Espera a que termine de cargar (el estado vacío global de aprobadas siempre se pinta).
   await screen.findByText(/Sin novedades aprobadas/i);
-  expect(screen.queryByText(/Pendientes de revisión/i)).not.toBeInTheDocument();
+  expect(screen.getByText("Pendientes de revisión")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Actualizar novedades/i })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Buscar novedad")).not.toBeInTheDocument();
   expect(screen.queryByText(pendiente.titulo_es!)).not.toBeInTheDocument();
 });
 
-test("con canEdit se ve 'Pendientes de revisión (N)' y el título/por_que de cada una", async () => {
+test("con canEdit se ve 'Actualizar novedades' y la tabla de triage con el título/por_que de cada pendiente", async () => {
   const pendiente = novedad({ id: 5, estado: "pendiente" });
   await renderTab({ aprobadas: [], pendientes: [pendiente], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: true });
 
-  expect(await screen.findByText("Pendientes de revisión (1)")).toBeInTheDocument();
+  expect(await screen.findByRole("button", { name: /Actualizar novedades/i })).toBeInTheDocument();
   expect(screen.getByText(pendiente.titulo_es!)).toBeInTheDocument();
+
+  fireEvent.click(screen.getByText(pendiente.titulo_es!));
   expect(screen.getByDisplayValue(pendiente.por_que!)).toBeInTheDocument();
 });
 
@@ -69,6 +80,7 @@ test("aprobar manda decidirNovedad(id, {estado:'aprobada', por_que}) con el text
   await renderTab({ aprobadas: [], pendientes: [pendiente], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: true });
   const { decidirNovedad } = await import("@/lib/api");
 
+  fireEvent.click(await screen.findByText(pendiente.titulo_es!));
   const textarea = await screen.findByDisplayValue("Texto original de la IA");
   fireEvent.change(textarea, { target: { value: "Texto editado por el consultor" } });
   fireEvent.click(screen.getByRole("button", { name: "Aprobar" }));
@@ -81,12 +93,14 @@ test("aprobar manda decidirNovedad(id, {estado:'aprobada', por_que}) con el text
 
 test("recargar tras aprobar UNA fila conserva el por_que editado (y aún sin guardar) de las demás", async () => {
   // Clase de bug real: reload() reconstruía drafts completo desde el servidor, así que aprobar la
-  // fila A (o "Traer novedades"/"Evaluar") revertía en silencio el texto editado de B al de la IA.
+  // fila A (o "Actualizar novedades") revertía en silencio el texto editado de B al de la IA.
   const a = novedad({ id: 1, titulo_es: "Novedad A", por_que: "IA para A" });
   const b = novedad({ id: 2, titulo_es: "Novedad B", por_que: "IA para B" });
   await renderTab({ aprobadas: [], pendientes: [a, b], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: true });
-  const { getNovedades } = await import("@/lib/api");
+  const { getNovedades, decidirNovedad } = await import("@/lib/api");
 
+  // Expandir B y editar su por_que, SIN guardar.
+  fireEvent.click(await screen.findByText("Novedad B"));
   const textareaB = await screen.findByDisplayValue("IA para B");
   fireEvent.change(textareaB, { target: { value: "Editado por el consultor para B" } });
 
@@ -97,9 +111,18 @@ test("recargar tras aprobar UNA fila conserva el por_que editado (y aún sin gua
     ultima_evaluacion: null,
     feed_actualizado: null,
   });
-  fireEvent.click(screen.getAllByRole("button", { name: "Aprobar" })[0]);
 
-  await waitFor(() => expect(screen.queryByText("Pendientes de revisión (1)")).toBeInTheDocument());
+  // Expandir A (colapsa B, la tabla solo expande una fila a la vez) y aprobarla.
+  fireEvent.click(screen.getByText("Novedad A"));
+  fireEvent.click(await screen.findByRole("button", { name: "Aprobar" }));
+
+  await waitFor(() => expect(decidirNovedad).toHaveBeenCalledWith(1, {
+    estado: "aprobada",
+    por_que: "IA para A",
+  }));
+
+  // Tras la recarga, B sigue pendiente: se expande de nuevo y debe conservar el texto editado.
+  fireEvent.click(await screen.findByText("Novedad B"));
   expect(screen.getByDisplayValue("Editado por el consultor para B")).toBeInTheDocument();
   expect(screen.queryByDisplayValue("IA para B")).not.toBeInTheDocument();
 });
@@ -109,7 +132,7 @@ test("rechazar manda decidirNovedad(id, {estado:'rechazada'})", async () => {
   await renderTab({ aprobadas: [], pendientes: [pendiente], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: true });
   const { decidirNovedad } = await import("@/lib/api");
 
-  await screen.findByText(pendiente.titulo_es!);
+  fireEvent.click(await screen.findByText(pendiente.titulo_es!));
   fireEvent.click(screen.getByRole("button", { name: "Rechazar" }));
 
   await waitFor(() => expect(decidirNovedad).toHaveBeenCalledWith(12, { estado: "rechazada" }));
@@ -146,7 +169,7 @@ test("el toggle english cambia el título de las tarjetas aprobadas", async () =
   expect(screen.queryByText(item.titulo_es!)).not.toBeInTheDocument();
 });
 
-test("el toggle english también cambia el título de las novedades pendientes", async () => {
+test("el toggle english también cambia el título de las novedades en la tabla de triage", async () => {
   const pendiente = novedad({ id: 3 });
   const { rerender } = await renderTab({ aprobadas: [], pendientes: [pendiente], ultima_evaluacion: null, feed_actualizado: null }, { english: false, canEdit: true });
 
@@ -181,19 +204,39 @@ test("pill 'Preview' solo cuando estado_feed es in_preview, y el link 'Ver anunc
   expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
 });
 
-test("'Traer novedades' llama ingestarNovedades y muestra un toast con los conteos", async () => {
+test("'Actualizar novedades' encadena ingestarNovedades → evaluarNovedades y muestra un solo toast con ambos conteos", async () => {
   await renderTab(emptyView, { canEdit: true });
-  const { ingestarNovedades } = await import("@/lib/api");
+  const { ingestarNovedades, evaluarNovedades } = await import("@/lib/api");
   const { toast } = await import("sonner");
 
-  fireEvent.click(await screen.findByRole("button", { name: /Traer novedades/i }));
+  fireEvent.click(await screen.findByRole("button", { name: /Actualizar novedades/i }));
 
   await waitFor(() => expect(ingestarNovedades).toHaveBeenCalled());
-  await waitFor(() => expect(toast.success).toHaveBeenCalled());
-  expect((toast.success as ReturnType<typeof vi.fn>).mock.calls[0][0]).toMatch(/3/);
+  await waitFor(() => expect(evaluarNovedades).toHaveBeenCalledWith(7));
+  await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
+  const msg = (toast.success as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+  expect(msg).toMatch(/3/);
+  expect(msg).toMatch(/2/);
+  expect(toast.error).not.toHaveBeenCalled();
 });
 
-test("'Evaluar para este cliente' en error 503 muestra toast.error con el detail del backend", async () => {
+test("'Actualizar novedades' corta si la ingesta falla: evaluarNovedades NO se llama", async () => {
+  await renderTab(emptyView, { canEdit: true });
+  const api = await import("@/lib/api");
+  const { toast } = await import("sonner");
+  (api.ingestarNovedades as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+    new Error("Error al traer el feed de novedades"),
+  );
+
+  fireEvent.click(await screen.findByRole("button", { name: /Actualizar novedades/i }));
+
+  await waitFor(() => expect(toast.error).toHaveBeenCalledWith(
+    expect.stringContaining("Error al traer el feed de novedades"),
+  ));
+  expect(api.evaluarNovedades).not.toHaveBeenCalled();
+});
+
+test("'Actualizar novedades' con evaluación en error 503 avisa que el feed sí se actualizó", async () => {
   await renderTab(emptyView, { canEdit: true });
   const api = await import("@/lib/api");
   const { toast } = await import("sonner");
@@ -201,16 +244,53 @@ test("'Evaluar para este cliente' en error 503 muestra toast.error con el detail
     new Error("Azure OpenAI no disponible temporalmente"),
   );
 
-  fireEvent.click(await screen.findByRole("button", { name: /Evaluar para este cliente/i }));
+  fireEvent.click(await screen.findByRole("button", { name: /Actualizar novedades/i }));
 
   await waitFor(() => expect(toast.error).toHaveBeenCalledWith(
     expect.stringContaining("Azure OpenAI no disponible temporalmente"),
   ));
+  const msg = (toast.error as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+  expect(msg).toMatch(/feed se actualizó/i);
 });
 
-test("no se ve la sección de pendientes ni la barra de acciones cuando canEdit es false", async () => {
-  await renderTab(emptyView, { canEdit: false });
-  await screen.findByText(/Sin novedades aprobadas/i);
-  expect(screen.queryByRole("button", { name: /Traer novedades/i })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /Evaluar para este cliente/i })).not.toBeInTheDocument();
+test("franja: 'N llegaron esta semana' cuenta solo los pendientes publicados en los últimos 7 días", async () => {
+  const reciente = novedad({ id: 1, published_at: haceDias(3) });
+  const vieja = novedad({ id: 2, published_at: haceDias(10) });
+  await renderTab({ aprobadas: [], pendientes: [reciente, vieja], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: true });
+
+  expect(await screen.findByText("1 llegaron esta semana")).toBeInTheDocument();
+});
+
+test("franja: 'Última evaluación' muestra 'nunca' cuando ultima_evaluacion es null", async () => {
+  await renderTab(emptyView, { canEdit: true });
+  expect(await screen.findByText("nunca")).toBeInTheDocument();
+});
+
+test("franja: 'Última evaluación' es relativa a partir de ultima_evaluacion/feed_actualizado", async () => {
+  await renderTab({ ...emptyView, ultima_evaluacion: haceDias(2), feed_actualizado: haceDias(0) }, { canEdit: true });
+
+  expect(await screen.findByText("hace 2 días")).toBeInTheDocument();
+  expect(screen.getByText("feed actualizado hoy")).toBeInTheDocument();
+});
+
+test("lote: seleccionar novedades y 'Rechazar seleccionadas' llama decidirNovedad por cada id y recarga", async () => {
+  const a = novedad({ id: 1, titulo_es: "Novedad A" });
+  const b = novedad({ id: 2, titulo_es: "Novedad B" });
+  await renderTab({ aprobadas: [], pendientes: [a, b], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: true });
+  const { getNovedades, decidirNovedad } = await import("@/lib/api");
+  const { toast } = await import("sonner");
+
+  fireEvent.click(await screen.findByRole("checkbox", { name: "Seleccionar Novedad A" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Seleccionar Novedad B" }));
+
+  (getNovedades as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    aprobadas: [], pendientes: [], ultima_evaluacion: null, feed_actualizado: null,
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Rechazar seleccionadas" }));
+
+  await waitFor(() => expect(decidirNovedad).toHaveBeenCalledWith(1, { estado: "rechazada" }));
+  await waitFor(() => expect(decidirNovedad).toHaveBeenCalledWith(2, { estado: "rechazada" }));
+  await waitFor(() => expect(toast.success).toHaveBeenCalled());
+  await waitFor(() => expect(screen.queryByText("Novedad A")).not.toBeInTheDocument());
 });
