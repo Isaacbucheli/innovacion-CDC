@@ -1258,6 +1258,11 @@ export interface LifecycleEntry {
 }
 
 // ---- Boletín: Novedades (Fase 2) ----
+export interface NovedadRecurso {
+  type: string;
+  cantidad: number;
+}
+
 export interface NovedadCliente {
   id: number; // id de la fila cliente (para PUT)
   novedad_id: number;
@@ -1271,11 +1276,17 @@ export interface NovedadCliente {
   published_at: string;
   por_que: string | null;
   estado: "pendiente" | "aprobada" | "rechazada";
+  recursos: NovedadRecurso[] | null;
+  decidido_por: string | null;
+  decidido_at: string | null;
 }
 
 export interface NovedadesClienteView {
   aprobadas: NovedadCliente[];
   pendientes: NovedadCliente[];
+  rechazadas?: NovedadCliente[];
+  ultima_evaluacion: string | null;
+  feed_actualizado: string | null;
 }
 
 // ---- Boletín: Migración (Fase 2 Entrega 4) ----

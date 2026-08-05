@@ -1,5 +1,6 @@
 import { Sparkles, ShieldCheck, Layers, Coins, type LucideIcon } from "lucide-react";
 import type { BoletinGroup, NovedadCliente } from "@/types";
+import { resolveServiceIcon } from "@/components/boletin/azureServiceIcons";
 
 /** Pills de urgencia (desaturadas, patrón FindingBits/severity). Sin emojis. */
 export const URGENCY_META: Record<BoletinGroup["urgency"], { label: string; cls: string }> = {
@@ -24,6 +25,27 @@ export const NOVEDAD_CATEGORIA_META: Record<NovedadCliente["categoria_bit"], { l
   resiliencia_plataforma: { label: "Resiliencia y plataforma", icon: Layers },
   costo_operacion: { label: "Costo y operación", icon: Coins },
 };
+
+/** Pill GA/Preview de una novedad según `estado_feed`: mismo criterio en el triage de pendientes
+ *  y en las tarjetas de aprobadas (sin duplicar el mapa en cada componente). */
+export const NOVEDAD_ESTADO_PILL_LABEL: Partial<Record<NovedadCliente["estado_feed"], string>> = {
+  launched: "GA",
+  in_preview: "Preview",
+};
+export const NOVEDAD_ESTADO_PILL_CLASS: Partial<Record<NovedadCliente["estado_feed"], string>> = {
+  launched: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
+  in_preview: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+};
+
+/** Ícono de servicio de una novedad: si hay `recursos`, resuelve por el tipo ARG del primero;
+ *  si no hay recursos o ninguno mapea, cae al ícono Lucide de la categoría BIT (nunca queda un
+ *  hueco vacío). Compartido entre el triage de pendientes y las tarjetas de aprobadas. */
+export function resolveNovedadIcon(n: NovedadCliente): { src: string } | { Icon: LucideIcon } {
+  const primerTipo = n.recursos?.[0]?.type;
+  const src = primerTipo ? resolveServiceIcon([primerTipo]) : null;
+  if (src) return { src };
+  return { Icon: NOVEDAD_CATEGORIA_META[n.categoria_bit].icon };
+}
 
 /** Título de una novedad según idioma: ES por defecto (traducción persistida), EN con el toggle. */
 export function novedadTitle(n: NovedadCliente, english: boolean): string {

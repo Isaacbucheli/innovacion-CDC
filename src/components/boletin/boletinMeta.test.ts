@@ -24,6 +24,7 @@ const novedadBase: NovedadCliente = {
   descripcion: "English description", descripcion_es: "Descripción en español",
   link: "https://example.test/x", estado_feed: "launched", categoria_bit: "productividad_ia",
   published_at: "2026-07-20T17:00:00Z", por_que: "Le ahorra tiempo al cliente.", estado: "pendiente",
+  recursos: null, decidido_por: null, decidido_at: null,
 };
 
 test("novedadTitle/novedadDescripcion muestran español por defecto y caen al EN si falta traducción", () => {
