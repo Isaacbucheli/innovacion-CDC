@@ -75,6 +75,18 @@ test("con canEdit se ve 'Actualizar novedades' y la tabla de triage con el títu
   expect(screen.getByDisplayValue(pendiente.por_que!)).toBeInTheDocument();
 });
 
+test("reload pide includeRechazadas cuando canEdit, y llama getNovedades SIN el parámetro cuando no", async () => {
+  const { getNovedades } = await import("@/lib/api");
+
+  await renderTab(emptyView, { canEdit: false });
+  await waitFor(() => expect(getNovedades).toHaveBeenCalledWith(7));
+  expect((getNovedades as ReturnType<typeof vi.fn>).mock.calls[0]).toHaveLength(1);
+
+  (getNovedades as unknown as ReturnType<typeof vi.fn>).mockClear();
+  await renderTab(emptyView, { canEdit: true });
+  await waitFor(() => expect(getNovedades).toHaveBeenCalledWith(7, { includeRechazadas: true }));
+});
+
 test("aprobar manda decidirNovedad(id, {estado:'aprobada', por_que}) con el texto EDITADO", async () => {
   const pendiente = novedad({ id: 9, por_que: "Texto original de la IA" });
   await renderTab({ aprobadas: [], pendientes: [pendiente], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: true });
@@ -138,6 +150,38 @@ test("rechazar manda decidirNovedad(id, {estado:'rechazada'})", async () => {
   await waitFor(() => expect(decidirNovedad).toHaveBeenCalledWith(12, { estado: "rechazada" }));
 });
 
+test("sección 'Rechazadas' es invisible sin canEdit, incluso con rechazadas en la vista", async () => {
+  const rechazada = novedad({ id: 20, estado: "rechazada", decidido_por: "ana@bit.com", decidido_at: haceDias(1) });
+  await renderTab({ aprobadas: [], pendientes: [], rechazadas: [rechazada], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: false });
+
+  await screen.findByText(/Sin novedades aprobadas/i);
+  expect(screen.queryByText(/Rechazadas \(/)).not.toBeInTheDocument();
+});
+
+test("'Rechazadas' arranca plegada; al expandir muestra título, categoría, fecha y quién decidió, y 'Restaurar' manda estado 'pendiente' sin por_que", async () => {
+  const rechazada = novedad({
+    id: 21, titulo_es: "Novedad rechazada de prueba", categoria_bit: "costo_operacion",
+    decidido_por: "ana@bit.com", decidido_at: haceDias(1), estado: "rechazada",
+  });
+  await renderTab({ aprobadas: [], pendientes: [], rechazadas: [rechazada], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: true });
+  const { decidirNovedad } = await import("@/lib/api");
+  const { toast } = await import("sonner");
+
+  expect(await screen.findByText(/Rechazadas \(1\)/)).toBeInTheDocument();
+  expect(screen.queryByText("Novedad rechazada de prueba")).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByText(/Rechazadas \(1\)/));
+
+  expect(await screen.findByText("Novedad rechazada de prueba")).toBeInTheDocument();
+  expect(screen.getByText("Costo y operación")).toBeInTheDocument();
+  expect(screen.getByText("ana@bit.com")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Restaurar" }));
+
+  await waitFor(() => expect(decidirNovedad).toHaveBeenCalledWith(21, { estado: "pendiente" }));
+  await waitFor(() => expect(toast.success).toHaveBeenCalled());
+});
+
 test("tarjetas aprobadas agrupan por categoría y muestran el por_que; categorías vacías no se renderizan", async () => {
   const ia = novedad({ id: 1, categoria_bit: "productividad_ia", por_que: "Acelera el desarrollo con IA." });
   const seguridad = novedad({
@@ -193,6 +237,23 @@ test("estado vacío global sin el hint de edición cuando canEdit es false", asy
   expect(screen.queryByText(/Trae el feed y evalúa/)).not.toBeInTheDocument();
 });
 
+test("estado vacío de aprobadas con pendientes: para canEdit el mensaje apunta al triage de arriba", async () => {
+  const pendiente = novedad({ id: 40 });
+  await renderTab({ aprobadas: [], pendientes: [pendiente], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: true });
+
+  expect(await screen.findByText(/Hay 1 novedades pendientes de revisión arriba\./)).toBeInTheDocument();
+  expect(screen.queryByText(/Trae el feed y evalúa para generar candidatas/)).not.toBeInTheDocument();
+});
+
+test("estado vacío de aprobadas con pendientes: sin canEdit se mantiene el mensaje genérico sin el hint", async () => {
+  const pendiente = novedad({ id: 41 });
+  await renderTab({ aprobadas: [], pendientes: [pendiente], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: false });
+
+  await screen.findByText(/Sin novedades aprobadas para este cliente\./);
+  expect(screen.queryByText(/Hay 1 novedades pendientes/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Trae el feed y evalúa/)).not.toBeInTheDocument();
+});
+
 test("pill 'Preview' solo cuando estado_feed es in_preview, y el link 'Ver anuncio' es seguro", async () => {
   const preview = novedad({ id: 1, estado_feed: "in_preview" });
   await renderTab({ aprobadas: [preview], pendientes: [], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: false });
@@ -202,6 +263,48 @@ test("pill 'Preview' solo cuando estado_feed es in_preview, y el link 'Ver anunc
   expect(link).toHaveAttribute("href", preview.link);
   expect(link).toHaveAttribute("target", "_blank");
   expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+});
+
+test("tarjeta aprobada: pill GA cuando estado_feed es launched, e ícono de servicio si hay recursos mapeados", async () => {
+  const aprobada = novedad({ id: 30, estado_feed: "launched", recursos: [{ type: "microsoft.compute/virtualmachines", cantidad: 3 }] });
+  const { container } = await renderTab({ aprobadas: [aprobada], pendientes: [], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: false });
+
+  expect(await screen.findByText("GA")).toBeInTheDocument();
+  const img = container.querySelector("img");
+  expect(img).not.toBeNull();
+  expect(img).toHaveAttribute("src", expect.stringMatching(/^data:image\/svg\+xml/));
+});
+
+test("tarjeta aprobada: 'Quitar' solo aparece con canEdit", async () => {
+  const aprobada = novedad({ id: 31 });
+  await renderTab({ aprobadas: [aprobada], pendientes: [], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: false });
+
+  await screen.findByText(aprobada.titulo_es!);
+  expect(screen.queryByRole("button", { name: "Quitar" })).not.toBeInTheDocument();
+});
+
+test("tarjeta aprobada: 'Quitar' confirmado manda decidirNovedad(id, {estado:'pendiente'}) sin por_que", async () => {
+  const aprobada = novedad({ id: 32 });
+  await renderTab({ aprobadas: [aprobada], pendientes: [], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: true });
+  const { decidirNovedad } = await import("@/lib/api");
+  const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+  fireEvent.click(await screen.findByRole("button", { name: "Quitar" }));
+
+  await waitFor(() => expect(decidirNovedad).toHaveBeenCalledWith(32, { estado: "pendiente" }));
+  confirmSpy.mockRestore();
+});
+
+test("tarjeta aprobada: 'Quitar' cancelado en la confirmación NO llama a la API", async () => {
+  const aprobada = novedad({ id: 33 });
+  await renderTab({ aprobadas: [aprobada], pendientes: [], ultima_evaluacion: null, feed_actualizado: null }, { canEdit: true });
+  const { decidirNovedad } = await import("@/lib/api");
+  const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+  fireEvent.click(await screen.findByRole("button", { name: "Quitar" }));
+
+  expect(decidirNovedad).not.toHaveBeenCalled();
+  confirmSpy.mockRestore();
 });
 
 test("'Actualizar novedades' encadena ingestarNovedades → evaluarNovedades y muestra un solo toast con ambos conteos", async () => {

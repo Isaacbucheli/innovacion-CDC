@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NovedadesTriage from "@/components/boletin/NovedadesTriage";
 import { getNovedades, ingestarNovedades, evaluarNovedades, decidirNovedad } from "@/lib/api";
-import { fmtDate, novedadDescripcion, novedadTitle, NOVEDAD_CATEGORIA_META } from "@/components/boletin/boletinMeta";
+import {
+  fmtDate, novedadDescripcion, novedadTitle, NOVEDAD_CATEGORIA_META,
+  NOVEDAD_ESTADO_PILL_LABEL, NOVEDAD_ESTADO_PILL_CLASS, resolveNovedadIcon,
+} from "@/components/boletin/boletinMeta";
 import type { NovedadCliente, NovedadesClienteView } from "@/types";
 
 const CATEGORIAS = Object.keys(NOVEDAD_CATEGORIA_META) as NovedadCliente["categoria_bit"][];
@@ -17,6 +20,12 @@ const DIAS_ESTA_SEMANA = 7;
  *  anuncio) en vez de la hora exacta, que no aporta nada en esta vista. */
 function publishedDate(n: NovedadCliente): string {
   return fmtDate(n.published_at.slice(0, 10));
+}
+
+/** `decidido_at` llega con el mismo formato timestamp que `published_at`; nos quedamos con la
+ *  parte de fecha para fmtDate. null si la novedad no tiene decisión registrada aún. */
+function decididoDate(n: NovedadCliente): string | null {
+  return n.decidido_at ? fmtDate(n.decidido_at.slice(0, 10)) : null;
 }
 
 /** Días completos transcurridos entre `iso` y `ahora` (null si `iso` es null o inválido). */
@@ -47,30 +56,79 @@ function relativoDesde(iso: string | null, ahora: Date): string {
   return `hace ${anios} año${anios === 1 ? "" : "s"}`;
 }
 
-function AprobadaCard({ n, english }: { n: NovedadCliente; english: boolean }) {
+function AprobadaCard({ n, english, canEdit, busy, onQuitar }: {
+  n: NovedadCliente; english: boolean; canEdit: boolean; busy: boolean; onQuitar: () => void;
+}) {
+  const icon = resolveNovedadIcon(n);
+  const pillLabel = NOVEDAD_ESTADO_PILL_LABEL[n.estado_feed];
+  const pillClass = NOVEDAD_ESTADO_PILL_CLASS[n.estado_feed];
   return (
-    <li className="space-y-1.5 px-4 py-3">
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-sm font-medium">{novedadTitle(n, english)}</span>
-        {n.estado_feed === "in_preview" ? (
-          <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-            Preview
+    <li className="flex gap-3 px-4 py-3">
+      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
+        {"src" in icon
+          ? <img src={icon.src} alt="" className="h-4 w-4" />
+          : <icon.Icon className="h-4 w-4 text-muted-foreground" />}
+      </span>
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="flex items-start justify-between gap-2">
+          <span className="text-sm font-medium">{novedadTitle(n, english)}</span>
+          {pillLabel ? (
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${pillClass}`}>
+              {pillLabel}
+            </span>
+          ) : null}
+        </div>
+        <p className="text-xs text-muted-foreground">{novedadDescripcion(n, english)}</p>
+        <p className="rounded-md bg-muted/50 px-2.5 py-1.5 text-xs font-medium text-foreground">{n.por_que}</p>
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span className="tabular-nums">{publishedDate(n)}</span>
+          <span className="flex items-center gap-3">
+            <a
+              href={n.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-primary hover:underline"
+            >
+              Ver anuncio <ExternalLink className="h-3 w-3" />
+            </a>
+            {canEdit ? (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-muted-foreground"
+                disabled={busy}
+                onClick={onQuitar}
+              >
+                Quitar
+              </Button>
+            ) : null}
           </span>
-        ) : null}
+        </div>
       </div>
-      <p className="text-xs text-muted-foreground">{novedadDescripcion(n, english)}</p>
-      <p className="rounded-md bg-muted/50 px-2.5 py-1.5 text-xs font-medium text-foreground">{n.por_que}</p>
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span className="tabular-nums">{publishedDate(n)}</span>
-        <a
-          href={n.link}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-primary hover:underline"
-        >
-          Ver anuncio <ExternalLink className="h-3 w-3" />
-        </a>
+    </li>
+  );
+}
+
+/** Fila compacta de una novedad rechazada: título, categoría, fecha/autor de la decisión (cuando
+ *  existen) y "Restaurar" para volver a pendiente sin tocar el `por_que` ya guardado por la IA. */
+function RechazadaRow({ n, english, busy, onRestaurar }: {
+  n: NovedadCliente; english: boolean; busy: boolean; onRestaurar: () => void;
+}) {
+  const fecha = decididoDate(n);
+  return (
+    <li className="flex items-center justify-between gap-3 px-4 py-2.5">
+      <div className="min-w-0">
+        <div className="truncate text-sm font-medium">{novedadTitle(n, english)}</div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+          <span>{NOVEDAD_CATEGORIA_META[n.categoria_bit].label}</span>
+          {fecha ? <span>{fecha}</span> : null}
+          {n.decidido_por ? <span>{n.decidido_por}</span> : null}
+        </div>
       </div>
+      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={onRestaurar}>
+        Restaurar
+      </Button>
     </li>
   );
 }
@@ -100,11 +158,17 @@ export default function NovedadesTab({ clientId, english, canEdit }: {
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [busyId, setBusyId] = useState<number | null>(null);
   const [busyActualizar, setBusyActualizar] = useState<null | "ingest" | "eval">(null);
+  const [rechazadasOpen, setRechazadasOpen] = useState(false);
 
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const v = await getNovedades(clientId);
+      // La franja de Rechazadas solo existe para canEdit: la vista de solo lectura no necesita
+      // esos datos, así que ni se piden (el backend acepta el flag, pero no hay motivo para
+      // pagar esa consulta extra si nadie la va a ver).
+      const v = canEdit
+        ? await getNovedades(clientId, { includeRechazadas: true })
+        : await getNovedades(clientId);
       setView(v);
       // Merge, NO reemplazo: aprobar/rechazar UNA fila (o traer/evaluar) recarga la lista, y un
       // reemplazo total revertía en silencio los por_que editados y aún sin guardar de las DEMÁS
@@ -117,7 +181,7 @@ export default function NovedadesTab({ clientId, english, canEdit }: {
     } finally {
       setLoading(false);
     }
-  }, [clientId]);
+  }, [clientId, canEdit]);
 
   useEffect(() => { void reload(); }, [reload]);
 
@@ -175,7 +239,29 @@ export default function NovedadesTab({ clientId, english, canEdit }: {
     await reload();
   };
 
+  // Restaurar (desde Rechazadas) y Quitar (desde una tarjeta aprobada) hacen lo mismo en el
+  // backend: PUT estado=pendiente SIN por_que, así se preserva el texto ya generado por la IA
+  // (o editado por un consultor) en vez de perderlo al volver a revisión.
+  const restaurar = async (id: number) => {
+    setBusyId(id);
+    try {
+      await decidirNovedad(id, { estado: "pendiente" });
+      toast.success("La novedad vuelve a pendientes de revisión.");
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo restaurar la novedad.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const quitar = async (id: number) => {
+    if (!window.confirm("¿Quitar esta novedad de las aprobadas? Vuelve a pendientes de revisión.")) return;
+    await restaurar(id);
+  };
+
   const pendientes = view?.pendientes ?? [];
+  const rechazadas = view?.rechazadas ?? [];
   const aprobadas = view?.aprobadas ?? [];
   const porCategoria = new Map<NovedadCliente["categoria_bit"], NovedadCliente[]>();
   for (const n of aprobadas) {
@@ -190,7 +276,7 @@ export default function NovedadesTab({ clientId, english, canEdit }: {
     const dias = diasDesde(n.published_at, ahora);
     return dias !== null && dias >= 0 && dias <= DIAS_ESTA_SEMANA;
   }).length;
-  const rechazadasCount = view?.rechazadas?.length ?? 0;
+  const rechazadasCount = rechazadas.length;
   const ultimaEvaluacionLabel = relativoDesde(view?.ultima_evaluacion ?? null, ahora);
   const feedActualizadoLabel = relativoDesde(view?.feed_actualizado ?? null, ahora);
 
@@ -239,12 +325,47 @@ export default function NovedadesTab({ clientId, english, canEdit }: {
         />
       ) : null}
 
+      {canEdit ? (
+        <div className="rounded-xl border bg-card">
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold"
+            onClick={() => setRechazadasOpen((v) => !v)}
+          >
+            {rechazadasOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+            <span>{`Rechazadas (${rechazadasCount})`}</span>
+            <span className="ml-auto text-xs font-normal text-muted-foreground">se pueden restaurar a pendiente</span>
+          </button>
+          {rechazadasOpen ? (
+            rechazadas.length === 0 ? (
+              <div className="border-t px-4 py-3 text-sm text-muted-foreground">Sin novedades rechazadas.</div>
+            ) : (
+              <ul className="divide-y border-t">
+                {rechazadas.map((n) => (
+                  <RechazadaRow
+                    key={n.id}
+                    n={n}
+                    english={english}
+                    busy={busyId === n.id}
+                    onRestaurar={() => void restaurar(n.id)}
+                  />
+                ))}
+              </ul>
+            )
+          ) : null}
+        </div>
+      ) : null}
+
       {loading && !view ? (
         <div className="px-4 py-8 text-center text-sm text-muted-foreground">Cargando…</div>
       ) : aprobadas.length === 0 ? (
         <div className="rounded-xl border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
           Sin novedades aprobadas para este cliente.
-          {canEdit ? " Trae el feed y evalúa para generar candidatas." : ""}
+          {canEdit
+            ? (pendientes.length > 0
+              ? ` Hay ${pendientes.length} novedades pendientes de revisión arriba.`
+              : " Trae el feed y evalúa para generar candidatas.")
+            : ""}
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -259,7 +380,14 @@ export default function NovedadesTab({ clientId, english, canEdit }: {
                 </div>
                 <ul className="divide-y">
                   {(porCategoria.get(cat) ?? []).map((n) => (
-                    <AprobadaCard key={n.id} n={n} english={english} />
+                    <AprobadaCard
+                      key={n.id}
+                      n={n}
+                      english={english}
+                      canEdit={canEdit}
+                      busy={busyId === n.id}
+                      onQuitar={() => void quitar(n.id)}
+                    />
                   ))}
                 </ul>
               </div>

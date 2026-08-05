@@ -11,8 +11,13 @@ import {
 import SearchInput from "@/components/SearchInput";
 import DataTablePagination from "@/components/DataTablePagination";
 import { usePagedRows } from "@/hooks/usePagedRows";
-import { resolveServiceIcon, resourceTypeLabel } from "@/components/boletin/azureServiceIcons";
-import { fmtDate, novedadDescripcion, novedadTitle, NOVEDAD_CATEGORIA_META } from "@/components/boletin/boletinMeta";
+import { resourceTypeLabel } from "@/components/boletin/azureServiceIcons";
+import {
+  fmtDate, novedadDescripcion, novedadTitle, NOVEDAD_CATEGORIA_META,
+  NOVEDAD_ESTADO_PILL_LABEL as ESTADO_PILL_LABEL,
+  NOVEDAD_ESTADO_PILL_CLASS as ESTADO_PILL_CLASS,
+  resolveNovedadIcon,
+} from "@/components/boletin/boletinMeta";
 import type { NovedadCliente } from "@/types";
 
 const CATEGORIAS = Object.keys(NOVEDAD_CATEGORIA_META) as NovedadCliente["categoria_bit"][];
@@ -25,30 +30,10 @@ const CATEGORIA_COLOR: Record<NovedadCliente["categoria_bit"], string> = {
   costo_operacion: "text-emerald-700 dark:text-emerald-400",
 };
 
-const ESTADO_PILL_LABEL: Partial<Record<NovedadCliente["estado_feed"], string>> = {
-  launched: "GA",
-  in_preview: "Preview",
-};
-
-const ESTADO_PILL_CLASS: Partial<Record<NovedadCliente["estado_feed"], string>> = {
-  launched: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
-  in_preview: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
-};
-
 type EstadoFiltro = "todos" | "ga" | "preview";
 
 function publishedDate(n: NovedadCliente): string {
   return fmtDate(n.published_at.slice(0, 10));
-}
-
-/** El item del GET no trae los productos del feed hoy: si hay `recursos`, se resuelve el ícono
- *  por el tipo del primero; si no hay recursos o ninguno mapea, cae al ícono Lucide de la
- *  categoría BIT (nunca queda un hueco vacío). */
-function resolveRowIcon(n: NovedadCliente): { src: string } | { Icon: (typeof NOVEDAD_CATEGORIA_META)[NovedadCliente["categoria_bit"]]["icon"] } {
-  const primerTipo = n.recursos?.[0]?.type;
-  const src = primerTipo ? resolveServiceIcon([primerTipo]) : null;
-  if (src) return { src };
-  return { Icon: NOVEDAD_CATEGORIA_META[n.categoria_bit].icon };
 }
 
 function coincide(n: NovedadCliente, q: string): boolean {
@@ -189,7 +174,7 @@ export default function NovedadesTriage({
             </TableRow>
           ) : pageRows.map((n) => {
             const titulo = novedadTitle(n, english);
-            const icon = resolveRowIcon(n);
+            const icon = resolveNovedadIcon(n);
             const isOpen = expandedId === n.id;
             const busy = busyId === n.id;
             const pillLabel = ESTADO_PILL_LABEL[n.estado_feed];
