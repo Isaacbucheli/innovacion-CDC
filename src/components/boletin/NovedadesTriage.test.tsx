@@ -276,3 +276,32 @@ test("solo hay un textarea visible a la vez, aunque haya varias novedades", () =
   fireEvent.click(screen.getByText("Novedad A"));
   expect(container.querySelectorAll("textarea").length).toBe(1);
 });
+
+test("la selección se poda cuando una fila seleccionada deja de estar pendiente (no re-decide aprobadas)", () => {
+  // Hallazgo del review final E5: marcar A y B, aprobar A (reload la saca de pendientes) y luego
+  // "Rechazar seleccionadas" volteaba la aprobada a rechazada en silencio.
+  const a = novedad({ id: 1, titulo_es: "Novedad A" });
+  const b = novedad({ id: 2, titulo_es: "Novedad B" });
+  const { rerender, onBulkReject, onDraftChange, onDecidir } = setup([a, b]);
+
+  fireEvent.click(screen.getByRole("checkbox", { name: "Seleccionar Novedad A" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Seleccionar Novedad B" }));
+  expect(screen.getByText("2 seleccionadas")).toBeInTheDocument();
+
+  // A se aprobó en otra parte: el reload deja solo B como pendiente.
+  rerender(
+    <NovedadesTriage
+      pendientes={[b]}
+      english={false}
+      drafts={{ 2: b.por_que ?? "" }}
+      onDraftChange={onDraftChange}
+      busyId={null}
+      onDecidir={onDecidir}
+      onBulkReject={onBulkReject}
+    />,
+  );
+
+  expect(screen.getByText("1 seleccionada")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /Rechazar seleccionadas/i }));
+  expect(onBulkReject).toHaveBeenCalledWith([2]);
+});

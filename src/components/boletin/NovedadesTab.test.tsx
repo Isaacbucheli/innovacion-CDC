@@ -397,3 +397,18 @@ test("lote: seleccionar novedades y 'Rechazar seleccionadas' llama decidirNoveda
   await waitFor(() => expect(toast.success).toHaveBeenCalled());
   await waitFor(() => expect(screen.queryByText("Novedad A")).not.toBeInTheDocument());
 });
+
+test("decidido_at se muestra como día de Quito, no como día UTC", async () => {
+  // 2026-08-05T03:30Z = 4 de agosto 22:30 en Quito: cortar el día UTC mostraría el 5 (review E5).
+  const rechazada = novedad({
+    id: 33, estado: "rechazada", decidido_por: "ana@bit.com", decidido_at: "2026-08-05T03:30:00Z",
+  });
+  await renderTab(
+    { aprobadas: [], pendientes: [], rechazadas: [rechazada], ultima_evaluacion: null, feed_actualizado: null },
+    { canEdit: true },
+  );
+
+  fireEvent.click(await screen.findByText(/Rechazadas \(1\)/));
+  expect(await screen.findByText(/4\/8\/2026/)).toBeInTheDocument();
+  expect(screen.queryByText(/5\/8\/2026/)).not.toBeInTheDocument();
+});

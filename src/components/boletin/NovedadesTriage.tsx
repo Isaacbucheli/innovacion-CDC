@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -72,6 +72,17 @@ export default function NovedadesTriage({
 
   const { table, pageRows } = usePagedRows(filtradas);
 
+  // Poda: si una fila seleccionada dejó de estar pendiente (se aprobó o rechazó individualmente y
+  // el reload la sacó de la lista), sale también de la selección — sin esto "Rechazar
+  // seleccionadas" podía voltear una aprobada a rechazada en silencio (review final E5).
+  useEffect(() => {
+    setSelected((prev) => {
+      const vivos = new Set(pendientes.map((n) => n.id));
+      const next = new Set([...prev].filter((id) => vivos.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [pendientes]);
+
   function toggleExpand(id: number) {
     setExpandedId((cur) => (cur === id ? null : id));
   }
@@ -93,7 +104,8 @@ export default function NovedadesTriage({
   }
 
   async function handleBulkReject() {
-    const ids = [...selected];
+    // Cinturón además de la poda de arriba: al despachar, solo ids que siguen pendientes.
+    const ids = [...selected].filter((id) => pendientes.some((p) => p.id === id));
     setBulkBusy(true);
     try {
       await onBulkReject(ids);

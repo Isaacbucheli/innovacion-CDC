@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, ExternalLink, RefreshCw } from "lucide-react
 import { Button } from "@/components/ui/button";
 import NovedadesTriage from "@/components/boletin/NovedadesTriage";
 import { getNovedades, ingestarNovedades, evaluarNovedades, decidirNovedad } from "@/lib/api";
+import { fmtDate as fmtDateQuito } from "@/lib/dates";
 import {
   fmtDate, novedadDescripcion, novedadTitle, NOVEDAD_CATEGORIA_META,
   NOVEDAD_ESTADO_PILL_LABEL, NOVEDAD_ESTADO_PILL_CLASS, resolveNovedadIcon,
@@ -22,10 +23,11 @@ function publishedDate(n: NovedadCliente): string {
   return fmtDate(n.published_at.slice(0, 10));
 }
 
-/** `decidido_at` llega con el mismo formato timestamp que `published_at`; nos quedamos con la
- *  parte de fecha para fmtDate. null si la novedad no tiene decisión registrada aún. */
+/** `decidido_at` es la marca de una ACCIÓN del consultor (no una fecha del feed): se muestra como
+ *  día de Quito vía lib/dates — cortar el día UTC mostraría "mañana" para decisiones tomadas
+ *  después de las ~19:00 locales (regla dura de fechas del proyecto; review final E5). */
 function decididoDate(n: NovedadCliente): string | null {
-  return n.decidido_at ? fmtDate(n.decidido_at.slice(0, 10)) : null;
+  return n.decidido_at ? fmtDateQuito(n.decidido_at) : null;
 }
 
 /** Días completos transcurridos entre `iso` y `ahora` (null si `iso` es null o inválido). */
