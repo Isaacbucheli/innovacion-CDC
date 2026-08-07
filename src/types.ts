@@ -1308,3 +1308,29 @@ export interface MigracionSugerencia {
   clave: string; desde: string; hacia: string; notas: string;
   match_pattern: string; learn_more_url: string | null; announcement_title: string;
 }
+
+// ---- Informe de valor del servicio administrado (Entrega 1) ----
+export type InsumoKind = "facturacion" | "casos" | "rbac";
+
+export interface InsumoEstado {
+  kind: InsumoKind;
+  obligatorio: boolean;
+  cargado: boolean;
+  source_file_name: string | null;
+  cargado_en: string | null;
+  filas: number;
+  status: string | null;
+  warnings: string[];
+}
+
+export interface InformeValorEstado {
+  insumos: InsumoEstado[];
+}
+
+export interface SubidaInsumoResult {
+  ingesta_id: number;
+  rows_total: number;
+  rows_processed: number;
+  rows_skipped: number;
+  warnings: string[];
+}

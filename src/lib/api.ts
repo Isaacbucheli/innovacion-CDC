@@ -27,6 +27,8 @@ import type {
   FinOpsLookups,
   FinOpsRefreshStatus,
   GenerateReportResponse,
+  InformeValorEstado,
+  InsumoKind,
   InventoryRow,
   KqlQuery,
   LifecycleEntry,
@@ -58,6 +60,7 @@ import type {
   ServiceCatalogItem,
   ServiceCreateBody,
   ServiceUpdateBody,
+  SubidaInsumoResult,
   SubscriptionSyncSummary,
   WafAdvisorScore,
   WafAdvisorSyncRequest,
@@ -492,6 +495,38 @@ export async function uploadWafIngestion(clientId: number, file: File, base: str
     throw new Error(detail || `HTTP ${res.status}`);
   }
   return text ? JSON.parse(text) : {};
+}
+
+// ---- Informe de valor del servicio administrado (Entrega 1) ----
+export const getInformeValorEstado = (clientId: number) =>
+  request<InformeValorEstado>(`/informe-valor/clients/${clientId}/estado`);
+
+export const borrarInsumoInformeValor = (clientId: number, kind: InsumoKind) =>
+  request<void>(`/informe-valor/clients/${clientId}/insumos/${kind}`, { method: "DELETE" });
+
+/** Sube un insumo del informe de valor (multipart, campo "file"). Mismo patrón que uploadWafIngestion. */
+export async function subirInsumoInformeValor(
+  clientId: number, kind: InsumoKind, file: File, base: string = apiBase(),
+): Promise<SubidaInsumoResult> {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${base}/informe-valor/clients/${clientId}/insumos/${kind}`,
+    { method: "POST", headers, body: form });
+  if (res.status === 401) {
+    clearSession();
+    if (typeof location !== "undefined") location.reload();
+    throw new Error("Sesión expirada");
+  }
+  const text = await res.text();
+  if (!res.ok) {
+    let detail = text;
+    try { detail = JSON.parse(text).detail ?? text; } catch { /* texto plano */ }
+    throw new Error(detail || `HTTP ${res.status}`);
+  }
+  return JSON.parse(text) as SubidaInsumoResult;
 }
 
 export const consolidateWafDuplicates = (clientId: number, useAi: boolean) =>
