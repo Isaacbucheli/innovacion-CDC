@@ -79,6 +79,7 @@ export default function InformeValorPage({ onNavigate }: { onNavigate: (key: str
             <InsumoCards
               insumos={estado.insumos}
               canEdit={canEdit}
+              busy={busy}
               onSubir={(k) => { setKind(k); setOpen(true); }}
               onBorrar={borrar}
             />

@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ConfirmDelete from "@/components/ConfirmDelete";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,15 +33,23 @@ const ETIQUETAS: Record<InsumoKind, { titulo: string; detalle: string }> = {
  * botones sueltos: es la convención del resto de la plataforma (ClientCard.tsx para acciones
  * por tarjeta, WafActions.tsx para el mismo patrón "Opciones -> abre un diálogo de subida") y
  * la que pide el spec del módulo para esta pantalla en particular.
+ *
+ * "Quitar" pasa primero por ConfirmDelete: el archivo le costó al consultor bajarlo del Power
+ * BI y subirlo, y el borrado es irreversible del lado del servidor, así que ni un clic ni un
+ * Enter accidental sobre el ítem del menú alcanzan para descartarlo sin aviso.
  */
 export default function InsumoCards({
-  insumos, canEdit, onSubir, onBorrar,
+  insumos, canEdit, busy = false, onSubir, onBorrar,
 }: {
   insumos: InsumoEstado[];
   canEdit: boolean;
+  /** Subida o borrado en curso: deshabilita el disparador del menú de cada tarjeta. */
+  busy?: boolean;
   onSubir: (kind: InsumoKind) => void;
   onBorrar: (kind: InsumoKind) => void;
 }) {
+  const [confirmar, setConfirmar] = useState<InsumoEstado | null>(null);
+
   return (
     <div className="grid gap-4 md:grid-cols-3">
       {insumos.map((i) => {
@@ -64,6 +74,7 @@ export default function InsumoCards({
                         size="icon"
                         className="h-7 w-7"
                         aria-label={`Opciones para ${etiqueta.titulo}`}
+                        disabled={busy}
                       >
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
@@ -75,7 +86,7 @@ export default function InsumoCards({
                       {i.cargado && (
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
-                          onClick={() => onBorrar(i.kind)}
+                          onClick={() => setConfirmar(i)}
                         >
                           Quitar
                         </DropdownMenuItem>
@@ -109,6 +120,22 @@ export default function InsumoCards({
           </div>
         );
       })}
+
+      <ConfirmDelete
+        open={confirmar !== null}
+        label={confirmar?.source_file_name ?? "el archivo"}
+        title="¿Quitar este insumo?"
+        description={
+          <>Se va a quitar <strong>{confirmar?.source_file_name ?? "el archivo cargado"}</strong>. Vas a
+          tener que volver a subirlo.</>
+        }
+        confirmLabel="Quitar"
+        onOpenChange={(o) => { if (!o) setConfirmar(null); }}
+        onConfirm={() => {
+          if (confirmar) onBorrar(confirmar.kind);
+          setConfirmar(null);
+        }}
+      />
     </div>
   );
 }
