@@ -12,7 +12,10 @@ export function useInformeValor() {
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
 
-  useEffect(() => () => { mounted.current = false; }, []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   useEffect(() => {
     (async () => {
