@@ -40,6 +40,7 @@ const MENU: Group[] = [
     items: [
       { label: "Informe de gestión mensual", section: "report" },
       { label: "Boletín Azure", section: "boletin" },
+      { label: "Informe de valor del servicio", section: "informe-valor" },
     ],
   },
   {
