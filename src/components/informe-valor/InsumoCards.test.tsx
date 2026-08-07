@@ -45,6 +45,41 @@ describe("InsumoCards", () => {
     expect(screen.queryByRole("button", { name: /subir/i })).toBeNull();
   });
 
+  // Defecto 3 (revisión entrega 1): el servidor rechaza la subida de RBAC con un 400 ("llega en
+  // la entrega 2"), pero la tarjeta la ofrecía igual -> el consultor elige archivo, espera la
+  // subida y recién ahí se entera de que era un camino muerto. La tarjeta ya no ofrece "Opciones"
+  // para este insumo (ni Subir ni Quitar) y explica en su cuerpo cómo se resuelve por ahora.
+  it("rbac no ofrece Opciones: se resuelve por la revisión de accesos, no por carga manual", () => {
+    render(<InsumoCards canEdit onSubir={() => {}} onBorrar={() => {}}
+      insumos={[{ ...base, kind: "rbac", obligatorio: false }]} />);
+
+    expect(screen.queryByRole("button", { name: /opciones para/i })).toBeNull();
+    expect(screen.getByText(/revisión de accesos del cliente/i)).toBeInTheDocument();
+    expect(screen.getByText(/la carga manual llega más adelante/i)).toBeInTheDocument();
+  });
+
+  it("rbac sigue sin Opciones aunque llegue marcado como cargado (no hay nada que quitar)", () => {
+    render(<InsumoCards canEdit onSubir={() => {}} onBorrar={() => {}}
+      insumos={[{ ...cargado, kind: "rbac", obligatorio: false }]} />);
+
+    expect(screen.queryByRole("button", { name: /opciones para/i })).toBeNull();
+    // El resto de la tarjeta (su estado) sigue igual: esto no es display:none del bloque entero.
+    expect(screen.getByText(/^cargado ·/i)).toBeInTheDocument();
+  });
+
+  it("facturación sí ofrece subir", async () => {
+    render(<InsumoCards canEdit onSubir={() => {}} onBorrar={() => {}} insumos={[base]} />);
+    abrirOpciones();
+    expect(await screen.findByText(/^subir$/i)).toBeInTheDocument();
+  });
+
+  it("casos sí ofrece subir", async () => {
+    render(<InsumoCards canEdit onSubir={() => {}} onBorrar={() => {}}
+      insumos={[{ ...base, kind: "casos" }]} />);
+    abrirOpciones();
+    expect(await screen.findByText(/^subir$/i)).toBeInTheDocument();
+  });
+
   // Defecto 1 (revisión entrega 1): "Quitar" no puede disparar el borrado de una, porque el
   // archivo le costó al consultor bajarlo y subirlo, y el borrado es irreversible del lado del
   // servidor.

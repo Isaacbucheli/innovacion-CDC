@@ -22,8 +22,19 @@ const ETIQUETAS: Record<InsumoKind, { titulo: string; detalle: string }> = {
   },
   rbac: {
     titulo: "Reporte de RBAC",
-    detalle: "Solo si la credencial del cliente no permite leer los accesos. Alimenta seguridad bajo gobierno.",
+    detalle: "Solo si la credencial del cliente no permite leer los accesos. Por ahora esta tarjeta no "
+      + "sube un archivo: el dato se resuelve desde la revisión de accesos del cliente. La carga manual "
+      + "llega más adelante. Alimenta seguridad bajo gobierno.",
   },
+};
+
+// El insumo de RBAC todavía no admite carga manual: el endpoint de subida lo rechaza (queda para
+// una entrega posterior). Hasta que exista esa vía, la tarjeta no ofrece "Opciones" (ni Subir ni
+// Quitar) para este kind puntual; ETIQUETAS.rbac.detalle es lo que explica el porqué al consultor.
+const PUEDE_SUBIR: Record<InsumoKind, boolean> = {
+  facturacion: true,
+  casos: true,
+  rbac: false,
 };
 
 /**
@@ -37,6 +48,10 @@ const ETIQUETAS: Record<InsumoKind, { titulo: string; detalle: string }> = {
  * "Quitar" pasa primero por ConfirmDelete: el archivo le costó al consultor bajarlo del Power
  * BI y subirlo, y el borrado es irreversible del lado del servidor, así que ni un clic ni un
  * Enter accidental sobre el ítem del menú alcanzan para descartarlo sin aviso.
+ *
+ * El insumo de RBAC es la excepción (ver PUEDE_SUBIR): no ofrece "Opciones" porque hoy no hay
+ * ninguna acción real para ese kind (ni Subir, que el servidor todavía rechaza, ni Quitar, que
+ * no tiene nada que borrar). Un menú vacío sería peor que no tener menú.
  */
 export default function InsumoCards({
   insumos, canEdit, busy = false, onSubir, onBorrar,
@@ -66,7 +81,7 @@ export default function InsumoCards({
                     Obligatorio
                   </span>
                 )}
-                {canEdit && (
+                {canEdit && PUEDE_SUBIR[i.kind] && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
