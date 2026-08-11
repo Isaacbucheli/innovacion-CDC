@@ -28,7 +28,6 @@ import type {
   FinOpsRefreshStatus,
   GenerateReportResponse,
   InformeValorEstado,
-  InformeValorInsumosBd,
   InsumoKind,
   InventoryRow,
   KqlQuery,
@@ -499,13 +498,13 @@ export async function uploadWafIngestion(clientId: number, file: File, base: str
 }
 
 // ---- Informe de valor del servicio administrado (Entrega 1) ----
+/** `estado_rbac` (la condicional que decide si la tarjeta de RBAC pide el Excel de respaldo)
+ * viaja DENTRO de esta respuesta, resuelta por el camino liviano -- ver
+ * InformeValorController.Estado en la API. Hasta la entrega 2b el front lo leía de
+ * /insumos-bd (GET aparte, ahora sin llamar: es el endpoint de diagnóstico, paga Advisor,
+ * Matriz, RBAC y Retiros completos, y esta pantalla no necesita nada de eso). */
 export const getInformeValorEstado = (clientId: number) =>
   request<InformeValorEstado>(`/informe-valor/clients/${clientId}/estado`);
-
-/** Diagnostico de insumos de base (Entrega 2); el front solo consume `estado_rbac` -- la
- * condicional que decide si la tarjeta de RBAC pide el Excel de respaldo o no. */
-export const getInformeValorInsumosBd = (clientId: number) =>
-  request<InformeValorInsumosBd>(`/informe-valor/clients/${clientId}/insumos-bd`);
 
 export const borrarInsumoInformeValor = (clientId: number, kind: InsumoKind) =>
   request<void>(`/informe-valor/clients/${clientId}/insumos/${kind}`, { method: "DELETE" });

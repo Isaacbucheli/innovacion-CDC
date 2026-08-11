@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getInformeValorEstado, getInformeValorInsumosBd, listClients } from "@/lib/api";
+import { getInformeValorEstado, listClients } from "@/lib/api";
 import { resolveInitialClient, writeActiveClient } from "@/lib/clientSelection";
 import type { ClientSummary, EstadoRbacInfo, InformeValorEstado } from "@/types";
 
@@ -7,9 +7,11 @@ export function useInformeValor() {
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const [clientId, setClientIdState] = useState<number | null>(null);
   const [estado, setEstado] = useState<InformeValorEstado | null>(null);
-  // Condicional de RBAC (Entrega 2): va en su propio endpoint (/insumos-bd), pero describe la
-  // misma pantalla que `estado` -- se piden juntos para que la tarjeta de RBAC nunca muestre uno
-  // sin el otro a medio cargar (ver cargar() abajo).
+  // Condicional de RBAC: viaja DENTRO de `estado` (estado_rbac, resuelta por el camino liviano --
+  // ver InformeValorController.Estado en la API), pero se guarda en su propio estado para que la
+  // tarjeta de RBAC no tenga que cambiar cómo lee este dato. Hasta la entrega 2b salía de su
+  // propio GET (/insumos-bd, el endpoint de diagnóstico) y se pedía en paralelo con `estado`; ese
+  // endpoint paga Advisor/Matriz/Retiros completos y esta pantalla no necesita nada de eso.
   const [estadoRbac, setEstadoRbac] = useState<EstadoRbacInfo | null>(null);
   const [loading, setLoading] = useState(true);      // catálogo de clientes
   const [dataLoading, setDataLoading] = useState(false); // datos del cliente
@@ -40,8 +42,8 @@ export function useInformeValor() {
     setDataLoading(true);
     setError(null);
     try {
-      const [e, insumosBd] = await Promise.all([getInformeValorEstado(id), getInformeValorInsumosBd(id)]);
-      if (mounted.current) { setEstado(e); setEstadoRbac(insumosBd.estado_rbac); }
+      const e = await getInformeValorEstado(id);
+      if (mounted.current) { setEstado(e); setEstadoRbac(e.estado_rbac); }
     } catch (e) {
       if (mounted.current) {
         setEstado(null);

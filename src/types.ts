@@ -1325,10 +1325,14 @@ export interface InsumoEstado {
 
 export interface InformeValorEstado {
   insumos: InsumoEstado[];
+  /** Condicional de RBAC, resuelta por el camino liviano (ver EstadoRbacInfo abajo). Vive en
+   * /estado desde la entrega 2b: antes salía de /insumos-bd, el endpoint de diagnóstico que
+   * paga Advisor/Matriz/Retiros completos, y esta pantalla no necesita nada de eso. */
+  estado_rbac: EstadoRbacInfo;
 }
 
 /**
- * Las tres presentaciones de la condicional de RBAC (GET /informe-valor/clients/{id}/insumos-bd,
+ * Las tres presentaciones de la condicional de RBAC (GET /informe-valor/clients/{id}/estado,
  * bloque `estado_rbac`; ver EstadoRbac.cs y InformeValorController.Disponibilidad en la API):
  * - "completo": la revision de accesos ya resuelve el insumo, el archivo no hace falta.
  * - "parcial_falta_identidad": el inventario de permisos esta completo pero falta uno de los dos
@@ -1356,13 +1360,6 @@ export interface EstadoRbacInfo {
    * cual, no se redacta uno nuevo en el front. */
   motivo: string;
   origen: RbacOrigen | null;
-}
-
-/** Respuesta de GET /informe-valor/clients/{id}/insumos-bd. Solo se tipa el bloque que consume el
- * front (`estado_rbac`); el resto de la respuesta (advisor/matriz/retiros/seguridad_gestionada/
- * leido_en) es diagnostico interno de la API sin consumidor en React todavia. */
-export interface InformeValorInsumosBd {
-  estado_rbac: EstadoRbacInfo;
 }
 
 export interface SubidaInsumoResult {

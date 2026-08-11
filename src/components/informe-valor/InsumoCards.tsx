@@ -46,9 +46,10 @@ export default function InsumoCards({
   insumos, estadoRbac = null, canEdit, busy = false, onSubir, onBorrar, onIrARevisionAccesos,
 }: {
   insumos: InsumoEstado[];
-  /** Condicional de RBAC (GET /insumos-bd, bloque `estado_rbac`). Null mientras no haya cargado
-   * o si la lectura falló -- la tarjeta de RBAC lo trata igual que "no disponible" pero sin
-   * ofrecer nada, el mismo default conservador que usa la API cuando no puede medir un eje. */
+  /** Condicional de RBAC (GET /estado, bloque `estado_rbac`; ver useInformeValor). Null mientras
+   * no haya cargado o si la lectura falló -- la tarjeta de RBAC lo trata igual que "no
+   * disponible" pero sin ofrecer nada, el mismo default conservador que usa la API cuando no
+   * puede medir un eje. */
   estadoRbac?: EstadoRbacInfo | null;
   canEdit: boolean;
   /** Subida o borrado en curso: deshabilita el disparador del menú de cada tarjeta. */
