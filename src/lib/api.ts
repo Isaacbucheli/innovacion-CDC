@@ -28,6 +28,7 @@ import type {
   FinOpsRefreshStatus,
   GenerateReportResponse,
   InformeValorEstado,
+  InformeValorInsumosBd,
   InsumoKind,
   InventoryRow,
   KqlQuery,
@@ -500,6 +501,11 @@ export async function uploadWafIngestion(clientId: number, file: File, base: str
 // ---- Informe de valor del servicio administrado (Entrega 1) ----
 export const getInformeValorEstado = (clientId: number) =>
   request<InformeValorEstado>(`/informe-valor/clients/${clientId}/estado`);
+
+/** Diagnostico de insumos de base (Entrega 2); el front solo consume `estado_rbac` -- la
+ * condicional que decide si la tarjeta de RBAC pide el Excel de respaldo o no. */
+export const getInformeValorInsumosBd = (clientId: number) =>
+  request<InformeValorInsumosBd>(`/informe-valor/clients/${clientId}/insumos-bd`);
 
 export const borrarInsumoInformeValor = (clientId: number, kind: InsumoKind) =>
   request<void>(`/informe-valor/clients/${clientId}/insumos/${kind}`, { method: "DELETE" });

@@ -1327,10 +1327,55 @@ export interface InformeValorEstado {
   insumos: InsumoEstado[];
 }
 
+/**
+ * Las tres presentaciones de la condicional de RBAC (GET /informe-valor/clients/{id}/insumos-bd,
+ * bloque `estado_rbac`; ver EstadoRbac.cs y InformeValorController.Disponibilidad en la API):
+ * - "completo": la revision de accesos ya resuelve el insumo, el archivo no hace falta.
+ * - "parcial_falta_identidad": el inventario de permisos esta completo pero falta uno de los dos
+ *   ejes de identidad (nunca los dos a la vez); el archivo es un respaldo opcional.
+ * - "no_disponible": no hay nada que la plataforma pueda leer sola; el archivo es obligatorio.
+ */
+export type DisponibilidadRbac = "completo" | "parcial_falta_identidad" | "no_disponible";
+
+/** De que fuente salieron las filas de RBAC que de verdad alimentan el informe -- puede discrepar
+ * de `disponibilidad` (base parcial + archivo subido = disponibilidad "parcial_falta_identidad"
+ * pero origen "archivo"). Null cuando ninguna de las dos fuentes tiene nada que ofrecer. */
+export type RbacOrigen = "base" | "archivo";
+
+export interface EstadoRbacInfo {
+  disponibilidad: DisponibilidadRbac;
+  /** Eje de identidad 1 de 2, medido por separado del otro: un cliente sin licencia Microsoft
+   * Entra ID P1 puede tener este en true y `ultimo_login_medido` en false. */
+  estado_cuenta_medido: boolean;
+  /** Eje de identidad 2 de 2 (ver `estado_cuenta_medido`). */
+  ultimo_login_medido: boolean;
+  /** Fecha (UTC, con "Z") de la corrida de revision de accesos que resolvio este estado, o null
+   * si todavia no hay ninguna corrida finalizada. */
+  fecha_corrida: string | null;
+  /** Ya redactado por la API para la combinacion exacta de disponibilidad + ejes: se muestra tal
+   * cual, no se redacta uno nuevo en el front. */
+  motivo: string;
+  origen: RbacOrigen | null;
+}
+
+/** Respuesta de GET /informe-valor/clients/{id}/insumos-bd. Solo se tipa el bloque que consume el
+ * front (`estado_rbac`); el resto de la respuesta (advisor/matriz/retiros/seguridad_gestionada/
+ * leido_en) es diagnostico interno de la API sin consumidor en React todavia. */
+export interface InformeValorInsumosBd {
+  estado_rbac: EstadoRbacInfo;
+}
+
 export interface SubidaInsumoResult {
-  ingesta_id: number;
+  /** Ausente cuando `descartado` es true: la subida de RBAC con la base ya completa no llega a
+   * crear ninguna ingesta (ver InformeValorController.Subir, "Decision 4: gana la base"). */
+  ingesta_id?: number;
   rows_total: number;
   rows_processed: number;
   rows_skipped: number;
   warnings: string[];
+  /** Solo en la subida de RBAC: true cuando la base ya tenia el insumo completo y el archivo se
+   * descarto (el informe usa Revision de accesos, no este Excel). */
+  descartado?: boolean;
+  /** Mensaje para el consultor cuando `descartado` es true. */
+  detail?: string;
 }

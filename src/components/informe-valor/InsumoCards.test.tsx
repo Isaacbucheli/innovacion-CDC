@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import InsumoCards from "./InsumoCards";
-import type { InsumoEstado } from "@/types";
+import type { EstadoRbacInfo, InsumoEstado } from "@/types";
 
 const base: InsumoEstado = {
   kind: "facturacion", obligatorio: true, cargado: false,
@@ -34,38 +34,20 @@ describe("InsumoCards", () => {
     expect(screen.getByText(/26,608|26\.608/)).toBeInTheDocument();
   });
 
-  it("un insumo opcional no dice obligatorio", () => {
-    render(<InsumoCards canEdit onSubir={() => {}} onBorrar={() => {}}
-      insumos={[{ ...base, kind: "rbac", obligatorio: false }]} />);
-    expect(screen.queryByText(/obligatorio/i)).toBeNull();
-  });
+  // "Un insumo opcional no dice obligatorio" vivía acá con kind "rbac": ya no aplica -- el
+  // badge Obligatorio de RBAC ahora depende de estadoRbac.disponibilidad, no de este campo
+  // (que la API manda fijo en false para este kind). Cobertura equivalente en el describe
+  // "InsumoCards - RBAC" de abajo (los casos "completo" y "parcial" no muestran el badge).
 
   it("sin permiso de edición no ofrece subir", () => {
     render(<InsumoCards insumos={[base]} canEdit={false} onSubir={() => {}} onBorrar={() => {}} />);
     expect(screen.queryByRole("button", { name: /subir/i })).toBeNull();
   });
 
-  // Defecto 3 (revisión entrega 1): el servidor rechaza la subida de RBAC con un 400 ("llega en
-  // la entrega 2"), pero la tarjeta la ofrecía igual -> el consultor elige archivo, espera la
-  // subida y recién ahí se entera de que era un camino muerto. La tarjeta ya no ofrece "Opciones"
-  // para este insumo (ni Subir ni Quitar) y explica en su cuerpo cómo se resuelve por ahora.
-  it("rbac no ofrece Opciones: se resuelve por la revisión de accesos, no por carga manual", () => {
-    render(<InsumoCards canEdit onSubir={() => {}} onBorrar={() => {}}
-      insumos={[{ ...base, kind: "rbac", obligatorio: false }]} />);
-
-    expect(screen.queryByRole("button", { name: /opciones para/i })).toBeNull();
-    expect(screen.getByText(/revisión de accesos del cliente/i)).toBeInTheDocument();
-    expect(screen.getByText(/la carga manual llega más adelante/i)).toBeInTheDocument();
-  });
-
-  it("rbac sigue sin Opciones aunque llegue marcado como cargado (no hay nada que quitar)", () => {
-    render(<InsumoCards canEdit onSubir={() => {}} onBorrar={() => {}}
-      insumos={[{ ...cargado, kind: "rbac", obligatorio: false }]} />);
-
-    expect(screen.queryByRole("button", { name: /opciones para/i })).toBeNull();
-    // El resto de la tarjeta (su estado) sigue igual: esto no es display:none del bloque entero.
-    expect(screen.getByText(/^cargado ·/i)).toBeInTheDocument();
-  });
+  // Las dos pruebas de "rbac no ofrece Opciones" (revisión entrega 1, Defecto 3) se invirtieron
+  // en el describe "InsumoCards - RBAC" de abajo: la API ya soporta la carga manual de RBAC en
+  // dos de sus tres estados, así que la correspondencia correcta ahora es la inversa -- ofrece
+  // Opciones salvo cuando la base ya resuelve el insumo por completo.
 
   it("facturación sí ofrece subir", async () => {
     render(<InsumoCards canEdit onSubir={() => {}} onBorrar={() => {}} insumos={[base]} />);
@@ -131,5 +113,160 @@ describe("InsumoCards", () => {
   it("con busy el disparador de Opciones queda deshabilitado", () => {
     render(<InsumoCards insumos={[cargado]} canEdit busy onSubir={() => {}} onBorrar={() => {}} />);
     expect(screen.getByRole("button", { name: /opciones para/i })).toBeDisabled();
+  });
+});
+
+// El insumo de RBAC no es "cargado o no": son tres presentaciones según estadoRbac.disponibilidad
+// (ver EstadoRbac.Resolver en la API). Antes del recolector de la entrega 2 la API rechazaba
+// cualquier subida de RBAC, y esta tarjeta no ofrecía "Opciones" para ese kind bajo ningún
+// estado -- las pruebas de esa época están invertidas más abajo (completo sigue sin ofrecer
+// Subir, pero parcial y no_disponible ya sí).
+describe("InsumoCards - RBAC", () => {
+  const rbacBase: InsumoEstado = {
+    kind: "rbac", obligatorio: false, cargado: false,
+    source_file_name: null, cargado_en: null, filas: 0, status: null, warnings: [],
+  };
+  const rbacCargado: InsumoEstado = {
+    ...rbacBase, cargado: true, source_file_name: "rbac-respaldo.xlsx", filas: 42,
+    cargado_en: "2026-08-01T10:00:00Z",
+  };
+
+  const estadoCompleto: EstadoRbacInfo = {
+    disponibilidad: "completo", estado_cuenta_medido: true, ultimo_login_medido: true,
+    fecha_corrida: "2026-08-01T15:30:00Z",
+    motivo: "Los permisos y los datos de identidad (estado de cuenta y último inicio de sesión) "
+      + "se obtuvieron completos desde Azure.",
+    origen: "base",
+  };
+  const estadoParcial: EstadoRbacInfo = {
+    disponibilidad: "parcial_falta_identidad", estado_cuenta_medido: true, ultimo_login_medido: false,
+    fecha_corrida: "2026-08-01T15:30:00Z",
+    motivo: "El inventario de permisos y el estado de las cuentas se obtuvieron completos, pero no "
+      + "la fecha del último inicio de sesión: el tenant no tiene licencia Microsoft Entra ID P1. "
+      + "Si lo necesitas en el informe, sube el Excel de RBAC como respaldo; es opcional.",
+    origen: "base",
+  };
+  const estadoNoDisponible: EstadoRbacInfo = {
+    disponibilidad: "no_disponible", estado_cuenta_medido: false, ultimo_login_medido: false,
+    fecha_corrida: null,
+    motivo: "Todavía no hay una corrida de revisión de accesos finalizada para este cliente. "
+      + "Ejecuta la revisión de accesos para completar esta sección del informe, o sube el Excel "
+      + "de RBAC: en este estado es obligatorio.",
+    origen: null,
+  };
+
+  it("completo: resuelto desde la base, sin Subir ni el badge Obligatorio", () => {
+    render(<InsumoCards insumos={[rbacBase]} estadoRbac={estadoCompleto} canEdit
+      onSubir={() => {}} onBorrar={() => {}} onIrARevisionAccesos={() => {}} />);
+
+    expect(screen.getByText(/resuelto desde la base/i)).toBeInTheDocument();
+    expect(screen.getByText(/corrida del/i)).toBeInTheDocument();
+    expect(screen.getByText(/fuente: revisión de accesos/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /opciones para/i })).toBeNull();
+    expect(screen.queryByText(/^obligatorio$/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /ir a revisión de accesos/i })).toBeNull();
+  });
+
+  it("completo con un archivo viejo cargado: sigue resuelto desde la base y Opciones solo ofrece Quitar", async () => {
+    render(<InsumoCards insumos={[rbacCargado]} estadoRbac={estadoCompleto} canEdit
+      onSubir={() => {}} onBorrar={() => {}} onIrARevisionAccesos={() => {}} />);
+
+    // El archivo queda ahí, pero la API lo descarta ("gana la base"): el titular no debe
+    // sugerir que ese archivo es lo que alimenta el informe.
+    expect(screen.getByText(/resuelto desde la base/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^cargado ·/i)).toBeNull();
+
+    abrirOpciones();
+    expect(await screen.findByText(/^quitar$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^subir$/i)).toBeNull();
+    expect(screen.queryByText(/^reemplazar$/i)).toBeNull();
+  });
+
+  it("parcial_falta_identidad: motivo de la API, los dos ejes por separado y Subir como respaldo opcional", async () => {
+    render(<InsumoCards insumos={[rbacBase]} estadoRbac={estadoParcial} canEdit
+      onSubir={() => {}} onBorrar={() => {}} onIrARevisionAccesos={() => {}} />);
+
+    expect(screen.getByText(/parcial · falta identidad/i)).toBeInTheDocument();
+    expect(screen.getByText(/no tiene licencia microsoft entra id p1/i)).toBeInTheDocument();
+    expect(screen.getByText(/^estado de cuenta$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^último inicio de sesión$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^obligatorio$/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /ir a revisión de accesos/i })).toBeNull();
+
+    abrirOpciones();
+    expect(await screen.findByText(/^subir$/i)).toBeInTheDocument();
+  });
+
+  it("parcial con archivo subido: la fuente pasa a ser el archivo aunque la disponibilidad siga en parcial", () => {
+    // Caso explícito del spec: disponibilidad "parcial_falta_identidad" + origen "archivo" --
+    // los dos campos describen cosas distintas (la base vs. lo que de verdad alimenta el informe).
+    // El titular prioriza "Cargado" sobre el texto de la disponibilidad (mismo criterio que
+    // facturación/casos: un archivo real es el dato más concreto que hay); "Fuente" es lo que
+    // deja ver que, por debajo, la disponibilidad de la base sigue en parcial.
+    const estado: EstadoRbacInfo = { ...estadoParcial, origen: "archivo" };
+    render(<InsumoCards insumos={[rbacCargado]} estadoRbac={estado} canEdit
+      onSubir={() => {}} onBorrar={() => {}} onIrARevisionAccesos={() => {}} />);
+
+    expect(screen.getByText(/^cargado ·/i)).toBeInTheDocument();
+    expect(screen.getByText(/fuente: archivo subido/i)).toBeInTheDocument();
+  });
+
+  it("no_disponible sin archivo: Obligatorio, falta este archivo y acceso directo a Revisión de accesos", () => {
+    const onIr = vi.fn();
+    render(<InsumoCards insumos={[rbacBase]} estadoRbac={estadoNoDisponible} canEdit
+      onSubir={() => {}} onBorrar={() => {}} onIrARevisionAccesos={onIr} />);
+
+    expect(screen.getByText(/^obligatorio$/i)).toBeInTheDocument();
+    expect(screen.getByText(/falta este archivo/i)).toBeInTheDocument();
+    expect(screen.getByText(/todavía no hay una corrida de revisión de accesos/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /ir a revisión de accesos/i }));
+    expect(onIr).toHaveBeenCalledTimes(1);
+  });
+
+  it("no_disponible con el archivo ya subido: deja de faltar, pero sigue obligatorio y con el acceso directo", async () => {
+    render(<InsumoCards insumos={[rbacCargado]} estadoRbac={estadoNoDisponible} canEdit
+      onSubir={() => {}} onBorrar={() => {}} onIrARevisionAccesos={() => {}} />);
+
+    expect(screen.getByText(/^obligatorio$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^cargado ·/i)).toBeInTheDocument();
+    expect(screen.queryByText(/falta este archivo/i)).toBeNull();
+    expect(screen.getByRole("button", { name: /ir a revisión de accesos/i })).toBeInTheDocument();
+
+    abrirOpciones();
+    expect(await screen.findByText(/^reemplazar$/i)).toBeInTheDocument();
+  });
+
+  it("Subir en rbac llama a onSubir con \"rbac\"", async () => {
+    const onSubir = vi.fn();
+    render(<InsumoCards insumos={[rbacBase]} estadoRbac={estadoNoDisponible} canEdit
+      onSubir={onSubir} onBorrar={() => {}} onIrARevisionAccesos={() => {}} />);
+    abrirOpciones();
+    fireEvent.click(await screen.findByText(/^subir$/i));
+    expect(onSubir).toHaveBeenCalledWith("rbac");
+  });
+
+  // Mismo defecto 1 que facturación/casos: el archivo de respaldo también le costó al consultor
+  // conseguirlo, así que "Quitar" pasa por la misma confirmación.
+  it("Quitar en rbac pasa por ConfirmDelete igual que los demás insumos", async () => {
+    const onBorrar = vi.fn();
+    render(<InsumoCards insumos={[rbacCargado]} estadoRbac={estadoParcial} canEdit
+      onSubir={() => {}} onBorrar={onBorrar} onIrARevisionAccesos={() => {}} />);
+    abrirOpciones();
+    fireEvent.click(await screen.findByText(/^quitar$/i));
+
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    expect(onBorrar).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /^quitar$/i }));
+    expect(onBorrar).toHaveBeenCalledWith("rbac");
+  });
+
+  it("sin estadoRbac todavía (loading o error) no ofrece Subir ni Quitar", () => {
+    render(<InsumoCards insumos={[rbacBase]} estadoRbac={null} canEdit
+      onSubir={() => {}} onBorrar={() => {}} onIrARevisionAccesos={() => {}} />);
+
+    expect(screen.getByText(/pendiente/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /opciones para/i })).toBeNull();
   });
 });

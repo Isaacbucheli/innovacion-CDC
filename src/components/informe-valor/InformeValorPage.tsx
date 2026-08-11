@@ -12,7 +12,7 @@ import { canEditModule } from "@/lib/auth";
 import type { InsumoKind } from "@/types";
 
 export default function InformeValorPage({ onNavigate }: { onNavigate: (key: string) => void }) {
-  const { clients, clientId, setClientId, estado, loading, dataLoading, error, refresh } = useInformeValor();
+  const { clients, clientId, setClientId, estado, estadoRbac, loading, dataLoading, error, refresh } = useInformeValor();
   const [kind, setKind] = useState<InsumoKind | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -25,8 +25,15 @@ export default function InformeValorPage({ onNavigate }: { onNavigate: (key: str
     setBusy(true);
     try {
       const r = await subirInsumoInformeValor(clientId, kind, file);
-      toast.success(`${r.rows_processed.toLocaleString("en-US")} filas cargadas`
-        + (r.rows_skipped ? ` · ${r.rows_skipped.toLocaleString("en-US")} descartadas` : ""));
+      // Solo RBAC puede llegar descartado ("gana la base"): la base ya tenia el insumo completo
+      // cuando el archivo llego, y el servidor no lo uso. Un toast de exito acá convenceria al
+      // consultor de que subio algo que no se aplico.
+      if (r.descartado) {
+        toast.warning(r.detail ?? "La base ya tenia el insumo completo: se descarto el archivo.");
+      } else {
+        toast.success(`${r.rows_processed.toLocaleString("en-US")} filas cargadas`
+          + (r.rows_skipped ? ` · ${r.rows_skipped.toLocaleString("en-US")} descartadas` : ""));
+      }
       r.warnings.forEach((w) => toast.warning(w));
       setOpen(false);
       await refresh();
@@ -78,10 +85,12 @@ export default function InformeValorPage({ onNavigate }: { onNavigate: (key: str
           ) : estado ? (
             <InsumoCards
               insumos={estado.insumos}
+              estadoRbac={estadoRbac}
               canEdit={canEdit}
               busy={busy}
               onSubir={(k) => { setKind(k); setOpen(true); }}
               onBorrar={borrar}
+              onIrARevisionAccesos={() => onNavigate("access-review")}
             />
           ) : null}
         </div>
