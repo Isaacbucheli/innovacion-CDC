@@ -27,6 +27,13 @@ import type {
   FinOpsLookups,
   FinOpsRefreshStatus,
   GenerateReportResponse,
+  InformeValorEntrega,
+  InformeValorEstado,
+  InformeValorGenerarRequest,
+  InformeValorModelo,
+  InformeValorPreviewRequest,
+  InformeVariacionConsumo,
+  InsumoKind,
   InventoryRow,
   KqlQuery,
   LifecycleEntry,
@@ -58,6 +65,7 @@ import type {
   ServiceCatalogItem,
   ServiceCreateBody,
   ServiceUpdateBody,
+  SubidaInsumoResult,
   SubscriptionSyncSummary,
   WafAdvisorScore,
   WafAdvisorSyncRequest,
@@ -492,6 +500,100 @@ export async function uploadWafIngestion(clientId: number, file: File, base: str
     throw new Error(detail || `HTTP ${res.status}`);
   }
   return text ? JSON.parse(text) : {};
+}
+
+// ---- Informe de valor del servicio administrado (Entrega 1) ----
+/** `estado_rbac` (la condicional que decide si la tarjeta de RBAC pide el Excel de respaldo)
+ * viaja DENTRO de esta respuesta, resuelta por el camino liviano -- ver
+ * InformeValorController.Estado en la API. Hasta la entrega 2b el front lo leía de
+ * /insumos-bd (GET aparte, ahora sin llamar: es el endpoint de diagnóstico, paga Advisor,
+ * Matriz, RBAC y Retiros completos, y esta pantalla no necesita nada de eso). */
+export const getInformeValorEstado = (clientId: number) =>
+  request<InformeValorEstado>(`/informe-valor/clients/${clientId}/estado`);
+
+export const borrarInsumoInformeValor = (clientId: number, kind: InsumoKind) =>
+  request<void>(`/informe-valor/clients/${clientId}/insumos/${kind}`, { method: "DELETE" });
+
+/**
+ * Fase 1 de la vista previa: el modelo completo del informe, calculado sin persistir nada. Sale de
+ * la base propia y del insumo BITCOST, así que responde rápido.
+ *
+ * NO trae las reservas de Azure: `fact.variacionConsumo.reservas` viene con `medido: false` y un
+ * motivo que dice que el dato se pide aparte. Completarlo es de `previewVariacionConsumo` --
+ * usar el hook useInformePreview, que encadena las dos fases, en vez de llamar esto suelto.
+ */
+export const previewInformeValor = (clientId: number, body: InformeValorPreviewRequest) =>
+  request<InformeValorModelo>(`/informe-valor/clients/${clientId}/preview`, jsonOpts("POST", body));
+
+/**
+ * Fase 2: el bloque `fact.variacionConsumo` COMPLETO, con las reservas leídas en vivo contra Azure.
+ * Tarda entre 10 y 30 segundos (una llamada a Consumption por reserva activa, en secuencia).
+ *
+ * Reemplaza el bloque entero, no solo el eje de reservas: el balde de reservas le saca recursos a
+ * los otros dos ("gana la reserva"), así que las cifras de la fase 1 para esta sección son
+ * provisionales y no se muestran hasta que esta llamada vuelve.
+ *
+ * El cuerpo tiene que ser EL MISMO que el de la fase 1, o el bloque mide otra ventana.
+ */
+export const previewVariacionConsumo = (clientId: number, body: InformeValorPreviewRequest) =>
+  request<InformeVariacionConsumo>(
+    `/informe-valor/clients/${clientId}/preview/variacion-consumo`, jsonOpts("POST", body));
+
+/**
+ * Genera el artefacto HTML, lo archiva y devuelve la entrega registrada (permiso Edit).
+ *
+ * Devuelve `bloques_publicados` con lo que el artefacto publica DE VERDAD, que no siempre es lo que
+ * se pidió: la variante interna publica los seis sin mirar los interruptores. Quien llame tiene que
+ * mostrar eso y no la lista que mandó.
+ *
+ * No baja el archivo: la descarga es siempre `descargarEntregaInformeValor` sobre la entrega
+ * archivada, el mismo camino que usa el archivo de entregas. Un solo camino de descarga significa
+ * que lo que el consultor acaba de bajar es exactamente lo que va a poder volver a bajar después.
+ */
+export const generarInformeValor = (clientId: number, body: InformeValorGenerarRequest) =>
+  request<InformeValorEntrega>(`/informe-valor/clients/${clientId}/generar`, jsonOpts("POST", body));
+
+/**
+ * Las entregas archivadas de un cliente, de la más reciente a la más vieja.
+ *
+ * El endpoint responde `{ entregas: [...] }`, no un arreglo pelado: se desenvuelve acá, igual que
+ * `translateWafTexts` con su `{ items }`. Leerlo como arreglo no lanzaba nada —TanStack recorre
+ * `data.length`, que en un objeto es `undefined`, así que el bucle no itera— y la tabla mostraba su
+ * texto de "este cliente todavía no tiene ninguna entrega generada": un hueco de plomería
+ * disfrazado de hecho del negocio, con la pestaña vacía incluso justo después de generar.
+ */
+export const getEntregasInformeValor = (clientId: number) =>
+  request<{ entregas: InformeValorEntrega[] }>(`/informe-valor/clients/${clientId}/entregas`)
+    .then((r) => r.entregas);
+
+/** Descarga autenticada del artefacto archivado (blob + <a download>, como el resto del producto). */
+export const descargarEntregaInformeValor = (clientId: number, entrega: InformeValorEntrega) =>
+  downloadFromApi(
+    `/informe-valor/clients/${clientId}/entregas/${entrega.entrega_id}/descargar`, entrega.file_name);
+
+/** Sube un insumo del informe de valor (multipart, campo "file"). Mismo patrón que uploadWafIngestion. */
+export async function subirInsumoInformeValor(
+  clientId: number, kind: InsumoKind, file: File, base: string = apiBase(),
+): Promise<SubidaInsumoResult> {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${base}/informe-valor/clients/${clientId}/insumos/${kind}`,
+    { method: "POST", headers, body: form });
+  if (res.status === 401) {
+    clearSession();
+    if (typeof location !== "undefined") location.reload();
+    throw new Error("Sesión expirada");
+  }
+  const text = await res.text();
+  if (!res.ok) {
+    let detail = text;
+    try { detail = JSON.parse(text).detail ?? text; } catch { /* texto plano */ }
+    throw new Error(detail || `HTTP ${res.status}`);
+  }
+  return JSON.parse(text) as SubidaInsumoResult;
 }
 
 export const consolidateWafDuplicates = (clientId: number, useAi: boolean) =>
