@@ -42,6 +42,10 @@ export function useInformePreview(clientId: number | null) {
   const [variacion, setVariacion] = useState<InformeVariacionConsumo | null>(null);
   const [faseReservas, setFaseReservas] = useState<FaseReservas>("inactiva");
   const [errorReservas, setErrorReservas] = useState<string | null>(null);
+  // El cuerpo con el que se calculó lo que HAY EN PANTALLA (no el del formulario, que el consultor
+  // puede seguir tocando). La pestaña de entrega genera el artefacto con este cuerpo: si generara
+  // con el del formulario, el archivo saldría de una ventana que nadie revisó.
+  const [cuerpoRevisado, setCuerpoRevisado] = useState<InformeValorPreviewRequest | null>(null);
 
   // Corrida vigente: una respuesta vieja (o de otro cliente) que llega tarde no puede pisar la
   // pantalla. Mismo patrón que ReservationsPage.
@@ -59,6 +63,7 @@ export function useInformePreview(clientId: number | null) {
   const limpiar = useCallback(() => {
     runId.current++;
     cuerpoVigente.current = null;
+    setCuerpoRevisado(null);
     setModelo(null);
     setError(null);
     setVariacion(null);
@@ -93,6 +98,9 @@ export function useInformePreview(clientId: number | null) {
     setCargando(true);
     setError(null);
     setModelo(null);
+    // Lo que se revisó deja de existir en cuanto arranca un cálculo nuevo: no se puede entregar un
+    // artefacto contra un modelo que ya no está en pantalla.
+    setCuerpoRevisado(null);
     setVariacion(null);
     setErrorReservas(null);
     setFaseReservas("inactiva");
@@ -100,6 +108,7 @@ export function useInformePreview(clientId: number | null) {
       const m = await previewInformeValor(clientId, cuerpo);
       if (!mounted.current || corrida !== runId.current) return;
       setModelo(m);
+      setCuerpoRevisado(cuerpo);
       setCargando(false);
       // La fase 2 arranca sola: no se le pide al consultor un segundo clic para completar algo que
       // el informe siempre necesita.
@@ -118,7 +127,7 @@ export function useInformePreview(clientId: number | null) {
   }, [clientId, pedirReservas]);
 
   return {
-    modelo, cargando, error,
+    modelo, cargando, error, cuerpoRevisado,
     variacion, faseReservas, errorReservas,
     generar, reintentarReservas, limpiar,
   };

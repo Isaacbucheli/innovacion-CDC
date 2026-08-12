@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { fmtDateISO } from "@/lib/dates";
 import {
-  claveNormalizada, cuerpoDeParametros, cuerpoPreview, etiquetaMes, fmtPct, lecturaVariacion,
-  mesMas, mesesDelRango, parametrosPorDefecto, porCategoria,
+  BLOQUES_ECONOMICOS, MOTIVO_SIN_AHORRO_ADVISOR, bloquesPublicadosTexto, claveNormalizada,
+  cuerpoDeGeneracion, cuerpoDeParametros, cuerpoPreview, etiquetaMes, fmtPct, lecturaVariacion,
+  mesMas, mesesDelRango, mismoCuerpo, parametrosPorDefecto, porCategoria, resumenBloques,
 } from "@/lib/informeValor";
+import type { InformeValorModelo } from "@/types";
 
 describe("cuerpoPreview", () => {
   // El corte se manda al mediodía UTC a propósito. La API lo resuelve a fecha de Guayaquil
@@ -117,5 +119,175 @@ describe("fmtPct", () => {
   it("imprime el cero como cero, no como guion", () => {
     expect(fmtPct(0)).toBe("0.0%");
     expect(fmtPct(97.25)).toBe("97.3%");
+  });
+});
+
+// ---- Entrega (tareas 6 y 7) ----
+
+/** Modelo mínimo con facturación y postura, para el resumen de bloques. */
+function modeloConCifras(over: Partial<InformeValorModelo> = {}): InformeValorModelo {
+  return {
+    meta: {
+      cliente: "Cliente de prueba", periodo: "2026-01 a 2026-02", corte: "2026-03-01",
+      cobertura: { total: 0, suscripciones: [] }, rbacOrigen: null,
+    },
+    tickets: null, rbac: null, matriz: null,
+    catSerie: { compute: { "2026-01": 300 }, storage: { "2026-01": 100 } },
+    fact: {
+      filas: 10, filasEnRango: 8, total: 154000,
+      meses: [["2026-01", 80000, 0], ["2026-02", 74000, 0]],
+      ultCompleto: "2026-02", parciales: [], autoParciales: [], parcialesInexistentes: [],
+      subs: [], nRecursos: 0, nIds: 0, nRg: 0, nCats: 2, picoAct: 0, picoMes: null,
+      serie: [], bajasDef: 0, cargaRet: 0, unidadCargaRet: "USD",
+      prom: [], ahorro: null, comp: null, cc: [["Operaciones", 100000], ["TI", 54000]],
+      variacionConsumo: null,
+    },
+    advisor: {
+      n: 12, tipos_rec: 3, cats: [], subs: [], tipos: [], top: [], topSum: 0, det: [],
+      nRes: 0, recomendacionesConRecurso: 0, high: 0, medium: 0, low: 0,
+      bruto: 30000, real: 24000, descarte: 6000, nSav: 4, savLineas: [], porSub: {},
+      rets: [], vencidos: 0, proximos: 0,
+      seguridadGestionadaExternamente: false, seguridadGestionadaNota: null,
+    },
+    ...over,
+  };
+}
+
+describe("BLOQUES_ECONOMICOS", () => {
+  // La grafía de la API (BloqueEconomicoExtensions.Clave() en el repo .NET). No es cosmética: una
+  // clave que la API no reconoce sale APAGADA sin error, así que el informe se publicaría sin el
+  // monto que el consultor creyó aprobar.
+  it("usa las mismas claves camelCase que la API", () => {
+    expect(BLOQUES_ECONOMICOS.map((b) => b.clave)).toEqual([
+      "gastoTotal", "serieMensual", "composicionServicio", "ahorroActivo", "centroCosto", "ahorroAdvisor",
+    ]);
+  });
+
+  it("cada bloque dice que deja de viajar cuando esta apagado", () => {
+    for (const b of BLOQUES_ECONOMICOS) {
+      expect(b.apagado.length).toBeGreaterThan(0);
+      expect(b.publica.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("cuerpoDeGeneracion", () => {
+  const cuerpo = cuerpoPreview("2026-01", "2026-02", "2026-03-01", null);
+
+  it("manda los bloques en el orden canonico, no en el orden en que se prendieron", () => {
+    const body = cuerpoDeGeneracion(cuerpo, "cliente", ["ahorroAdvisor", "gastoTotal"]);
+    expect(body.bloques).toEqual(["gastoTotal", "ahorroAdvisor"]);
+    expect(body.variante).toBe("cliente");
+  });
+
+  it("conserva los parametros de la vista previa tal cual", () => {
+    const body = cuerpoDeGeneracion(cuerpo, "interna", []);
+    expect(body.period_start).toBe(cuerpo.period_start);
+    expect(body.period_end).toBe(cuerpo.period_end);
+    expect(body.corte).toBe(cuerpo.corte);
+    expect(body.meses_parciales_forzados).toBeNull();
+    expect(body.bloques).toEqual([]);
+  });
+});
+
+describe("mismoCuerpo", () => {
+  const base = cuerpoPreview("2026-01", "2026-06", "2026-07-01", null);
+
+  it("reconoce dos cuerpos iguales", () => {
+    expect(mismoCuerpo(base, cuerpoPreview("2026-01", "2026-06", "2026-07-01", null))).toBe(true);
+  });
+
+  it("detecta el cambio de periodo y de corte", () => {
+    expect(mismoCuerpo(base, cuerpoPreview("2026-02", "2026-06", "2026-07-01", null))).toBe(false);
+    expect(mismoCuerpo(base, cuerpoPreview("2026-01", "2026-06", "2026-07-02", null))).toBe(false);
+  });
+
+  // El tri-estado no se aplana: "que decida la heurística" y "declaro que ninguno es parcial" son
+  // decisiones distintas y producen informes distintos.
+  it("no confunde la heuristica con la declaracion vacia", () => {
+    expect(mismoCuerpo(base, cuerpoPreview("2026-01", "2026-06", "2026-07-01", []))).toBe(false);
+    expect(mismoCuerpo(
+      cuerpoPreview("2026-01", "2026-06", "2026-07-01", []),
+      cuerpoPreview("2026-01", "2026-06", "2026-07-01", []),
+    )).toBe(true);
+    expect(mismoCuerpo(
+      cuerpoPreview("2026-01", "2026-06", "2026-07-01", ["2026-06"]),
+      cuerpoPreview("2026-01", "2026-06", "2026-07-01", ["2026-05"]),
+    )).toBe(false);
+  });
+
+  it("sin cuerpo revisado no hay nada que comparar", () => {
+    expect(mismoCuerpo(null, base)).toBe(false);
+    expect(mismoCuerpo(null, null)).toBe(true);
+  });
+});
+
+describe("resumenBloques", () => {
+  it("lee cada cifra de los mismos campos que dibuja la vista", () => {
+    const filas = resumenBloques(modeloConCifras(), []);
+    const por = (c: string) => filas.find((f) => f.clave === c)!;
+
+    expect(por("gastoTotal").valor).toBe("$154,000.00");
+    expect(por("serieMensual").valor).toContain("2 mes(es)");
+    expect(por("composicionServicio").valor).toContain("$400.00");
+    expect(por("centroCosto").valor).toContain("$154,000.00");
+    expect(por("ahorroAdvisor").valor).toBe("$24,000.00");
+  });
+
+  it("los seis salen apagados cuando no se aprobo ninguno", () => {
+    expect(resumenBloques(modeloConCifras(), []).every((f) => !f.aprobado)).toBe(true);
+  });
+
+  it("marca aprobado solo el que se aprobo", () => {
+    const filas = resumenBloques(modeloConCifras(), ["gastoTotal"]);
+    expect(filas.filter((f) => f.aprobado).map((f) => f.clave)).toEqual(["gastoTotal"]);
+  });
+
+  // Ninguna cifra ausente se publica sin decir por qué está ausente, ni acá ni en el artefacto.
+  it("sin facturacion no devuelve cero: devuelve el motivo", () => {
+    const filas = resumenBloques(modeloConCifras({ fact: null, catSerie: null }), []);
+    for (const clave of ["gastoTotal", "serieMensual", "composicionServicio", "ahorroActivo", "centroCosto"]) {
+      const f = filas.find((x) => x.clave === clave)!;
+      expect(f.valor).toBeNull();
+      expect(f.motivo).toBeTruthy();
+    }
+    expect(filas.find((f) => f.clave === "gastoTotal")!.motivo).toMatch(/no es un gasto de cero/i);
+  });
+
+  it("sin ahorro cuantificado por Advisor no publica el cero del modelo", () => {
+    const m = modeloConCifras();
+    const filas = resumenBloques(
+      { ...m, advisor: { ...m.advisor!, nSav: 0, bruto: 0, real: 0, descarte: 0 } }, []);
+    const f = filas.find((x) => x.clave === "ahorroAdvisor")!;
+    expect(f.valor).toBeNull();
+    expect(f.motivo).toBe(MOTIVO_SIN_AHORRO_ADVISOR);
+  });
+
+  it("sin caida sostenida el ahorro activo dice que no hay caida, no un ahorro de cero", () => {
+    const f = resumenBloques(modeloConCifras(), []).find((x) => x.clave === "ahorroActivo")!;
+    expect(f.valor).toBeNull();
+    expect(f.motivo).toMatch(/no es un ahorro de cero/i);
+  });
+});
+
+describe("bloquesPublicadosTexto", () => {
+  // La entrega sin bloques es legítima (es el default): se dice con palabras, porque una celda vacía
+  // se lee como "no se sabe" y un 0 como "publicó ceros".
+  it("la entrega sin bloques se lee como omision, no como cero", () => {
+    expect(bloquesPublicadosTexto([]).texto).toBe("Ninguno: sin montos");
+  });
+
+  it("los seis se resumen y los parciales se cuentan", () => {
+    expect(bloquesPublicadosTexto(BLOQUES_ECONOMICOS.map((b) => b.clave)).texto).toBe("Los seis");
+    expect(bloquesPublicadosTexto(["gastoTotal", "centroCosto"]).texto).toBe("2 de 6");
+  });
+
+  // Un bloque que esta versión del front no conoce no desaparece de la fila: la entrega publicó algo
+  // y la tabla lo dice.
+  it("no esconde una clave que no conoce", () => {
+    const r = bloquesPublicadosTexto(["gastoTotal", "bloqueNuevo"]);
+    expect(r.desconocidas).toEqual(["bloqueNuevo"]);
+    expect(r.etiquetas).toEqual(["Gasto total del período"]);
+    expect(r.texto).toBe("2 de 6");
   });
 });

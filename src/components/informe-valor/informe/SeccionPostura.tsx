@@ -1,14 +1,15 @@
 import ReportBars from "@/components/reports/ReportBars";
 import SimpleTable, { type SimpleCol } from "@/components/reports/SimpleTable";
 import { REPORT_COLORS } from "@/lib/report";
-import { fmtMonto, fmtNum, num, txt } from "@/lib/informeValor";
+import { MOTIVO_SIN_AHORRO_ADVISOR, fmtMonto, fmtNum, num, txt } from "@/lib/informeValor";
 import type {
   FilaInforme, InformePostura, InformePosturaLineaAhorro, InformePosturaRetiro,
 } from "@/types";
 import { Aviso, Kpi, Seccion, SinMedir } from "./Piezas";
 
-const MOTIVO_SIN_AHORRO = "Ninguna recomendación de este cliente trae el ahorro anual cuantificado: "
-  + "Azure no siempre lo devuelve y no se persiste en columna propia. La cifra no es cero, no se pudo medir.";
+// El motivo vive en lib/informeValor: la pestaña de entrega publica el mismo texto para el mismo
+// vacío, y dos redacciones del mismo hueco son dos definiciones del mismo concepto.
+const MOTIVO_SIN_AHORRO = MOTIVO_SIN_AHORRO_ADVISOR;
 
 /**
  * Bloque de postura (`advisor`): recomendaciones de Azure Advisor y retiros de Azure.
@@ -90,7 +91,7 @@ export default function SeccionPostura({ ad, corte }: { ad: InformePostura; cort
 
       <Seccion
         titulo="Ahorro identificado por Advisor"
-        bloque="ahorro_advisor"
+        bloque="ahorroAdvisor"
         descripcion="El realizable sale de depurar duplicados y de quedarse con la mayor entre reserva y savings plan de la misma suscripción: no se pueden comprar las dos sobre el mismo cómputo."
       >
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

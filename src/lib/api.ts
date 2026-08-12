@@ -27,7 +27,9 @@ import type {
   FinOpsLookups,
   FinOpsRefreshStatus,
   GenerateReportResponse,
+  InformeValorEntrega,
   InformeValorEstado,
+  InformeValorGenerarRequest,
   InformeValorModelo,
   InformeValorPreviewRequest,
   InformeVariacionConsumo,
@@ -536,6 +538,29 @@ export const previewInformeValor = (clientId: number, body: InformeValorPreviewR
 export const previewVariacionConsumo = (clientId: number, body: InformeValorPreviewRequest) =>
   request<InformeVariacionConsumo>(
     `/informe-valor/clients/${clientId}/preview/variacion-consumo`, jsonOpts("POST", body));
+
+/**
+ * Genera el artefacto HTML, lo archiva y devuelve la entrega registrada (permiso Edit).
+ *
+ * Devuelve `bloques_publicados` con lo que el artefacto publica DE VERDAD, que no siempre es lo que
+ * se pidió: la variante interna publica los seis sin mirar los interruptores. Quien llame tiene que
+ * mostrar eso y no la lista que mandó.
+ *
+ * No baja el archivo: la descarga es siempre `descargarEntregaInformeValor` sobre la entrega
+ * archivada, el mismo camino que usa el archivo de entregas. Un solo camino de descarga significa
+ * que lo que el consultor acaba de bajar es exactamente lo que va a poder volver a bajar después.
+ */
+export const generarInformeValor = (clientId: number, body: InformeValorGenerarRequest) =>
+  request<InformeValorEntrega>(`/informe-valor/clients/${clientId}/generar`, jsonOpts("POST", body));
+
+/** Las entregas archivadas de un cliente, de la más reciente a la más vieja. */
+export const getEntregasInformeValor = (clientId: number) =>
+  request<InformeValorEntrega[]>(`/informe-valor/clients/${clientId}/entregas`);
+
+/** Descarga autenticada del artefacto archivado (blob + <a download>, como el resto del producto). */
+export const descargarEntregaInformeValor = (clientId: number, entrega: InformeValorEntrega) =>
+  downloadFromApi(
+    `/informe-valor/clients/${clientId}/entregas/${entrega.entrega_id}/descargar`, entrega.file_name);
 
 /** Sube un insumo del informe de valor (multipart, campo "file"). Mismo patrón que uploadWafIngestion. */
 export async function subirInsumoInformeValor(

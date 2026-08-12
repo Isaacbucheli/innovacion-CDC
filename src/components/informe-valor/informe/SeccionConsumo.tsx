@@ -95,7 +95,7 @@ export default function SeccionConsumo({ fact, catSerie }: {
     <div className="space-y-8">
       <Seccion
         titulo="Gasto del período"
-        bloque="gasto_total"
+        bloque="gastoTotal"
         descripcion={<>Facturación BITCOST del rango pedido. El promedio mensual se publica por año y
           sobre meses cerrados (tabla de abajo): el modelo no define un promedio único del período, y
           esta vista no lo inventa.</>}
@@ -118,7 +118,7 @@ export default function SeccionConsumo({ fact, catSerie }: {
 
       <Seccion
         titulo="Serie mensual de consumo"
-        bloque="serie_mensual"
+        bloque="serieMensual"
         descripcion="Facturación mes a mes. Los meses parciales se muestran, pero quedan marcados: un mes incompleto leído como cerrado hace parecer que el gasto cayó."
       >
         {serieMensual.length > 0 ? (
@@ -157,7 +157,7 @@ export default function SeccionConsumo({ fact, catSerie }: {
 
       <Seccion
         titulo="Composición por servicio"
-        bloque="composicion_servicio"
+        bloque="composicionServicio"
         descripcion="En qué se gasta, sumando la serie mensual de cada categoría dentro del rango."
       >
         {categorias.length > 0 ? (
@@ -198,7 +198,7 @@ export default function SeccionConsumo({ fact, catSerie }: {
 
       <Seccion
         titulo="Reparto por centro de costo"
-        bloque="centro_costo"
+        bloque="centroCosto"
         descripcion="Gasto asignado a cada área del cliente. Las filas sin centro de costo se agrupan en “(sin asignar)”, no se descartan."
       >
         {fact.cc.length > 0 ? (
@@ -215,7 +215,7 @@ export default function SeccionConsumo({ fact, catSerie }: {
 
       <Seccion
         titulo="Ahorro activo"
-        bloque="ahorro_activo"
+        bloque="ahorroActivo"
         descripcion="Caída sostenida de una categoría contra su línea base (mediana de los meses previos al quiebre), ya neteada contra las categorías que subieron."
       >
         {fact.ahorro ? (

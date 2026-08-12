@@ -1762,3 +1762,60 @@ export interface InformeValorPreviewRequest {
   corte: string;
   meses_parciales_forzados: string[] | null;
 }
+
+// ---- Informe de valor: generacion del artefacto y archivo de entregas (Entrega 3, tareas 6 y 7) ----
+
+/**
+ * Las dos variantes del artefacto (VarianteInforme en la API, mismos literales):
+ * - "interna": lleva todo. Los bloques aprobados NO se miran; pedir la interna es pedir el informe
+ *   completo.
+ * - "cliente": lleva solo los bloques economicos aprobados uno por uno. Los montos de los demas se
+ *   sacan del JSON, no solo del dibujo, y la capa de dibujo escribe "No publicado" donde iria cada
+ *   uno.
+ *
+ * La variante decide que se DIBUJA y que VIAJA, nunca que se calcula: el modelo se calcula completo
+ * siempre, asi que las dos versiones del mismo informe siguen siendo comparables y aprobar un
+ * bloque despues no obliga a recalcular.
+ */
+export type VarianteInforme = "interna" | "cliente";
+
+/**
+ * Cuerpo de POST /informe-valor/clients/{id}/generar: los mismos parametros de la vista previa mas
+ * la variante y los bloques aprobados.
+ *
+ * `bloques` lleva las claves camelCase de BloqueEconomicoExtensions.Clave() ("gastoTotal",
+ * "serieMensual", "composicionServicio", "ahorroActivo", "centroCosto", "ahorroAdvisor"), la misma
+ * grafia con la que se archivan y con la que viajan en el objeto PUBLICACION del artefacto. Una
+ * clave que la API no reconoce NO es un error: sale apagada, y el informe se publica sin ese monto.
+ */
+export interface InformeValorGenerarRequest extends InformeValorPreviewRequest {
+  variante: VarianteInforme;
+  bloques: string[];
+}
+
+/**
+ * Una entrega archivada, tal como la devuelven POST /generar y GET /entregas (EntregaResumen de la
+ * API bajo la politica global de nombres, o sea snake_case; los VALORES de `bloques_publicados` son
+ * claves camelCase y ninguna politica toca el contenido de un arreglo).
+ *
+ * `bloques_publicados` es lo que el artefacto publica DE VERDAD, no lo que pidio quien genero: para
+ * la variante interna son los seis siempre. Una lista vacia es una entrega legitima (el informe
+ * salio sin montos), nunca "no se sabe".
+ */
+export interface InformeValorEntrega {
+  entrega_id: number;
+  /** Primer mes del periodo, fecha calendario "aaaa-MM-dd" (DateOnly en la API). */
+  period_start: string;
+  period_end: string;
+  /** Fecha de corte ya resuelta a dia calendario, con la que se clasificaron los retiros. */
+  corte: string;
+  variante: string;
+  bloques_publicados: string[];
+  /** De donde salieron los permisos ("base" | "archivo"), o null si no hubo insumo de RBAC. */
+  rbac_origen: string | null;
+  file_name: string;
+  blob_size_bytes: number;
+  generated_by: string | null;
+  /** Timestamp UTC con "Z": se muestra en hora de Quito via lib/dates. */
+  generated_at: string;
+}
