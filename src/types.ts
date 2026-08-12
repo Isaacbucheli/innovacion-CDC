@@ -1376,3 +1376,389 @@ export interface SubidaInsumoResult {
   /** Mensaje para el consultor cuando `descartado` es true. */
   detail?: string;
 }
+
+// ---- Informe de valor: el modelo del informe (Entrega 3, tarea 5) ----
+//
+// Forma exacta de lo que devuelve POST /informe-valor/clients/{id}/preview: es el
+// ModeloInformeValor de la API (Features/InformeValor/Calculo/*.cs), donde CADA campo lleva su
+// [JsonPropertyName] explicito. Por eso los nombres son camelCase y no snake_case como el resto de
+// la API: la politica global de Program.cs solo renombra lo que no declara su nombre, y este
+// modelo lo declara todo.
+//
+// Dos consecuencias de esa misma politica que si muerden aca:
+// 1. Las CLAVES de diccionario si pasan por SnakeCaseLower. `catSerie` (categoria -> mes -> monto)
+//    y `advisor.porSub` (suscripcion -> compromiso) llegan con la clave transformada:
+//    "Redes y Conectividad" viaja como "redes_y_conectividad". Las claves de mes ("2026-01")
+//    sobreviven intactas porque no tienen mayusculas ni espacios. Ver `claveNormalizada` en
+//    lib/informeValor.ts y el aviso de la seccion de composicion por servicio.
+// 2. Los arreglos posicionales viajan intactos (ninguna politica toca el contenido de un arreglo):
+//    por eso el modelo publica las filas de tabla como tuplas y no como objetos.
+//
+// Un `null` en este modelo NUNCA significa cero. Significa "no medido" o "insumo ausente", y cada
+// campo nullable dice cual de los dos en su comentario: la vista muestra el motivo, no una cifra
+// vacia.
+
+/** Fila de tabla posicional del modelo (ver el comentario de arriba). */
+export type FilaInforme = (string | number | null)[];
+
+export interface InformeValorModelo {
+  meta: InformeMeta;
+  /** Operacion (mesa de servicio). `null` = insumo de casos ausente o sin filas en rango. */
+  tickets: InformeOperacion | null;
+  /** Consumo (BITCOST). `null` = insumo de facturacion ausente o sin filas en rango. */
+  fact: InformeConsumo | null;
+  /** Seguridad (RBAC). `null` = sin insumo de RBAC (ni base ni archivo). */
+  rbac: InformeSeguridad | null;
+  /** Postura (Advisor + retiros). `null` = sin recomendaciones de Advisor. */
+  advisor: InformePostura | null;
+  /** Roadmap (matriz WAF). `null` = sin hallazgos en la matriz. */
+  matriz: InformeRoadmap | null;
+  /** Categoria -> mes ("aaaa-MM") -> monto. Claves de categoria normalizadas por la API. */
+  catSerie: Record<string, Record<string, number>> | null;
+}
+
+export interface InformeMeta {
+  cliente: string;
+  periodo: string;
+  /** Fecha de corte congelada, "aaaa-MM-dd": con ella se clasificaron los retiros de Azure. */
+  corte: string;
+  cobertura: InformeCobertura;
+  /** De que fuente salieron las filas de RBAC ("base" | "archivo"), o null si no hubo ninguna. */
+  rbacOrigen: string | null;
+}
+
+export interface InformeCobertura {
+  total: number;
+  suscripciones: InformeCoberturaSub[];
+}
+
+export interface InformeCoberturaSub {
+  id: string;
+  nombre: string;
+  facturacion: boolean;
+  rbac: boolean;
+  advisor: boolean;
+}
+
+export interface InformeConsumo {
+  /** Filas aceptadas antes de fusionar, de TODA la carga (no filtrada por periodo). */
+  filas: number;
+  /** Filas ya fusionadas que cayeron dentro del periodo. Contraparte de `filas`, no su reemplazo. */
+  filasEnRango: number;
+  total: number;
+  /** [mes "aaaa-MM", monto, 1 si es parcial / 0 si no]. */
+  meses: FilaInforme[];
+  ultCompleto: string | null;
+  parciales: string[];
+  autoParciales: string[];
+  /** Meses que el consultor declaro parciales y no existen en el insumo: se avisan, no se ignoran. */
+  parcialesInexistentes: string[];
+  /** [nombre de suscripcion, monto]. */
+  subs: FilaInforme[];
+  nRecursos: number;
+  nIds: number;
+  nRg: number;
+  nCats: number;
+  picoAct: number;
+  picoMes: string | null;
+  /** [mes, activos, altas, bajas, monto, monto retirado, 1 si es parcial / 0 si no]. */
+  serie: FilaInforme[];
+  bajasDef: number;
+  cargaRet: number;
+  unidadCargaRet: string;
+  /** [anio, meses completos, promedio mensual, total anual]. */
+  prom: FilaInforme[];
+  /** `null` = no se detecto ninguna caida sostenida que cumpla la regla, no "el ahorro fue cero". */
+  ahorro: InformeAhorro | null;
+  comp: InformeComparativa | null;
+  /** [centro de costo, monto]. */
+  cc: FilaInforme[];
+  /** Fase 2: en la respuesta de /preview el eje de reservas viene siempre sin medir. */
+  variacionConsumo: InformeVariacionConsumo | null;
+}
+
+export interface InformeAhorro {
+  cat: string;
+  /** Mediana de los meses previos al quiebre. Se llama `pico` por compatibilidad, no es un maximo. */
+  pico: number;
+  picoMes: string;
+  fin: number;
+  finMes: string;
+  /** Tasa MENSUAL observada. */
+  dif: number;
+  mesesSostenido: number;
+  /** `null` cuando la caida no lleva 3 meses cerrados: no se publica ninguna cifra anualizada. */
+  anualizada: number | null;
+}
+
+export interface InformeComparativa {
+  a: string;
+  b: string;
+  /** [servicio, monto del mes base, monto del mes comparado]. */
+  filas: FilaInforme[];
+}
+
+// ---- fact.variacionConsumo: los tres baldes de la atribucion (entrega 2d) ----
+
+export interface InformeVariacionConsumo {
+  reservas: InformeReservas;
+  /** `null` = la ventana fija no alcanza (menos de seis meses no parciales en el rango). */
+  atribucion: InformeAtribucion | null;
+  /** Viaja junto con `atribucion`: null a la vez que ella, nunca un total sin sus baldes. */
+  variacionTotal: number | null;
+}
+
+export interface InformeReservas {
+  /** false = el eje no se leyo. Las cifras de abajo son cero porque no hay nada medido. */
+  medido: boolean;
+  /** Redactado por la API para el caso exacto (incluido "se pide aparte"): se muestra tal cual. */
+  motivo: string;
+  errores: unknown[];
+  alertDays: number;
+  ahorroConfirmado: number;
+  confirmados: InformeReservaRecurso[];
+  estimados: InformeReservaEstimado[];
+  discrepancias: InformeReservaDiscrepancia[];
+  /** Balde 1, medido sobre la ventana del informe (no desde el inicio de cada reserva). */
+  aporteAlPeriodo: number;
+  recursosQueExplicanElPeriodo: string[];
+  /** > 0 significa que las cifras confirmadas estan INCOMPLETAS, no que no haya ahorro. */
+  reservasConConsumidoresNoLeidos: number;
+}
+
+export interface InformeReservaRecurso {
+  resourceName: string | null;
+  resourceGroup: string | null;
+  subscriptionId: string | null;
+  reservationId: string | null;
+  reservationName: string | null;
+  term: string | null;
+  inicioReserva: string | null;
+  usedHours: number;
+  utilizationLast: string | null;
+  utilization7d: string | null;
+  expiring: boolean;
+  tarifaAntesPorHora: number | null;
+  tarifaDespuesPorHora: number | null;
+  /** `null` = no se pudo calcular (ver `motivoSinCalcular`), nunca "ahorro cero". */
+  ahorro: number | null;
+  motivoSinCalcular: string | null;
+  explicaElPeriodo: boolean;
+  /** `null` cuando la reserva no explica nada dentro del periodo: no aplica, no es cero. */
+  aporteAlPeriodo: number | null;
+}
+
+export interface InformeReservaEstimado {
+  reservationId: string | null;
+  nombre: string | null;
+  producto: string | null;
+  region: string | null;
+  term: string | null;
+  unidadesEstimadas: number;
+  /** true = estas unidades son estimadas porque la lectura fallo, no porque nadie las consuma. */
+  consumidoresNoLeidos: boolean;
+}
+
+export interface InformeReservaDiscrepancia {
+  resourceName: string | null;
+  resourceGroup: string | null;
+  subscriptionId: string | null;
+  reservationId: string | null;
+  detalle: string;
+}
+
+export interface InformeAtribucion {
+  porRecomendacion: InformeBalde;
+  sinAtribuir: InformeSinAtribuir;
+  /** Magnitud POSITIVA de lo que crecio (los baldes de crecimiento son negativos por convencion). */
+  crecimiento: number;
+  variacionTotal: number;
+  excluidosPorReserva: InformeAtribucionRecurso[];
+}
+
+export interface InformeSinAtribuir {
+  dejoDeFacturar: InformeBalde;
+  vivoCuestaMenos: InformeBalde;
+  vivoCuestaMas: InformeBalde;
+  nuevo: InformeBalde;
+  total: number;
+}
+
+export interface InformeBalde {
+  /** Positivo = el gasto bajo, negativo = el gasto subio. Misma convencion en todos los baldes. */
+  total: number;
+  cantidad: number;
+  recursos: InformeAtribucionRecurso[];
+}
+
+export interface InformeAtribucionRecurso {
+  subscriptionId: string;
+  subscriptionName: string;
+  resourceGroup: string;
+  resourceName: string;
+  baseAvg: number;
+  finAvg: number;
+  delta: number;
+  recomendaciones: string[];
+}
+
+// ---- tickets: operacion (mesa de servicio) ----
+
+export interface InformeOperacion {
+  n: number;
+  cumple: number;
+  noCumple: number;
+  /** Tercer estado explicito: no se fuerza a "cumple" lo que nadie evaluo. */
+  sinEvaluar: number;
+  pct: number;
+  /** Denominador declarado de `pct` (cumple + noCumple), nunca el total. */
+  denominadorPct: number;
+  cerrados: number;
+  media: number;
+  mediana: number;
+  p90: number;
+  mediaOk: number;
+  /** La mesa reporto duraciones en dias y se convirtieron a horas. */
+  enDias: boolean;
+  cats: InformeOperacionCategoria[];
+  /** [mes, total del mes, fuera de SLA del mes]. */
+  meses: FilaInforme[];
+  racha: number;
+  rachaCasos: number;
+  frentes: InformeOperacionFrente[];
+  nFrentes: number;
+  nFrentesR: number;
+  casosR: number;
+  /** Casos sin subcategoria: excluidos del numerador proactivo, contados aca para que se vea. */
+  casosSinSubcategoria: number;
+  /** [horario, cantidad]. */
+  hor: FilaInforme[];
+  desde: string | null;
+  hasta: string | null;
+  /** [caso, fecha, categoria, subcategoria, SLA h, duracion h]. */
+  fuera: FilaInforme[];
+  /** [caso, fecha, categoria, subcategoria, SLA h, duracion h, "SI"/"NO"/"SIN EVALUAR", horario]. */
+  lista: FilaInforme[];
+}
+
+export interface InformeOperacionCategoria { n: string; c: number; f: number; med: number }
+export interface InformeOperacionFrente { n: string; c: number; r: boolean }
+
+// ---- rbac: seguridad ----
+
+export interface InformeSeguridad {
+  n: number;
+  nu: number;
+  ns: number;
+  ids: number;
+  idsU: number;
+  idsS: number;
+  /** [suscripcion, asignaciones de usuario, asignaciones de service principal]. */
+  subs: FilaInforme[];
+  /** [rol, cantidad, 1 si es privilegiado / 0 si no]. */
+  roles: FilaInforme[];
+  rolesSp: FilaInforme[];
+  owner: number;
+  uaa: number;
+  contrib: number;
+  priv: number;
+  /** `null` = el ultimo inicio de sesion no se pudo leer (ver `ultimoLoginMedido`), nunca cero. */
+  sinLogin: number | null;
+  ultimoLoginMedido: boolean;
+  /** `null` = Graph no resolvio nombres (mismo eje que `estadoCuentaMedido`). */
+  sinNombre: number | null;
+  /** `null` = el estado de cuenta no se pudo leer (ver `estadoCuentaMedido`), nunca cero. */
+  disab: number | null;
+  estadoCuentaMedido: boolean;
+  spTop: FilaInforme | null;
+  find: InformeSeguridadHallazgo[];
+  crit: number;
+}
+
+export interface InformeSeguridadHallazgo { s: string; t: string; a: string; r: string; e: string }
+
+// ---- advisor: postura (Advisor + retiros de Azure) ----
+
+export interface InformePostura {
+  n: number;
+  tipos_rec: number;
+  cats: InformePosturaPilar[];
+  subs: InformePosturaConteo[];
+  tipos: InformePosturaConteo[];
+  /** [recomendacion, pilar, impacto, recursos]. */
+  top: FilaInforme[];
+  topSum: number;
+  /** [recomendacion, pilar, impacto, suscripcion, recursos]. */
+  det: FilaInforme[];
+  nRes: number;
+  recomendacionesConRecurso: number;
+  high: number;
+  medium: number;
+  low: number;
+  bruto: number;
+  real: number;
+  descarte: number;
+  nSav: number;
+  savLineas: InformePosturaLineaAhorro[];
+  /** Suscripcion -> compromiso. La CLAVE llega normalizada por la API. */
+  porSub: Record<string, { ri: number; sp: number }>;
+  rets: InformePosturaRetiro[];
+  vencidos: number;
+  proximos: number;
+  /** El cliente gestiona su seguridad por fuera: el pilar 3 sale vacio a proposito. */
+  seguridadGestionadaExternamente: boolean;
+  seguridadGestionadaNota: string | null;
+}
+
+export interface InformePosturaPilar { n: string; c: number; h: number; m: number; l: number }
+export interface InformePosturaConteo { n: string; c: number }
+export interface InformePosturaLineaAhorro {
+  rec: string; sub: string; monto: number; tipo: string;
+  /** Si esta linea entra en el ahorro realizable (reserva y savings plan no se suman entre si). */
+  contada: boolean;
+}
+export interface InformePosturaRetiro {
+  f: string; d: string | null; c: number; est: string;
+  vencido: boolean; proximoATresMeses: boolean;
+}
+
+// ---- matriz: roadmap (matriz WAF) ----
+
+export interface InformeRoadmap {
+  n: number;
+  items: InformeRoadmapItem[];
+  amb: InformeRoadmapAmbito[];
+  cerrados: number;
+  curso: number;
+  sinIniciar: number;
+  avance: number;
+  /** `null` = el esfuerzo no esta medido (la columna de horas llega en la entrega 4), nunca 0 h. */
+  horas: number | null;
+}
+
+export interface InformeRoadmapItem {
+  a: string; t: string; f: string | null; i: number; p: string | null;
+  /** `null` = esfuerzo no medido, nunca "cero esfuerzo". */
+  e: number | null;
+  v: number; n: number; g: string | null;
+}
+
+export interface InformeRoadmapAmbito { n: string; c: number; rec: number; av: number }
+
+/**
+ * Cuerpo de las DOS fases de la vista previa (mismo cuerpo para las dos, o medirian ventanas
+ * distintas). Snake_case porque es lo que bindea PreviewRequest bajo la politica global.
+ *
+ * `corte` es un INSTANTE que la API resuelve a fecha de Guayaquil: hay que mandarlo al mediodia
+ * UTC ("...T12:00:00Z"), no a medianoche, o el corte retrocede un dia (Quito es UTC-5).
+ *
+ * `meses_parciales_forzados` es un tri-estado: `null` (o ausente) = la heuristica automatica de la
+ * API decide; `[]` = el consultor declara que no hay ningun mes parcial; una lista = exactamente
+ * esos meses.
+ */
+export interface InformeValorPreviewRequest {
+  period_start: string;
+  period_end: string;
+  corte: string;
+  meses_parciales_forzados: string[] | null;
+}

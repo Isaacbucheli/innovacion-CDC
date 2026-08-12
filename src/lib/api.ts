@@ -28,6 +28,9 @@ import type {
   FinOpsRefreshStatus,
   GenerateReportResponse,
   InformeValorEstado,
+  InformeValorModelo,
+  InformeValorPreviewRequest,
+  InformeVariacionConsumo,
   InsumoKind,
   InventoryRow,
   KqlQuery,
@@ -508,6 +511,31 @@ export const getInformeValorEstado = (clientId: number) =>
 
 export const borrarInsumoInformeValor = (clientId: number, kind: InsumoKind) =>
   request<void>(`/informe-valor/clients/${clientId}/insumos/${kind}`, { method: "DELETE" });
+
+/**
+ * Fase 1 de la vista previa: el modelo completo del informe, calculado sin persistir nada. Sale de
+ * la base propia y del insumo BITCOST, así que responde rápido.
+ *
+ * NO trae las reservas de Azure: `fact.variacionConsumo.reservas` viene con `medido: false` y un
+ * motivo que dice que el dato se pide aparte. Completarlo es de `previewVariacionConsumo` --
+ * usar el hook useInformePreview, que encadena las dos fases, en vez de llamar esto suelto.
+ */
+export const previewInformeValor = (clientId: number, body: InformeValorPreviewRequest) =>
+  request<InformeValorModelo>(`/informe-valor/clients/${clientId}/preview`, jsonOpts("POST", body));
+
+/**
+ * Fase 2: el bloque `fact.variacionConsumo` COMPLETO, con las reservas leídas en vivo contra Azure.
+ * Tarda entre 10 y 30 segundos (una llamada a Consumption por reserva activa, en secuencia).
+ *
+ * Reemplaza el bloque entero, no solo el eje de reservas: el balde de reservas le saca recursos a
+ * los otros dos ("gana la reserva"), así que las cifras de la fase 1 para esta sección son
+ * provisionales y no se muestran hasta que esta llamada vuelve.
+ *
+ * El cuerpo tiene que ser EL MISMO que el de la fase 1, o el bloque mide otra ventana.
+ */
+export const previewVariacionConsumo = (clientId: number, body: InformeValorPreviewRequest) =>
+  request<InformeVariacionConsumo>(
+    `/informe-valor/clients/${clientId}/preview/variacion-consumo`, jsonOpts("POST", body));
 
 /** Sube un insumo del informe de valor (multipart, campo "file"). Mismo patrón que uploadWafIngestion. */
 export async function subirInsumoInformeValor(
