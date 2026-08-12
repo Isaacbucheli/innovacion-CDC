@@ -30,7 +30,7 @@ const modelo: InformeValorModelo = {
     n: 12, tipos_rec: 3, cats: [], subs: [], tipos: [], top: [], topSum: 0, det: [],
     nRes: 0, recomendacionesConRecurso: 0, high: 0, medium: 0, low: 0,
     bruto: 30000, real: 24000, descarte: 6000, nSav: 4, savLineas: [], porSub: {},
-    rets: [], vencidos: 0, proximos: 0,
+    rets: [], vencidos: 0, proximos: 0, retirosMedido: true, retirosMotivo: null,
     seguridadGestionadaExternamente: false, seguridadGestionadaNota: null,
   },
 };

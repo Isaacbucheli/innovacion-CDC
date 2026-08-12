@@ -25,6 +25,12 @@ export default function SeccionOperacion({ t }: { t: InformeOperacion }) {
   }));
   const maxSerie = serie.reduce((m, s) => Math.max(m, s.Casos), 0);
   const proactivos = t.n - t.casosR - t.casosSinSubcategoria;
+  // El denominador de la proporción por frentes son los CLASIFICADOS: el frente residual "(sin
+  // subcategoría)" no es reactivo, pero tampoco proactivo, y contarlo del lado proactivo (que es lo
+  // que hace `nFrentes - nFrentesR`) publicaba 100 % de trabajo proactivo con un export sin
+  // subcategorías.
+  const frentesClasificados = t.nFrentesP + t.nFrentesR;
+  const frentesResiduales = t.nFrentes - frentesClasificados;
 
   const colsFuera: SimpleCol<FilaInforme>[] = [
     { key: "caso", label: "Caso", render: (r) => txt(r[0]) },
@@ -127,8 +133,16 @@ export default function SeccionOperacion({ t }: { t: InformeOperacion }) {
           <SimpleTable cols={colsCats} rows={t.cats.slice(0, 12)}
             empty="El insumo no trae categorías para este período." />
         </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Kpi label="Frentes" valor={fmtNum(t.nFrentes)} hint={`${fmtNum(t.nFrentesR)} reactivos`} tono="neutro" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <Kpi label="Frentes" valor={fmtNum(t.nFrentes)}
+            hint={`${fmtNum(t.nFrentesP)} proactivos · ${fmtNum(t.nFrentesR)} reactivos${frentesResiduales > 0 ? " · 1 sin clasificar" : ""}`}
+            tono="neutro" />
+          <Kpi label="Trabajo proactivo"
+            valor={t.n - t.casosSinSubcategoria > 0
+              ? fmtPct((Math.max(proactivos, 0) / t.n) * 100, 1)
+              : <SinMedir motivo="Ningún caso trae subcategoría: no hay nada que clasificar entre proactivo y reactivo. Un 0% acá diría que todo el trabajo nació de un incidente." />}
+            hint={`En volumen de casos, sobre los ${fmtNum(t.n)} del período. Por frentes clasificados: ${frentesClasificados > 0 ? fmtPct((t.nFrentesP / frentesClasificados) * 100, 1) : "sin medir"}`}
+            tono="neutro" />
           <Kpi label="Casos reactivos" valor={fmtNum(t.casosR)} tono="neutro" />
           <Kpi label="Casos proactivos" valor={fmtNum(Math.max(proactivos, 0))}
             hint="Sin contar los casos sin subcategoría" tono="neutro" />
@@ -139,6 +153,8 @@ export default function SeccionOperacion({ t }: { t: InformeOperacion }) {
           <Aviso>
             {fmtNum(t.casosSinSubcategoria)} caso(s) no traen subcategoría. Quedan fuera del conteo
             proactivo en vez de caer ahí por descarte, que es lo que hacía la versión anterior del informe.
+            {frentesResiduales > 0 && " Los agrupa un frente residual que tampoco cuenta como proactivo: "
+              + "el porcentaje por frentes se calcula solo sobre los frentes clasificados."}
           </Aviso>
         )}
       </Seccion>

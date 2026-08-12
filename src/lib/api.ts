@@ -553,9 +553,18 @@ export const previewVariacionConsumo = (clientId: number, body: InformeValorPrev
 export const generarInformeValor = (clientId: number, body: InformeValorGenerarRequest) =>
   request<InformeValorEntrega>(`/informe-valor/clients/${clientId}/generar`, jsonOpts("POST", body));
 
-/** Las entregas archivadas de un cliente, de la más reciente a la más vieja. */
+/**
+ * Las entregas archivadas de un cliente, de la más reciente a la más vieja.
+ *
+ * El endpoint responde `{ entregas: [...] }`, no un arreglo pelado: se desenvuelve acá, igual que
+ * `translateWafTexts` con su `{ items }`. Leerlo como arreglo no lanzaba nada —TanStack recorre
+ * `data.length`, que en un objeto es `undefined`, así que el bucle no itera— y la tabla mostraba su
+ * texto de "este cliente todavía no tiene ninguna entrega generada": un hueco de plomería
+ * disfrazado de hecho del negocio, con la pestaña vacía incluso justo después de generar.
+ */
 export const getEntregasInformeValor = (clientId: number) =>
-  request<InformeValorEntrega[]>(`/informe-valor/clients/${clientId}/entregas`);
+  request<{ entregas: InformeValorEntrega[] }>(`/informe-valor/clients/${clientId}/entregas`)
+    .then((r) => r.entregas);
 
 /** Descarga autenticada del artefacto archivado (blob + <a download>, como el resto del producto). */
 export const descargarEntregaInformeValor = (clientId: number, entrega: InformeValorEntrega) =>

@@ -84,9 +84,17 @@ export default function SeccionPostura({ ad, corte }: { ad: InformePostura; cort
               ? `${(ad.recomendacionesConRecurso / ad.nRes).toFixed(1)} recomendaciones por recurso`
               : "Ninguna recomendación trae recurso identificado"}
             tono="neutro" />
-          <Kpi label="Retiros de Azure" valor={fmtNum(ad.rets.length)}
-            hint={`${fmtNum(ad.vencidos)} vencido(s) · ${fmtNum(ad.proximos)} a menos de 3 meses`}
-            tono={ad.vencidos > 0 ? "malo" : ad.proximos > 0 ? "aviso" : "neutro"} />
+          {/* Los retiros salen del módulo Boletín, que se sincroniza a mano y por cliente: un cero
+              acá puede ser "Azure no anunció nada sobre este parque" o "nadie fue a buscarlo", y el
+              modelo trae la señal para distinguirlos. */}
+          <Kpi label="Retiros de Azure"
+            valor={ad.retirosMedido
+              ? fmtNum(ad.rets.length)
+              : <SinMedir motivo={ad.retirosMotivo ?? "No se pudo determinar el estado de la sincronización del Boletín."} />}
+            hint={ad.retirosMedido
+              ? `${fmtNum(ad.vencidos)} vencido(s) · ${fmtNum(ad.proximos)} a menos de 3 meses`
+              : "El Boletín de Azure es la fuente de este eje"}
+            tono={ad.vencidos > 0 ? "malo" : ad.proximos > 0 || !ad.retirosMedido ? "aviso" : "neutro"} />
           <Kpi label="Concentración del backlog"
             valor={ad.n > 0 ? fmtPct((ad.topSum / ad.n) * 100) : <SinMedir motivo="Sin recomendaciones activas no hay backlog que concentrar." />}
             hint={`Las 15 recomendaciones más repetidas suman ${fmtNum(ad.topSum)} de ${fmtNum(ad.n)}: son 15 decisiones de estándar, no ${fmtNum(ad.topSum)} tareas sueltas`}
@@ -149,8 +157,12 @@ export default function SeccionPostura({ ad, corte }: { ad: InformePostura; cort
       </Seccion>
 
       <Seccion titulo="Retiros de Azure"
-        descripcion={`Clasificados contra la fecha de corte del informe (${corte}), no contra la fecha en que alguien abra este informe.`}>
-        <SimpleTable cols={colsRetiros} rows={ad.rets} empty="Ningún retiro de Azure alcanza a este cliente." />
+        descripcion={`Del módulo Boletín de la plataforma, clasificados contra la fecha de corte del informe (${corte}) y no contra la fecha en que alguien lo abra.`}>
+        {ad.retirosMotivo && <Aviso tono={ad.retirosMedido ? "info" : "aviso"}>{ad.retirosMotivo}</Aviso>}
+        <SimpleTable cols={colsRetiros} rows={ad.rets}
+          empty={ad.retirosMedido
+            ? "El Boletín no registra ningún retiro vigente sobre las suscripciones administradas de este cliente."
+            : "Sin medir: nadie buscó retiros para este cliente todavía, así que esta tabla vacía no dice que no haya."} />
       </Seccion>
 
       <Seccion titulo="Recomendaciones principales">

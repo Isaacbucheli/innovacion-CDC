@@ -1628,6 +1628,13 @@ export interface InformeOperacion {
   frentes: InformeOperacionFrente[];
   nFrentes: number;
   nFrentesR: number;
+  /**
+   * Frentes PROACTIVOS. No es `nFrentes - nFrentesR`: el frente residual "(sin subcategoria)" que
+   * agrega el calculo para que la suma cierre no es reactivo, asi que esa resta lo contaba como
+   * proactivo. `nFrentes - nFrentesP - nFrentesR` es el residual (0 o 1), y el denominador de
+   * cualquier proporcion por frentes son los clasificados (`nFrentesP + nFrentesR`).
+   */
+  nFrentesP: number;
   casosR: number;
   /** Casos sin subcategoria: excluidos del numerador proactivo, contados aca para que se vea. */
   casosSinSubcategoria: number;
@@ -1705,6 +1712,15 @@ export interface InformePostura {
   rets: InformePosturaRetiro[];
   vencidos: number;
   proximos: number;
+  /**
+   * Si alguien FUE A BUSCAR los retiros. `false` = `rets` esta vacio porque el modulo Boletin nunca
+   * sincronizo a este cliente, su ultima corrida fallo o esta en curso. Sin esto, "0 retiros" se lee
+   * igual cuando Azure no anuncio nada y cuando nadie miro, y el Boletin se sincroniza a mano.
+   */
+  retirosMedido: boolean;
+  /** Que aclarar del insumo de retiros, o null si la corrida cerro sin errores. Una corrida parcial
+   *  SI midio pero pudo dejar retiros afuera: eso es advertencia, no "sin medir". */
+  retirosMotivo: string | null;
   /** El cliente gestiona su seguridad por fuera: el pilar 3 sale vacio a proposito. */
   seguridadGestionadaExternamente: boolean;
   seguridadGestionadaNota: string | null;
@@ -1794,9 +1810,13 @@ export interface InformeValorGenerarRequest extends InformeValorPreviewRequest {
 }
 
 /**
- * Una entrega archivada, tal como la devuelven POST /generar y GET /entregas (EntregaResumen de la
- * API bajo la politica global de nombres, o sea snake_case; los VALORES de `bloques_publicados` son
- * claves camelCase y ninguna politica toca el contenido de un arreglo).
+ * Una entrega archivada (EntregaResumen de la API bajo la politica global de nombres, o sea
+ * snake_case; los VALORES de `bloques_publicados` son claves camelCase y ninguna politica toca el
+ * contenido de un arreglo).
+ *
+ * Los dos endpoints que la devuelven NO comparten forma: POST /generar responde un objeto plano (con
+ * campos extra que esta interfaz no declara, como `download_url` y el eje de reservas) y GET
+ * /entregas responde `{ entregas: [...] }`. `getEntregasInformeValor` desenvuelve el segundo.
  *
  * `bloques_publicados` es lo que el artefacto publica DE VERDAD, no lo que pidio quien genero: para
  * la variante interna son los seis siempre. Una lista vacia es una entrega legitima (el informe

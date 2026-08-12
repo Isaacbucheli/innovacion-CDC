@@ -104,7 +104,7 @@ function tickets(over: Partial<InformeOperacion> = {}): InformeOperacion {
     meses: [["2026-01", 20, 2], ["2026-02", 20, 2]],
     racha: 2, rachaCasos: 20,
     frentes: [{ n: "Backup", c: 10, r: true }],
-    nFrentes: 5, nFrentesR: 2, casosR: 12, casosSinSubcategoria: 3,
+    nFrentes: 5, nFrentesR: 2, nFrentesP: 2, casosR: 12, casosSinSubcategoria: 3,
     hor: [["Horario de oficina", 30]], desde: "2026-01-01", hasta: "2026-02-28",
     fuera: [["CAS-1", "2026-01-10", "Incidente", "Backup", 8, 30]],
     lista: [],
@@ -133,6 +133,26 @@ describe("SeccionOperacion", () => {
     render(<SeccionOperacion t={tickets()} />);
 
     expect(screen.getByText(/no se cuentan como proactivos por omisión/i)).toBeInTheDocument();
+  });
+
+  // El frente residual "(sin subcategoría)" no es reactivo, y `nFrentes - nFrentesR` lo contaba como
+  // proactivo: la proporción por frentes se calcula sobre los CLASIFICADOS.
+  it("no cuenta el frente residual como proactivo", () => {
+    // 6 proactivos, 3 reactivos, 1 residual: 6/9 = 66.7 %, no 7/10 = 70.0 %.
+    render(<SeccionOperacion t={tickets({ nFrentes: 10, nFrentesR: 3, nFrentesP: 6 })} />);
+
+    expect(screen.getByText(/por frentes clasificados: 66\.7%/i)).toBeInTheDocument();
+    expect(screen.queryByText(/70\.0%/)).toBeNull();
+    expect(screen.getByText(/1 sin clasificar/i)).toBeInTheDocument();
+  });
+
+  it("sin ningun caso con subcategoria no publica una proporcion de trabajo proactivo", () => {
+    render(<SeccionOperacion t={tickets({
+      n: 40, casosR: 0, casosSinSubcategoria: 40, nFrentes: 1, nFrentesR: 0, nFrentesP: 0,
+    })} />);
+
+    expect(screen.getByTitle(/no hay nada que clasificar/i)).toBeInTheDocument();
+    expect(screen.queryByText("0.0%")).toBeNull();
   });
 
   // Contrato F0: el informe entregado publica la tabla de TODOS los casos y esta vista tenía solo
@@ -214,7 +234,7 @@ function advisor(over: Partial<InformePostura> = {}): InformePostura {
     top: [["Redimensionar VMs", "Costos", "Alto", 12]], topSum: 12, det: [],
     nRes: 40, recomendacionesConRecurso: 48, high: 5, medium: 30, low: 16,
     bruto: 0, real: 0, descarte: 0, nSav: 0, savLineas: [], porSub: {},
-    rets: [], vencidos: 0, proximos: 0,
+    rets: [], vencidos: 0, proximos: 0, retirosMedido: true, retirosMotivo: null,
     seguridadGestionadaExternamente: false, seguridadGestionadaNota: null,
     ...over,
   };
@@ -253,6 +273,25 @@ describe("SeccionPostura", () => {
     expect(screen.getByText("Concentración del backlog")).toBeInTheDocument();
     expect(screen.getByText(/las 15 recomendaciones más repetidas suman 12 de 51/i)).toBeInTheDocument();
     expect(screen.getByText("Bajo")).toBeInTheDocument();
+  });
+
+  // Los retiros salen del módulo Boletín, que se sincroniza a mano y por cliente: "0 retiros" y
+  // "nadie fue a buscarlos" son dos hechos distintos y hasta acá salían iguales en las dos vistas.
+  it("sin corrida del boletin no afirma que no hay retiros", () => {
+    render(<SeccionPostura corte="31/7/2026" ad={advisor({
+      retirosMedido: false,
+      retirosMotivo: "El módulo Boletín todavía no sincronizó los anuncios de Azure para este cliente.",
+    })} />);
+
+    expect(screen.queryByText(/ningún retiro vigente/i)).toBeNull();
+    expect(screen.getByText(/todavía no sincronizó/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/todavía no sincronizó/i)).toBeInTheDocument();
+  });
+
+  it("con la corrida completa publica el cero de retiros como un hecho", () => {
+    render(<SeccionPostura ad={advisor({ retirosMedido: true, retirosMotivo: null })} corte="31/7/2026" />);
+
+    expect(screen.getByText(/no registra ningún retiro vigente/i)).toBeInTheDocument();
   });
 
   it("publica el backlog desagregado por suscripcion", () => {
