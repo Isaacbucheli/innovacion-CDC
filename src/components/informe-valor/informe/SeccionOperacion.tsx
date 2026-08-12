@@ -3,7 +3,7 @@ import ReportLine from "@/components/reports/ReportLine";
 import SimpleTable, { type SimpleCol } from "@/components/reports/SimpleTable";
 import { REPORT_COLORS } from "@/lib/report";
 import { etiquetaMes, fmtHoras, fmtNum, fmtPct, num, txt } from "@/lib/informeValor";
-import type { FilaInforme, InformeOperacion } from "@/types";
+import type { FilaInforme, InformeOperacion, InformeOperacionCategoria } from "@/types";
 import { Aviso, Kpi, Recorte, Seccion, SinMedir } from "./Piezas";
 
 /** Tope de filas por tabla en esta pantalla. Va con <Recorte>, nunca en silencio. */
@@ -33,6 +33,34 @@ export default function SeccionOperacion({ t }: { t: InformeOperacion }) {
     { key: "sub", label: "Subcategoría", render: (r) => txt(r[3]) || "(sin subcategoría)" },
     { key: "sla", label: "SLA", align: "right", render: (r) => fmtHoras(num(r[4])) },
     { key: "dur", label: "Duración", align: "right", render: (r) => fmtHoras(num(r[5])) },
+  ];
+
+  // El detalle completo (`lista`) es la tabla que el artefacto sí publica, con los tres estados de
+  // SLA en la séptima posición. Sin ella acá, el consultor aprobaba una entrega sin haber visto la
+  // tabla más larga que el cliente recibe.
+  const colsLista: SimpleCol<FilaInforme>[] = [
+    ...colsFuera,
+    {
+      key: "sla-estado", label: "Cumple SLA",
+      render: (r) => (txt(r[6]) === "SI"
+        ? <span className="text-primary">Sí</span>
+        : txt(r[6]) === "NO"
+          ? <span className="text-red-700 dark:text-red-400">No</span>
+          : <SinMedir motivo="La celda de cumplimiento llegó vacía: no cuenta ni a favor ni en contra." etiqueta="Sin evaluar" />),
+    },
+    { key: "horario", label: "Horario", render: (r) => txt(r[7]) || "(sin horario)" },
+  ];
+
+  // `f` y `med` por categoría: son las dos cifras que el artefacto rotula en su gráfico de
+  // categorías, y un gráfico de barras acá solo puede llevar una.
+  const colsCats: SimpleCol<InformeOperacionCategoria>[] = [
+    { key: "n", label: "Categoría", render: (c) => c.n },
+    { key: "c", label: "Casos", align: "right", render: (c) => fmtNum(c.c) },
+    {
+      key: "f", label: "Fuera de SLA", align: "right",
+      render: (c) => (c.f > 0 ? <span className="text-red-700 dark:text-red-400">{fmtNum(c.f)}</span> : "—"),
+    },
+    { key: "med", label: "Mediana de atención", align: "right", render: (c) => fmtHoras(c.med) },
   ];
 
   return (
@@ -91,6 +119,14 @@ export default function SeccionOperacion({ t }: { t: InformeOperacion }) {
           <ReportBars title="Casos por horario de atención" color={REPORT_COLORS.gold}
             data={t.hor.slice(0, 12).map((h) => ({ name: txt(h[0]), value: num(h[1]) }))} />
         </div>
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <ReportBars title="Frentes de trabajo por volumen" color={REPORT_COLORS.muted}
+            data={t.frentes.slice(0, 13).map((fr) => ({
+              name: `${fr.n}${fr.r ? " (reactivo)" : ""}`, value: fr.c,
+            }))} />
+          <SimpleTable cols={colsCats} rows={t.cats.slice(0, 12)}
+            empty="El insumo no trae categorías para este período." />
+        </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <Kpi label="Frentes" valor={fmtNum(t.nFrentes)} hint={`${fmtNum(t.nFrentesR)} reactivos`} tono="neutro" />
           <Kpi label="Casos reactivos" valor={fmtNum(t.casosR)} tono="neutro" />
@@ -113,6 +149,13 @@ export default function SeccionOperacion({ t }: { t: InformeOperacion }) {
             ? "Ningún caso tiene el SLA evaluado en este período."
             : "Ningún caso quedó fuera de SLA en este período."} />
         <Recorte mostradas={TOPE_FILAS} total={t.fuera.length} que="casos fuera de SLA" />
+      </Seccion>
+
+      <Seccion titulo="Detalle de todos los casos"
+        descripcion="La misma tabla que publica el informe entregado, con los tres estados de cumplimiento tal como los va a leer el cliente.">
+        <SimpleTable cols={colsLista} rows={t.lista.slice(0, TOPE_FILAS)}
+          empty="El insumo no trae casos para este período." />
+        <Recorte mostradas={TOPE_FILAS} total={t.lista.length} que="casos" />
       </Seccion>
     </div>
   );

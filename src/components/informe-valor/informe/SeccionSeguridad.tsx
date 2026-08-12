@@ -1,7 +1,7 @@
 import ReportBars from "@/components/reports/ReportBars";
 import SimpleTable, { type SimpleCol } from "@/components/reports/SimpleTable";
 import { REPORT_COLORS } from "@/lib/report";
-import { fmtNum, num, txt } from "@/lib/informeValor";
+import { fmtNum, fmtPct, num, txt } from "@/lib/informeValor";
 import type { FilaInforme, InformeSeguridad, InformeSeguridadHallazgo } from "@/types";
 import { Aviso, Cifra, Kpi, Seccion } from "./Piezas";
 
@@ -108,6 +108,15 @@ export default function SeccionSeguridad({ rb, origen }: { rb: InformeSeguridad;
           rows={rb.subs}
           empty="El insumo de RBAC no alcanza ninguna suscripción."
         />
+        {/* La suscripción que concentra la automatización: el informe entregado la destaca con
+            nombre, y sin esto el consultor aprobaba esa frase sin verla. `spTop` es null cuando no
+            hay ninguna asignación de service principal, que no es lo mismo que un cero. */}
+        {rb.spTop !== null && rb.ns > 0 && (
+          <p className="text-xs text-muted-foreground">
+            <strong>{txt(rb.spTop[0])}</strong> concentra {fmtNum(num(rb.spTop[2]))} de las {fmtNum(rb.ns)}{" "}
+            asignaciones de service principal, el {fmtPct((num(rb.spTop[2]) / rb.ns) * 100)} de toda la automatización.
+          </p>
+        )}
       </Seccion>
     </div>
   );

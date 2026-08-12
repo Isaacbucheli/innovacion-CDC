@@ -3,7 +3,7 @@ import SimpleTable, { type SimpleCol } from "@/components/reports/SimpleTable";
 import { REPORT_COLORS } from "@/lib/report";
 import { fmtNum, fmtPct } from "@/lib/informeValor";
 import { fmtDateOnly } from "@/lib/dates";
-import type { InformeRoadmap, InformeRoadmapItem } from "@/types";
+import type { InformeRoadmap, InformeRoadmapAmbito, InformeRoadmapItem } from "@/types";
 import { Aviso, Cifra, Kpi, Recorte, Seccion, SinMedir } from "./Piezas";
 
 /** Tope de filas de la tabla de hallazgos. Va con <Recorte>, nunca en silencio. */
@@ -58,6 +58,19 @@ export default function SeccionRoadmap({ mz }: { mz: InformeRoadmap }) {
           <ReportBars title="Avance promedio por ámbito (%)" color={REPORT_COLORS.gold} unit="%"
             data={mz.amb.map((a) => ({ name: a.n, value: a.av }))} />
         </div>
+        {/* Hallazgos y recomendaciones asociadas son dos cifras distintas por ámbito. Van las dos, en
+            columnas propias: un gráfico solo puede llevar una y el rótulo de una describiendo a la
+            otra es el defecto que este módulo ya pagó una vez. */}
+        <SimpleTable
+          cols={[
+            { key: "n", label: "Ámbito", render: (a: InformeRoadmapAmbito) => a.n },
+            { key: "c", label: "Hallazgos", align: "right", render: (a) => fmtNum(a.c) },
+            { key: "rec", label: "Recomendaciones de Advisor", align: "right", render: (a) => fmtNum(a.rec) },
+            { key: "av", label: "Avance", align: "right", render: (a) => fmtPct(a.av, 0) },
+          ]}
+          rows={mz.amb}
+          empty="La matriz no agrupa hallazgos en ningún ámbito."
+        />
         <p className="text-sm">
           Avance promedio del roadmap: <strong className="tabular-nums">{fmtPct(mz.avance, 0)}</strong>.
         </p>

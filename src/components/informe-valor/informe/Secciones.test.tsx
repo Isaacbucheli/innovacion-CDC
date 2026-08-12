@@ -83,6 +83,17 @@ describe("SeccionConsumo", () => {
 
     expect(screen.queryByText(/nombres de categoría llegan normalizados/i)).toBeNull();
   });
+
+  // D11: la identidad de un recurso es la terna suscripción + grupo + nombre (`nIds`). `nRecursos`
+  // cuenta por nombre global y colapsa homónimos de suscripciones distintas: es el conteo que D11
+  // rechaza, y el informe entregado nunca lo publicó. Publicarlo acá dejaba dos cifras distintas
+  // rotuladas "recursos", una por renderizador.
+  it("cuenta los recursos por la terna y no por nombre global", () => {
+    render(<SeccionConsumo fact={fact()} catSerie={null} />);
+
+    expect(screen.getAllByText("340").length).toBeGreaterThan(0);
+    expect(screen.queryByText("320")).toBeNull();
+  });
 });
 
 function tickets(over: Partial<InformeOperacion> = {}): InformeOperacion {
@@ -123,6 +134,25 @@ describe("SeccionOperacion", () => {
 
     expect(screen.getByText(/no se cuentan como proactivos por omisión/i)).toBeInTheDocument();
   });
+
+  // Contrato F0: el informe entregado publica la tabla de TODOS los casos y esta vista tenía solo
+  // los que quedaron fuera de SLA. El consultor aprobaba la entrega sin haber visto la tabla más
+  // larga que recibe el cliente.
+  it("publica el detalle de todos los casos con los tres estados de cumplimiento", () => {
+    render(<SeccionOperacion t={tickets({
+      lista: [["CAS-9", "2026-01-11", "Incidente", "", 8, 2, "SIN EVALUAR", "Fuera de horario"]],
+    })} />);
+
+    expect(screen.getByText("CAS-9")).toBeInTheDocument();
+    expect(screen.getByTitle(/no cuenta ni a favor ni en contra/i)).toBeInTheDocument();
+  });
+
+  it("publica la mediana y los casos fuera de SLA de cada categoria", () => {
+    render(<SeccionOperacion t={tickets()} />);
+
+    expect(screen.getByText("Mediana de atención")).toBeInTheDocument();
+    expect(screen.getByText("7.0 h")).toBeInTheDocument();
+  });
 });
 
 function rbac(over: Partial<InformeSeguridad> = {}): InformeSeguridad {
@@ -158,6 +188,20 @@ describe("SeccionSeguridad", () => {
   it("dice de que fuente salieron los permisos", () => {
     render(<SeccionSeguridad rb={rbac()} origen="archivo" />);
     expect(screen.getByText(/fuente: archivo subido/i)).toBeInTheDocument();
+  });
+
+  // Contrato F0: el informe entregado nombra la suscripción que concentra la automatización. `spTop`
+  // es null cuando no hay ninguna asignación de service principal, que no es un cero.
+  it("nombra la suscripcion que concentra la automatizacion", () => {
+    render(<SeccionSeguridad rb={rbac({ spTop: ["Suscripción principal", 90, 24] })} origen="base" />);
+
+    expect(screen.getByText(/concentra 24 de las 30/i)).toBeInTheDocument();
+  });
+
+  it("sin asignaciones de service principal no dice nada de la automatizacion", () => {
+    render(<SeccionSeguridad rb={rbac({ spTop: null })} origen="base" />);
+
+    expect(screen.queryByText(/de toda la automatización/i)).toBeNull();
   });
 });
 
@@ -199,6 +243,24 @@ describe("SeccionPostura", () => {
     expect(screen.getAllByText("$9,000.00").length).toBeGreaterThan(0);
     expect(screen.getByText("$12,000.00")).toBeInTheDocument();
     expect(screen.getByText("No, excluyente")).toBeInTheDocument();
+  });
+
+  // Contrato F0: el desglose de impacto por pilar decide por dónde empezar y el informe entregado lo
+  // dibuja como barra segmentada; un gráfico de barras simple solo lleva el total, así que va en tabla.
+  it("publica el desglose de impacto por pilar y la concentracion del backlog", () => {
+    render(<SeccionPostura ad={advisor()} corte="31/7/2026" />);
+
+    expect(screen.getByText("Concentración del backlog")).toBeInTheDocument();
+    expect(screen.getByText(/las 15 recomendaciones más repetidas suman 12 de 51/i)).toBeInTheDocument();
+    expect(screen.getByText("Bajo")).toBeInTheDocument();
+  });
+
+  it("publica el backlog desagregado por suscripcion", () => {
+    render(<SeccionPostura corte="31/7/2026" ad={advisor({
+      det: [["Redimensionar VMs", "Costos", "Alto", "Suscripción secundaria", 7]],
+    })} />);
+
+    expect(screen.getByText("Suscripción secundaria")).toBeInTheDocument();
   });
 
   it("distingue un pilar de seguridad vacio de uno gestionado por fuera", () => {
@@ -250,5 +312,14 @@ describe("SeccionRoadmap", () => {
   it("publica las horas cuando si estan medidas", () => {
     render(<SeccionRoadmap mz={matriz({ horas: 120 })} />);
     expect(screen.getByText("120 h")).toBeInTheDocument();
+  });
+
+  // Hallazgos y recomendaciones asociadas son dos cifras distintas por ámbito: en el informe
+  // entregado el largo de la barra medía una y su rótulo nombraba la otra.
+  it("publica hallazgos y recomendaciones por ambito en columnas propias", () => {
+    render(<SeccionRoadmap mz={matriz()} />);
+
+    expect(screen.getAllByText("Hallazgos").length).toBeGreaterThan(0);
+    expect(screen.getByText("Recomendaciones de Advisor")).toBeInTheDocument();
   });
 });

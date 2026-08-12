@@ -1,11 +1,14 @@
 import ReportBars from "@/components/reports/ReportBars";
 import SimpleTable, { type SimpleCol } from "@/components/reports/SimpleTable";
 import { REPORT_COLORS } from "@/lib/report";
-import { MOTIVO_SIN_AHORRO_ADVISOR, fmtMonto, fmtNum, num, txt } from "@/lib/informeValor";
+import { MOTIVO_SIN_AHORRO_ADVISOR, fmtMonto, fmtNum, fmtPct, num, txt } from "@/lib/informeValor";
 import type {
-  FilaInforme, InformePostura, InformePosturaLineaAhorro, InformePosturaRetiro,
+  FilaInforme, InformePostura, InformePosturaLineaAhorro, InformePosturaPilar, InformePosturaRetiro,
 } from "@/types";
-import { Aviso, Kpi, Seccion, SinMedir } from "./Piezas";
+import { Aviso, Kpi, Recorte, Seccion, SinMedir } from "./Piezas";
+
+/** Tope de filas del backlog desagregado. Va con <Recorte>, nunca en silencio. */
+const TOPE_FILAS = 50;
 
 // El motivo vive en lib/informeValor: la pestaña de entrega publica el mismo texto para el mismo
 // vacío, y dos redacciones del mismo hueco son dos definiciones del mismo concepto.
@@ -36,6 +39,19 @@ export default function SeccionPostura({ ad, corte }: { ad: InformePostura; cort
         ? <span className="text-primary">Sí</span>
         : <span className="text-muted-foreground" title="Reserva y savings plan no se pueden comprar sobre el mismo cómputo: de las dos se toma la mayor.">No, excluyente</span>),
     },
+  ];
+
+  // El desglose de impacto por pilar (`h`/`m`/`l`) es lo que decide por dónde empezar, y es lo que el
+  // artefacto dibuja como barra segmentada. Un gráfico de barras simple acá solo lleva el total.
+  const colsPilares: SimpleCol<InformePosturaPilar>[] = [
+    { key: "n", label: "Pilar", render: (c) => c.n },
+    { key: "c", label: "Recomendaciones", align: "right", render: (c) => fmtNum(c.c) },
+    {
+      key: "h", label: "Alto", align: "right",
+      render: (c) => (c.h > 0 ? <span className="text-red-700 dark:text-red-400">{fmtNum(c.h)}</span> : "—"),
+    },
+    { key: "m", label: "Medio", align: "right", render: (c) => (c.m > 0 ? fmtNum(c.m) : "—") },
+    { key: "l", label: "Bajo", align: "right", render: (c) => (c.l > 0 ? fmtNum(c.l) : "—") },
   ];
 
   const colsRetiros: SimpleCol<InformePosturaRetiro>[] = [
@@ -71,6 +87,10 @@ export default function SeccionPostura({ ad, corte }: { ad: InformePostura; cort
           <Kpi label="Retiros de Azure" valor={fmtNum(ad.rets.length)}
             hint={`${fmtNum(ad.vencidos)} vencido(s) · ${fmtNum(ad.proximos)} a menos de 3 meses`}
             tono={ad.vencidos > 0 ? "malo" : ad.proximos > 0 ? "aviso" : "neutro"} />
+          <Kpi label="Concentración del backlog"
+            valor={ad.n > 0 ? fmtPct((ad.topSum / ad.n) * 100) : <SinMedir motivo="Sin recomendaciones activas no hay backlog que concentrar." />}
+            hint={`Las 15 recomendaciones más repetidas suman ${fmtNum(ad.topSum)} de ${fmtNum(ad.n)}: son 15 decisiones de estándar, no ${fmtNum(ad.topSum)} tareas sueltas`}
+            tono="neutro" />
         </div>
 
         {ad.seguridadGestionadaExternamente && (
@@ -87,6 +107,8 @@ export default function SeccionPostura({ ad, corte }: { ad: InformePostura; cort
           <ReportBars title="Recomendaciones por tipo de recurso" color={REPORT_COLORS.muted}
             data={ad.tipos.slice(0, 12).map((tp) => ({ name: tp.n, value: tp.c }))} />
         </div>
+        <SimpleTable cols={colsPilares} rows={ad.cats}
+          empty="Sin recomendaciones agrupadas por pilar." />
       </Seccion>
 
       <Seccion
@@ -142,6 +164,22 @@ export default function SeccionPostura({ ad, corte }: { ad: InformePostura; cort
           rows={ad.top}
           empty="Sin recomendaciones activas."
         />
+      </Seccion>
+
+      <Seccion titulo="Backlog desagregado por suscripción"
+        descripcion="Las mismas recomendaciones abiertas por suscripción: es la tabla que el informe entregado deja explorar con filtros.">
+        <SimpleTable
+          cols={[
+            { key: "rec", label: "Recomendación", render: (r: FilaInforme) => txt(r[0]) },
+            { key: "pilar", label: "Pilar", render: (r) => txt(r[1]) },
+            { key: "imp", label: "Impacto", render: (r) => txt(r[2]) },
+            { key: "sub", label: "Suscripción", render: (r) => txt(r[3]) },
+            { key: "n", label: "Recursos", align: "right", render: (r) => fmtNum(num(r[4])) },
+          ]}
+          rows={ad.det.slice(0, TOPE_FILAS)}
+          empty="Sin recomendaciones activas."
+        />
+        <Recorte mostradas={TOPE_FILAS} total={ad.det.length} que="filas de recomendación por suscripción" />
       </Seccion>
     </div>
   );

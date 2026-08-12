@@ -102,7 +102,11 @@ export default function SeccionConsumo({ fact, catSerie }: {
       >
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           <Kpi label="Gasto total" valor={fmtMonto(fact.total)} hint={`Período: ${fact.meses.length} mes(es) con datos`} />
-          <Kpi label="Recursos" valor={fmtNum(fact.nRecursos)} hint={`${fmtNum(fact.nRg)} grupos · ${fmtNum(fact.nCats)} categorías`} tono="neutro" />
+          {/* D11: la identidad de un recurso es la terna suscripción + grupo + nombre (`nIds`), la
+              misma que usa el informe entregado. `nRecursos` cuenta por nombre global, así que dos
+              homónimos en suscripciones distintas colapsan en uno: es el conteo que D11 rechaza y no
+              se publica en ninguno de los dos renderizadores. */}
+          <Kpi label="Recursos" valor={fmtNum(fact.nIds)} hint={`${fmtNum(fact.nRg)} grupos · ${fmtNum(fact.nCats)} categorías`} tono="neutro" />
           <Kpi label="Pico de recursos activos" valor={fmtNum(fact.picoAct)} hint={fact.picoMes ? `En ${etiquetaMes(fact.picoMes)}` : "Sin mes de pico"} tono="neutro" />
           <Kpi label="Bajas definitivas" valor={fmtNum(fact.bajasDef)} hint="Recursos que dejaron de facturar dentro del rango" tono="neutro" />
           <Kpi label="Carga mensual retirada" valor={fmtMonto(fact.cargaRet)} hint={fact.unidadCargaRet} />
@@ -290,7 +294,7 @@ export default function SeccionConsumo({ fact, catSerie }: {
         <div className="grid grid-cols-2 gap-4 rounded-xl border bg-card p-4 md:grid-cols-4">
           <Dato label="Suscripciones">{fmtNum(fact.subs.length)}</Dato>
           <Dato label="Grupos de recursos">{fmtNum(fact.nRg)}</Dato>
-          <Dato label="Identidades de recurso">{fmtNum(fact.nIds)}</Dato>
+          <Dato label="Recursos">{fmtNum(fact.nIds)}</Dato>
           <Dato label="Categorías">{fmtNum(fact.nCats)}</Dato>
         </div>
         <SimpleTable
