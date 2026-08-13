@@ -6,6 +6,7 @@ import type { InsumoKind } from "@/types";
 
 const TITULO: Record<InsumoKind, string> = {
   facturacion: "Subir el export de BITCOST",
+  evolucion: "Subir evolución por recurso (BITCOST)",
   casos: "Subir el Excel de la mesa de servicio",
   rbac: "Subir el reporte de RBAC",
 };

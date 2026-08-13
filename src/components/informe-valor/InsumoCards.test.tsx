@@ -270,3 +270,47 @@ describe("InsumoCards - RBAC", () => {
     expect(screen.queryByRole("button", { name: /opciones para/i })).toBeNull();
   });
 });
+
+// Cuarto insumo (entrega 5, tarea 9): evolución por recurso (export matriz del Power BI). Es un
+// insumo "plano" como facturación/casos -- la tarjeta genérica ya sabe dibujarlo, solo hace falta
+// la etiqueta.
+describe("InsumoCards - evolución", () => {
+  const evolucion: InsumoEstado = {
+    kind: "evolucion",
+    obligatorio: true,
+    cargado: false,
+    source_file_name: null,
+    cargado_en: null,
+    filas: 0,
+    status: null,
+    warnings: [],
+  };
+
+  it("muestra la tarjeta de evolución como obligatoria y faltante", () => {
+    render(
+      <InsumoCards
+        insumos={[evolucion]}
+        canEdit={false}
+        onSubir={() => {}}
+        onBorrar={() => {}}
+        onIrARevisionAccesos={() => {}}
+      />,
+    );
+    expect(screen.getByText("Evolución por recurso (BITCOST)")).toBeInTheDocument();
+    expect(screen.getByText("Obligatorio")).toBeInTheDocument();
+    expect(screen.getByText("Falta este archivo")).toBeInTheDocument();
+  });
+
+  it("un kind desconocido no revienta la pantalla (tolerancia de deploy)", () => {
+    render(
+      <InsumoCards
+        insumos={[{ ...evolucion, kind: "algo-nuevo" as InsumoEstado["kind"] }]}
+        canEdit={false}
+        onSubir={() => {}}
+        onBorrar={() => {}}
+        onIrARevisionAccesos={() => {}}
+      />,
+    );
+    expect(screen.getByText("algo-nuevo")).toBeInTheDocument();
+  });
+});

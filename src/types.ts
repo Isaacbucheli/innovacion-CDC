@@ -1310,7 +1310,7 @@ export interface MigracionSugerencia {
 }
 
 // ---- Informe de valor del servicio administrado (Entrega 1) ----
-export type InsumoKind = "facturacion" | "casos" | "rbac";
+export type InsumoKind = "facturacion" | "evolucion" | "casos" | "rbac";
 
 export interface InsumoEstado {
   kind: InsumoKind;
