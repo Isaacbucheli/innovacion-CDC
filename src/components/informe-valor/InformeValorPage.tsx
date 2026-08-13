@@ -24,6 +24,7 @@ import type { InformeValorEntrega, InsumoKind, VarianteInforme } from "@/types";
 
 const NOMBRE_INSUMO: Record<string, string> = {
   facturacion: "BITCOST (facturación)",
+  evolucion: "evolución por recurso (BITCOST)",
   casos: "casos de la mesa de servicio",
   rbac: "permisos (RBAC)",
 };

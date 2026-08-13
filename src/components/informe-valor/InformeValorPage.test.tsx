@@ -191,4 +191,24 @@ describe("InformeValorPage - el cable entre las pestanas", () => {
     irA("Entrega");
     expect(screen.getByText(/todavía no hay nada que entregar/i)).toBeInTheDocument();
   });
+
+  it("el banner de faltantes nombra a la evolución por su nombre legible", async () => {
+    vi.mocked(api.getInformeValorEstado).mockResolvedValue({
+      insumos: [
+        { kind: "facturacion", obligatorio: true, cargado: true, source_file_name: "insumo.xlsx", cargado_en: "2026-08-01T12:00:00Z", filas: 100, status: "ok", warnings: [] },
+        { kind: "evolucion", obligatorio: true, cargado: false, source_file_name: null, cargado_en: null, filas: 0, status: "ausente", warnings: [] },
+      ],
+      estado_rbac: {
+        disponibilidad: "completo", estado_cuenta_medido: true, ultimo_login_medido: true,
+        fecha_corrida: "2026-08-01T12:00:00Z", motivo: "La revisión de accesos resuelve el insumo.",
+        origen: "base",
+      },
+    });
+    montar();
+    await screen.findByRole("tab", { name: "Informe" });
+    irA("Informe");
+    await screen.findByRole("tab", { name: "Informe", selected: true });
+
+    expect(screen.getByText(/Falta el insumo de evolución por recurso \(BITCOST\)/)).toBeInTheDocument();
+  });
 });
