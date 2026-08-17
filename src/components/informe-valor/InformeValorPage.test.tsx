@@ -134,7 +134,7 @@ describe("InformeValorPage - el cable entre las pestanas", () => {
     await waitFor(() => expect(api.descargarEntregaInformeValor).toHaveBeenCalledWith(3, entrega));
   });
 
-  it("la interna se pide con los seis apagados y sin tocar los interruptores", async () => {
+  it("la interna se pide con los ocho apagados y sin tocar los interruptores", async () => {
     montar();
     await screen.findByRole("tab", { name: "Informe" });
     await calcularElInforme();
@@ -155,7 +155,7 @@ describe("InformeValorPage - el cable entre las pestanas", () => {
     irA("Entregas");
 
     expect(await screen.findByText("consultor@ejemplo")).toBeInTheDocument();
-    expect(screen.getByText("1 de 6")).toBeInTheDocument();
+    expect(screen.getByText("1 de 8")).toBeInTheDocument();
   });
 
   it("descarga una entrega vieja desde el historial", async () => {

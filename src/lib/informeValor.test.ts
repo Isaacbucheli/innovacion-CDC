@@ -161,6 +161,7 @@ describe("BLOQUES_ECONOMICOS", () => {
   it("usa las mismas claves camelCase que la API", () => {
     expect(BLOQUES_ECONOMICOS.map((b) => b.clave)).toEqual([
       "gastoTotal", "serieMensual", "composicionServicio", "ahorroActivo", "centroCosto", "ahorroAdvisor",
+      "ahorroEjecutado", "reservasFacturadas",
     ]);
   });
 
@@ -235,7 +236,7 @@ describe("resumenBloques", () => {
     expect(por("ahorroAdvisor").valor).toBe("$24,000.00");
   });
 
-  it("los seis salen apagados cuando no se aprobo ninguno", () => {
+  it("los ocho salen apagados cuando no se aprobo ninguno", () => {
     expect(resumenBloques(modeloConCifras(), []).every((f) => !f.aprobado)).toBe(true);
   });
 
@@ -278,9 +279,9 @@ describe("bloquesPublicadosTexto", () => {
     expect(bloquesPublicadosTexto([]).texto).toBe("Ninguno: sin montos");
   });
 
-  it("los seis se resumen y los parciales se cuentan", () => {
-    expect(bloquesPublicadosTexto(BLOQUES_ECONOMICOS.map((b) => b.clave)).texto).toBe("Los seis");
-    expect(bloquesPublicadosTexto(["gastoTotal", "centroCosto"]).texto).toBe("2 de 6");
+  it("los ocho se resumen como Todos y los parciales se cuentan", () => {
+    expect(bloquesPublicadosTexto(BLOQUES_ECONOMICOS.map((b) => b.clave)).texto).toBe("Todos");
+    expect(bloquesPublicadosTexto(["gastoTotal", "centroCosto"]).texto).toBe("2 de 8");
   });
 
   // Un bloque que esta versión del front no conoce no desaparece de la fila: la entrega publicó algo
@@ -289,6 +290,6 @@ describe("bloquesPublicadosTexto", () => {
     const r = bloquesPublicadosTexto(["gastoTotal", "bloqueNuevo"]);
     expect(r.desconocidas).toEqual(["bloqueNuevo"]);
     expect(r.etiquetas).toEqual(["Gasto total del período"]);
-    expect(r.texto).toBe("2 de 6");
+    expect(r.texto).toBe("2 de 8");
   });
 });

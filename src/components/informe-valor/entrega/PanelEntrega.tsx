@@ -2,21 +2,25 @@ import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fmtDateOnly } from "@/lib/dates";
 import {
-  BLOQUES_ECONOMICOS, FUERA_DE_LOS_SEIS, etiquetaMes, mismoCuerpo, resumenBloques,
+  BLOQUES_ECONOMICOS, FUERA_DE_LOS_OCHO, etiquetaMes, mismoCuerpo, resumenBloques,
   type BloqueEconomico,
 } from "@/lib/informeValor";
 import type { InformeValorEntrega, InformeValorModelo, InformeValorPreviewRequest, VarianteInforme } from "@/types";
 import { Aviso, Dato, SinMedir } from "../informe/Piezas";
 
 /**
- * La pestaña de entrega: qué se va a publicar, los seis interruptores y las dos descargas.
+ * La pestaña de entrega: qué se va a publicar, los ocho interruptores y las dos descargas.
  *
- * **Los seis bloques nacen apagados y apagar no es publicar un cero.** Un bloque apagado se OMITE:
+ * **Los ocho bloques nacen apagados y apagar no es publicar un cero.** Un bloque apagado se OMITE:
  * la sección sigue apareciendo en el artefacto con su relato en conteos y porcentajes, y donde iría
  * el monto la capa de dibujo escribe "No publicado". Es la diferencia entre no decir una cifra y
  * afirmarle a quien paga la factura que vale cero, y es el defecto que más veces apareció en este
  * módulo. Por eso la pantalla lo dice con palabras y cada interruptor apagado muestra qué deja de
  * viajar en vez de un espacio en blanco.
+ *
+ * **`ahorroEjecutado` es distinto a los otros siete**: desde la entrega 7 es el titular del informe
+ * (la sección que abre el relato). Apagarlo no es un interruptor más de la lista: el resumen previo
+ * a generar lo dice con todas las letras, no como la séptima casilla entre ocho.
  *
  * Dos cosas que la pantalla no deja hacer:
  *
@@ -118,6 +122,16 @@ export default function PanelEntrega({
             revisar el informe y el historial, pero no descargar una versión nueva.
           </Aviso>
         )}
+        {!aprobados.includes("ahorroEjecutado") && (
+          <Aviso>
+            <strong>
+              El bloque de ahorro ejecutado nace apagado como los demás, pero hoy es el titular del
+              informe: sin aprobarlo, la sección de ahorro ejecutado va a salir sin montos.
+            </strong>{" "}
+            El informe conserva su relato y sus conteos igual que con cualquier otro bloque apagado;
+            donde iría cada cifra, el informe del cliente dice “No publicado”.
+          </Aviso>
+        )}
       </section>
 
       <section className="space-y-3">
@@ -126,7 +140,7 @@ export default function PanelEntrega({
             Bloques económicos: {n} de {BLOQUES_ECONOMICOS.length} aprobados
           </h3>
           <p className="mt-0.5 max-w-3xl text-xs text-muted-foreground">
-            Los seis nacen apagados y se aprueban uno por uno. Que estén apagados no es un paso
+            Los ocho nacen apagados y se aprueban uno por uno. Que estén apagados no es un paso
             pendiente: es el informe sin montos, que es una entrega válida.
           </p>
         </div>
@@ -171,7 +185,7 @@ export default function PanelEntrega({
           ))}
         </div>
 
-        <Aviso tono="info">{FUERA_DE_LOS_SEIS}</Aviso>
+        <Aviso tono="info">{FUERA_DE_LOS_OCHO}</Aviso>
       </section>
 
       <section className="space-y-3">
@@ -199,13 +213,13 @@ export default function PanelEntrega({
         </div>
 
         <p className="max-w-3xl text-xs text-muted-foreground">
-          El informe interno lleva los seis bloques <strong>sin mirar los interruptores</strong>:
+          El informe interno lleva los ocho bloques <strong>sin mirar los interruptores</strong>:
           pedirlo es pedir el informe completo. Los interruptores solo gobiernan el informe del cliente.
         </p>
 
         {n === 0 && (
           <Aviso tono="info">
-            Con los seis apagados, el informe del cliente sale sin ningún monto: todas las secciones
+            Con los ocho apagados, el informe del cliente sale sin ningún monto: todas las secciones
             con sus conteos y porcentajes, y “No publicado” donde iría cada cifra. Es el default y es
             una entrega válida, no un informe a medias.
           </Aviso>
@@ -219,7 +233,7 @@ export default function PanelEntrega({
 
 /**
  * Qué publicó de verdad la última descarga. Sale de lo que la API archivó y no de lo que esta
- * pantalla pidió: la variante interna publica los seis aunque los interruptores estén apagados, y si
+ * pantalla pidió: la variante interna publica los ocho aunque los interruptores estén apagados, y si
  * alguna vez las dos listas dejaran de coincidir en la variante del cliente, acá se ve.
  */
 function UltimaEntrega({ entrega, pedidos }: { entrega: InformeValorEntrega; pedidos: BloqueEconomico[] }) {

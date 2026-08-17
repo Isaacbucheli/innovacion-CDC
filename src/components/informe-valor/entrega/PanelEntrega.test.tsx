@@ -6,7 +6,8 @@ import type { InformeValorEntrega, InformeValorModelo } from "@/types";
 
 const cuerpo = cuerpoPreview("2026-01", "2026-02", "2026-03-01", null);
 
-/** Un modelo con montos en los seis bloques: es lo que el consultor decide publicar o no. */
+/** Un modelo con montos en los seis bloques con cifra: es lo que el consultor decide publicar o
+ * no. `ejecutado` queda en null (los dos bloques nuevos se prueban por separado, sin cifra). */
 const modelo: InformeValorModelo = {
   meta: {
     cliente: "Cliente de prueba", periodo: "2026-01 a 2026-02", corte: "2026-03-01",
@@ -58,14 +59,23 @@ function renderPanel(props: Partial<React.ComponentProps<typeof PanelEntrega>> =
 }
 
 describe("PanelEntrega", () => {
-  // F1: los seis nacen apagados. Que estén apagados es una decisión válida, no un paso pendiente.
-  it("arranca con los seis bloques apagados", () => {
+  // F1: los ocho nacen apagados. Que estén apagados es una decisión válida, no un paso pendiente.
+  it("arranca con los ocho bloques apagados", () => {
     renderPanel();
 
     const casillas = screen.getAllByRole("checkbox");
-    expect(casillas).toHaveLength(6);
+    expect(casillas).toHaveLength(8);
     expect(casillas.every((c) => !(c as HTMLInputElement).checked)).toBe(true);
-    expect(screen.getByText(/0 de 6 aprobados/i)).toBeInTheDocument();
+    expect(screen.getByText(/0 de 8 aprobados/i)).toBeInTheDocument();
+  });
+
+  // Los dos bloques que entraron con la entrega 7 (el titular y las reservas facturadas) tienen que
+  // ofrecerse igual que los seis originales: la API los acepta desde el mismo POST.
+  it("ofrece los ocho bloques económicos", () => {
+    renderPanel();
+
+    expect(screen.getByLabelText(/Ahorro ejecutado/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Reservas facturadas/i)).toBeInTheDocument();
   });
 
   // El defecto más repetido del módulo, en su forma más peligrosa: un informe de cliente que dice
@@ -74,7 +84,7 @@ describe("PanelEntrega", () => {
     renderPanel();
 
     expect(screen.getByText(/un bloque apagado no publica un cero: lo omite/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/dice “No publicado” en su lugar/i).length).toBe(6);
+    expect(screen.getAllByText(/dice “No publicado” en su lugar/i).length).toBe(8);
   });
 
   it("cada bloque apagado dice que deja de viajar", () => {
@@ -100,16 +110,30 @@ describe("PanelEntrega", () => {
     expect(onAprobados).toHaveBeenCalledWith(["gastoTotal", "ahorroAdvisor"]);
   });
 
-  it("avisa que el informe del cliente sale sin ningun monto con los seis apagados", () => {
+  it("avisa que el informe del cliente sale sin ningun monto con los ocho apagados", () => {
     renderPanel();
     expect(screen.getByText(/sale sin ningún monto/i)).toBeInTheDocument();
   });
 
-  // La variación del consumo no la cubre ninguno de los seis interruptores y el exportador la
+  // La variación del consumo no la cubre ninguno de los ocho interruptores y el exportador la
   // recorta entera: el consultor la acaba de revisar y no tiene por qué adivinar que no viaja.
   it("declara lo que la variante del cliente no lleva nunca", () => {
     renderPanel();
-    expect(screen.getByText(/no la cubre ninguno de los seis bloques/i)).toBeInTheDocument();
+    expect(screen.getByText(/no la cubre ninguno de los ocho bloques/i)).toBeInTheDocument();
+  });
+
+  // El bloque de ahorro ejecutado nace apagado como los otros siete, pero desde la entrega 7 es el
+  // titular del informe: generar la variante del cliente sin aprobarlo deja la sección principal
+  // sin montos. El spec exige que esto se diga con todas las letras en el resumen previo, no como
+  // la séptima casilla de una lista de ocho.
+  it("avisa cuando la sección titular va sin montos", () => {
+    renderPanel({ aprobados: [] });
+    expect(screen.getByText(/la sección de ahorro ejecutado va a salir sin montos/i)).toBeInTheDocument();
+  });
+
+  it("no avisa cuando el titular está aprobado", () => {
+    renderPanel({ aprobados: ["ahorroEjecutado"] });
+    expect(screen.queryByText(/va a salir sin montos/i)).not.toBeInTheDocument();
   });
 
   it("dice que el informe interno ignora los interruptores", () => {
@@ -207,16 +231,19 @@ describe("PanelEntrega - lo que la ultima descarga publico de verdad", () => {
     expect(screen.getByText(/archivó bloques distintos a los aprobados/i)).toBeInTheDocument();
   });
 
-  it("la interna con los seis no se denuncia como discrepancia", () => {
+  it("la interna con los ocho no se denuncia como discrepancia", () => {
     renderPanel({
       aprobados: [],
       ultima: {
         ...entregaCliente, variante: "interna",
-        bloques_publicados: ["gastoTotal", "serieMensual", "composicionServicio", "ahorroActivo", "centroCosto", "ahorroAdvisor"],
+        bloques_publicados: [
+          "gastoTotal", "serieMensual", "composicionServicio", "ahorroActivo", "centroCosto",
+          "ahorroAdvisor", "ahorroEjecutado", "reservasFacturadas",
+        ],
       },
     });
 
     expect(screen.queryByText(/archivó bloques distintos/i)).toBeNull();
-    expect(screen.getByText(/6 bloque\(s\) con monto/i)).toBeInTheDocument();
+    expect(screen.getByText(/8 bloque\(s\) con monto/i)).toBeInTheDocument();
   });
 });

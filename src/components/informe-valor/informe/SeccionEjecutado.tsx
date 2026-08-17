@@ -49,6 +49,7 @@ export default function SeccionEjecutado({ ej }: { ej: InformeEjecutado }) {
     <Seccion
       titulo="Lo ejecutado y lo que acumula"
       descripcion="Cada acción de optimización ejecutada genera un ahorro mensual recurrente; el acumulado suma ese ahorro desde el mes en que se ejecutó, dentro de la ventana del informe."
+      bloque="ahorroEjecutado"
     >
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Ahorro acumulado" valor={fmtMonto(ej.total)} hint="Del período" />
