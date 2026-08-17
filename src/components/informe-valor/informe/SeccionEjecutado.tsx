@@ -61,7 +61,8 @@ export default function SeccionEjecutado({ ej }: { ej: InformeEjecutado }) {
         <Kpi
           label="Acciones ejecutadas"
           valor={fmtNum(ej.filas.length)}
-          hint={`${fmtMonto(ej.facturado)} medidos contra la facturación y ${fmtMonto(ej.estimado)} estimados por el catálogo`}
+          hint={`${fmtMonto(ej.facturado)} medidos contra la facturación y ${fmtMonto(ej.estimado)} estimados por el catálogo`
+            + (ej.sinMonto > 0 ? `, ${fmtNum(ej.sinMonto)} de ellas sin monto medible` : "")}
           tono="neutro"
         />
       </div>

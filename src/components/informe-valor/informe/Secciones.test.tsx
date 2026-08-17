@@ -490,6 +490,19 @@ describe("SeccionEjecutado", () => {
     expect(screen.getByText(/El barrido no se pudo leer/)).toBeInTheDocument();
     expect(screen.queryByText("$0.00")).not.toBeInTheDocument();
   });
+
+  // ej.sinMonto es el conteo de acciones sin monto medible (distinto de f.sinMonto, el motivo por
+  // fila): la plantilla HTML lo declara en su subtítulo y la vista interna no lo mostraba en
+  // ningún lado, así que el consultor veía una tabla simétrica donde el cliente veía una advertencia.
+  it("declara cuántas acciones no tienen monto medible cuando las hay", () => {
+    render(<SeccionEjecutado ej={{ ...ejecutadoDePrueba(), sinMonto: 3 }} />);
+    expect(screen.getByText(/3 de ellas sin monto medible/)).toBeInTheDocument();
+  });
+
+  it("no dice nada de acciones sin monto cuando el conteo es cero", () => {
+    render(<SeccionEjecutado ej={ejecutadoDePrueba()} />);
+    expect(screen.queryByText(/sin monto medible/)).not.toBeInTheDocument();
+  });
 });
 
 describe("SeccionCronologia", () => {
