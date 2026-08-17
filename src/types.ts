@@ -1971,7 +1971,7 @@ export interface InformeValorGenerarRequest extends InformeValorPreviewRequest {
  * /entregas responde `{ entregas: [...] }`. `getEntregasInformeValor` desenvuelve el segundo.
  *
  * `bloques_publicados` es lo que el artefacto publica DE VERDAD, no lo que pidio quien genero: para
- * la variante interna son los seis siempre. Una lista vacia es una entrega legitima (el informe
+ * la variante interna son los ocho siempre. Una lista vacia es una entrega legitima (el informe
  * salio sin montos), nunca "no se sabe".
  */
 export interface InformeValorEntrega {

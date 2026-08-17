@@ -543,7 +543,7 @@ export const previewVariacionConsumo = (clientId: number, body: InformeValorPrev
  * Genera el artefacto HTML, lo archiva y devuelve la entrega registrada (permiso Edit).
  *
  * Devuelve `bloques_publicados` con lo que el artefacto publica DE VERDAD, que no siempre es lo que
- * se pidió: la variante interna publica los seis sin mirar los interruptores. Quien llame tiene que
+ * se pidió: la variante interna publica los ocho sin mirar los interruptores. Quien llame tiene que
  * mostrar eso y no la lista que mandó.
  *
  * No baja el archivo: la descarga es siempre `descargarEntregaInformeValor` sobre la entrega

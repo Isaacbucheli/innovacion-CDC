@@ -59,7 +59,7 @@ function operacionProsa(t: InformeOperacion): string {
 /**
  * La vista de revisión del informe: el modelo dibujado con los componentes de gráficos del repo.
  *
- * Es la vista INTERNA y completa. Los seis bloques económicos se ven todos, con sus montos: la
+ * Es la vista INTERNA y completa. Los ocho bloques económicos se ven todos, con sus montos: la
  * selección de qué se publica es de la pestaña de entrega, no de acá. Los que van a poder apagarse
  * llevan la marca "Económico" para que el consultor sepa cuáles son antes de llegar a esa pantalla.
  *

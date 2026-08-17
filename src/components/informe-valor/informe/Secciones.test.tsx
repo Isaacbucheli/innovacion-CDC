@@ -401,21 +401,26 @@ describe("los ocho bloques economicos", () => {
   // El cable entre esta vista y la pestaña de entrega: los ocho bloques que se aprueban uno por uno
   // se nombran en BLOQUES_ECONOMICOS, y esta vista marca cada uno desde esa misma lista. Si alguien
   // agrega un bloque a la lista y no lo marca (o al revés), este test cae.
-  //
-  // `reservasFacturadas` queda declarado aparte: la vista React todavía no tiene una sección de
-  // reservas (solo la plantilla HTML del artefacto la dibuja, entrega 7). El día que esa sección
-  // exista en React, sumarla acá hace que este test vuelva a cubrir los ocho.
-  it("estan marcados en la vista, con la etiqueta de la lista compartida, salvo reservasFacturadas", () => {
+  it("estan marcados en la vista, con la etiqueta de la lista compartida", () => {
     render(<>
       <SeccionConsumo fact={fact()} catSerie={null} />
       <SeccionPostura ad={advisor()} corte="31/7/2026" opex={null} />
-      <SeccionEjecutado ej={ejecutadoDePrueba()} />
+      <SeccionEjecutado ej={ejecutadoDePrueba({
+        reservas: {
+          medido: true, motivo: null,
+          filas: [{
+            reservationId: "r1", vm: "vm-sql-01", sku: "Standard_D4s_v5", demanda: 400, reserva: 250,
+            ahorro: 150, compartida: false, vence: "2027-01-15", porVencer: false, nota: null,
+          }],
+          totalDemanda: 400, totalReserva: 250, totalAhorro: 150, ahorroAnualizado: 1800,
+          sinLineaEnEvolucion: [], consumidoresNoLeidos: 0,
+        },
+      })} />
     </>);
 
     const titulos = screen.getAllByText("Económico").map((b) => b.getAttribute("title") ?? "");
-    const marcadosEnReact = BLOQUES_ECONOMICOS.filter((b) => b.clave !== "reservasFacturadas");
-    expect(titulos).toHaveLength(marcadosEnReact.length);
-    for (const bloque of marcadosEnReact) {
+    expect(titulos).toHaveLength(BLOQUES_ECONOMICOS.length);
+    for (const bloque of BLOQUES_ECONOMICOS) {
       expect(titulos.some((t) => t.includes(bloque.etiqueta))).toBe(true);
     }
   });
@@ -508,6 +513,42 @@ describe("SeccionEjecutado", () => {
   it("no dice nada de acciones sin monto cuando el conteo es cero", () => {
     render(<SeccionEjecutado ej={ejecutadoDePrueba()} />);
     expect(screen.queryByText(/sin monto medible/)).not.toBeInTheDocument();
+  });
+
+  // Antes de esta tabla, un consultor solo veía el agregado de la fila de la pestaña de entrega
+  // (VM y ahorro/mes) y aprobaba `reservasFacturadas` sin poder revisar una sola fila.
+  it("publica la tabla de reservas con sus filas y sus totales", () => {
+    render(<SeccionEjecutado ej={ejecutadoDePrueba({
+      reservas: {
+        medido: true, motivo: null,
+        filas: [{
+          reservationId: "r1", vm: "vm-sql-01", sku: "Standard_D4s_v5", demanda: 400, reserva: 250,
+          ahorro: 150, compartida: false, vence: "2027-01-15", porVencer: true, nota: null,
+        }],
+        totalDemanda: 400, totalReserva: 250, totalAhorro: 150, ahorroAnualizado: 1800,
+        sinLineaEnEvolucion: ["Reserva sin match"], consumidoresNoLeidos: 2,
+      },
+    })} />);
+
+    expect(screen.getByText("vm-sql-01")).toBeInTheDocument();
+    expect(screen.getByText("Standard_D4s_v5")).toBeInTheDocument();
+    expect(screen.getByText("próxima a vencer")).toBeInTheDocument();
+    expect(screen.getByText(/\$1,800\.00 anualizado/)).toBeInTheDocument();
+    expect(screen.getByText(/Reserva sin match/)).toBeInTheDocument();
+    expect(screen.getByText(/2 reserva\(s\) no devolvieron su lista de consumidores/)).toBeInTheDocument();
+  });
+
+  it("sin las reservas medidas declara el motivo en vez de mostrar la tabla vacia", () => {
+    render(<SeccionEjecutado ej={ejecutadoDePrueba({
+      reservas: {
+        medido: false, motivo: "El archivo de evolución no trae líneas de reserva para este cliente.",
+        filas: [], totalDemanda: 0, totalReserva: 0, totalAhorro: 0, ahorroAnualizado: 0,
+        sinLineaEnEvolucion: [], consumidoresNoLeidos: 0,
+      },
+    })} />);
+
+    expect(screen.getByText(/El archivo de evolución no trae líneas de reserva/)).toBeInTheDocument();
+    expect(screen.queryByText("Reserva facturada (total)")).toBeNull();
   });
 });
 

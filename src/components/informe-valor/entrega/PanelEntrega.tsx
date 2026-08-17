@@ -126,7 +126,7 @@ export default function PanelEntrega({
           <Aviso>
             <strong>
               El bloque de ahorro ejecutado nace apagado como los demás, pero hoy es el titular del
-              informe: sin aprobarlo, la sección de ahorro ejecutado va a salir sin montos.
+              informe del cliente: sin aprobarlo, la sección de ahorro ejecutado va a salir sin montos.
             </strong>{" "}
             El informe conserva su relato y sus conteos igual que con cualquier otro bloque apagado;
             donde iría cada cifra, el informe del cliente dice “No publicado”.

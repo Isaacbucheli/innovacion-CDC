@@ -66,9 +66,9 @@ export function Kpi({ label, valor, hint, tono = "" }: {
  * pestaña de entrega: acá se ven siempre (esta es la vista interna), la marca solo anticipa cuál va
  * a poder apagarse al publicar.
  *
- * La etiqueta sale de `BLOQUES_ECONOMICOS`, que es la misma lista que va a gobernar los seis
+ * La etiqueta sale de `BLOQUES_ECONOMICOS`, que es la misma lista que va a gobernar los ocho
  * interruptores de la entrega: si esa lista cambia, cambia la marca, y no hay dos vocabularios para
- * los mismos seis bloques.
+ * los mismos ocho bloques.
  */
 export function Seccion({ titulo, descripcion, bloque, acciones, children }: {
   titulo: string;
