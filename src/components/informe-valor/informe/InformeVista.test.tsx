@@ -59,6 +59,11 @@ describe("InformeVista", () => {
     render(<InformeVista modelo={vacio} variacion={null} faseReservas="cargando"
       errorReservas={null} onReintentarReservas={() => {}} />);
 
+    // M2 de la revisión final de la entrega 7: la vista abre en "Ejecutado" (SECCIONES[0]), no en
+    // "Consumo", así que el motivo de ese bloque es lo que se ve sin navegar.
+    expect(screen.getByText(/no es que no se haya ejecutado nada/i)).toBeInTheDocument();
+
+    irA("Consumo");
     expect(screen.getByText(/no es un gasto de cero/i)).toBeInTheDocument();
 
     irA("Operación");
@@ -80,6 +85,7 @@ describe("InformeVista", () => {
     render(<InformeVista modelo={vacio} variacion={null} faseReservas="cargando"
       errorReservas={null} onReintentarReservas={() => {}} />);
 
+    irA("Consumo"); // la vista abre en "Ejecutado" (M2): este panel vive en la pestaña de Consumo.
     expect(screen.getByText("Variación del consumo")).toBeInTheDocument();
     expect(screen.getByText(/leyendo las reservas del cliente contra azure/i)).toBeInTheDocument();
   });
@@ -118,7 +124,10 @@ describe("la cabecera de cuatro tarjetas (reunión del 2026-08-13)", () => {
     };
     const { rerender } = render(<InformeVista modelo={sinMedir} variacion={null} faseReservas="cargando"
       errorReservas={null} onReintentarReservas={() => {}} />);
-    expect(screen.getByText("El barrido no se pudo leer.")).toBeInTheDocument();
+    // El mismo motivo aparece dos veces desde M2 (la vista abre en "Ejecutado", SECCIONES[0]): una
+    // vez en la tarjeta del resumen de la reunión (siempre visible) y otra en el cuerpo de la
+    // sección, que ahora también está montada por defecto.
+    expect(screen.getAllByText("El barrido no se pudo leer.").length).toBeGreaterThan(0);
 
     const sinGasto: InformeValorModelo = { ...vacio, ejecutado: { ...ejecutadoBase, pctGasto: null } };
     rerender(<InformeVista modelo={sinGasto} variacion={null} faseReservas="cargando"

@@ -73,7 +73,10 @@ export default function InformeVista({ modelo, variacion, faseReservas, errorRes
   errorReservas: string | null;
   onReintentarReservas: () => void;
 }) {
-  const [seccion, setSeccion] = useState("consumo");
+  // M2 de la revisión final de la entrega 7: SECCIONES abre con "ejecutado" (el titular, decisión
+  // 2026-08-13), pero el estado inicial seguía apuntando a "consumo" -- la vista se abría en la
+  // segunda pestaña con la primera resaltada de mentira.
+  const [seccion, setSeccion] = useState("ejecutado");
   const { meta, ejecutado, opex, tickets, matriz, cronologia } = modelo;
 
   const colsCobertura: SimpleCol<InformeCoberturaSub>[] = [
