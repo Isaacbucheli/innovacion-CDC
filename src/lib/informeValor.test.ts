@@ -129,10 +129,11 @@ function modeloConCifras(over: Partial<InformeValorModelo> = {}): InformeValorMo
   return {
     meta: {
       cliente: "Cliente de prueba", periodo: "2026-01 a 2026-02", corte: "2026-03-01",
-      cobertura: { total: 0, suscripciones: [] }, rbacOrigen: null,
+      cobertura: { total: 0, suscripciones: [] }, rbacOrigen: null, conciliacion: null,
     },
     tickets: null, rbac: null, matriz: null,
     catSerie: { compute: { "2026-01": 300 }, storage: { "2026-01": 100 } },
+    ejecutado: null, opex: null, cronologia: null,
     fact: {
       filas: 10, filasEnRango: 8, total: 154000,
       meses: [["2026-01", 80000, 0], ["2026-02", 74000, 0]],
@@ -140,7 +141,7 @@ function modeloConCifras(over: Partial<InformeValorModelo> = {}): InformeValorMo
       subs: [], nRecursos: 0, nIds: 0, nRg: 0, nCats: 2, picoAct: 0, picoMes: null,
       serie: [], bajasDef: 0, cargaRet: 0, unidadCargaRet: "USD",
       prom: [], ahorro: null, comp: null, cc: [["Operaciones", 100000], ["TI", 54000]],
-      variacionConsumo: null,
+      variacionConsumo: null, unitario: [], mom: [],
     },
     advisor: {
       n: 12, tipos_rec: 3, cats: [], subs: [], tipos: [], top: [], topSum: 0, det: [],

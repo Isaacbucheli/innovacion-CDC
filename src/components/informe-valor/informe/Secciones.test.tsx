@@ -2,12 +2,15 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { BLOQUES_ECONOMICOS } from "@/lib/informeValor";
 import SeccionConsumo from "./SeccionConsumo";
+import SeccionCronologia from "./SeccionCronologia";
+import SeccionEjecutado from "./SeccionEjecutado";
 import SeccionOperacion from "./SeccionOperacion";
 import SeccionPostura from "./SeccionPostura";
 import SeccionRoadmap from "./SeccionRoadmap";
 import SeccionSeguridad from "./SeccionSeguridad";
 import type {
-  InformeConsumo, InformeOperacion, InformePostura, InformeRoadmap, InformeSeguridad,
+  InformeConsumo, InformeEjecutado, InformeOperacion, InformePostura, InformeRoadmap,
+  InformeSeguridad,
 } from "@/types";
 
 // Los fixtures están tipados contra el modelo real a propósito: si la API cambia la forma de un
@@ -24,7 +27,7 @@ function fact(over: Partial<InformeConsumo> = {}): InformeConsumo {
     bajasDef: 4, cargaRet: 1200, unidadCargaRet: "USD, suma del ultimo mes facturado de cada recurso dado de baja",
     prom: [["2026", 1, 80000, 80000]],
     ahorro: null, comp: null, cc: [["(sin asignar)", 154000]],
-    variacionConsumo: null,
+    variacionConsumo: null, unitario: [], mom: [],
     ...over,
   };
 }
@@ -360,5 +363,63 @@ describe("SeccionRoadmap", () => {
 
     expect(screen.getAllByText("Hallazgos").length).toBeGreaterThan(0);
     expect(screen.getByText("Recomendaciones de Advisor")).toBeInTheDocument();
+  });
+});
+
+function ejecutadoDePrueba(over: Partial<InformeEjecutado> = {}): InformeEjecutado {
+  return {
+    medido: true, motivo: null,
+    filas: [
+      {
+        fuente: "barrido", oportunidad: "Rightsizing de VMs", cat: "Costos",
+        sub: null, rg: "rg-produccion", rec: "vm-app-01", mes: "2026-02", fin: null,
+        monto: 500, fuenteMonto: "facturado", sinMonto: null, autoria: "declarada",
+      },
+    ],
+    serie: [["2026-01", 0, 0], ["2026-02", 500, 500]],
+    porOportunidad: [["Rightsizing de VMs", 500]],
+    catAcum: { Costos: { "2026-01": 0, "2026-02": 500 } },
+    total: 500, tasaVigente: 500, pctGasto: 2.4,
+    facturado: 500, estimado: 0, sinMonto: 0,
+    proyeccion: [["2026-03", 500, 1000]],
+    proyeccionFin: 3000,
+    reservas: {
+      medido: true, motivo: null, filas: [],
+      totalDemanda: 0, totalReserva: 0, totalAhorro: 0, ahorroAnualizado: 0,
+      sinLineaEnEvolucion: [], consumidoresNoLeidos: 0,
+    },
+    ejes: {
+      barridoMedido: true, barridoMotivo: null,
+      reservasMedidas: true, reservasMotivo: null, indeterminadas: 0,
+    },
+    ...over,
+  };
+}
+
+describe("SeccionEjecutado", () => {
+  it("la sección de lo ejecutado muestra el acumulado y sus acciones", () => {
+    render(<SeccionEjecutado ej={ejecutadoDePrueba()} />);
+    expect(screen.getByText(/Ahorro acumulado/i)).toBeInTheDocument();
+    expect(screen.getByText(/Rightsizing de VMs/)).toBeInTheDocument();
+  });
+
+  it("sin registro medido declara el motivo en vez de mostrar ceros", () => {
+    render(<SeccionEjecutado ej={{ ...ejecutadoDePrueba(), medido: false, motivo: "El barrido no se pudo leer." }} />);
+    expect(screen.getByText(/El barrido no se pudo leer/)).toBeInTheDocument();
+    expect(screen.queryByText("$0.00")).not.toBeInTheDocument();
+  });
+});
+
+describe("SeccionCronologia", () => {
+  it("la cronología no muestra notas internas y declara lo omitido", () => {
+    render(<SeccionCronologia cr={{
+      hitos: [{
+        fecha: "2026-03-10", campo: "completion_pct", antes: "0", despues: "40",
+        rec: "Instancias reservadas", codigo: "5.1", pilar: 5,
+      }],
+      omitidos: 2,
+    }} />);
+    expect(screen.getByText(/Avance al 40%/)).toBeInTheDocument();
+    expect(screen.getByText(/2 entradas/)).toBeInTheDocument();
   });
 });

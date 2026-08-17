@@ -10,10 +10,11 @@ const cuerpo = cuerpoPreview("2026-01", "2026-02", "2026-03-01", null);
 const modelo: InformeValorModelo = {
   meta: {
     cliente: "Cliente de prueba", periodo: "2026-01 a 2026-02", corte: "2026-03-01",
-    cobertura: { total: 0, suscripciones: [] }, rbacOrigen: "base",
+    cobertura: { total: 0, suscripciones: [] }, rbacOrigen: "base", conciliacion: null,
   },
   tickets: null, rbac: null, matriz: null,
   catSerie: { compute: { "2026-01": 300 } },
+  ejecutado: null, opex: null, cronologia: null,
   fact: {
     filas: 10, filasEnRango: 8, total: 154000,
     meses: [["2026-01", 80000, 0], ["2026-02", 74000, 0]],
@@ -21,6 +22,7 @@ const modelo: InformeValorModelo = {
     subs: [], nRecursos: 0, nIds: 0, nRg: 0, nCats: 1, picoAct: 0, picoMes: null,
     serie: [], bajasDef: 0, cargaRet: 1200, unidadCargaRet: "USD",
     prom: [], comp: null, cc: [["Operaciones", 154000]], variacionConsumo: null,
+    unitario: [], mom: [],
     ahorro: {
       cat: "compute", pico: 90000, picoMes: "2025-12", fin: 80000, finMes: "2026-01",
       dif: 10000, mesesSostenido: 4, anualizada: 120000,

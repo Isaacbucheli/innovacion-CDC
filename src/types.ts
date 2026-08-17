@@ -1415,6 +1415,137 @@ export interface InformeValorModelo {
   matriz: InformeRoadmap | null;
   /** Categoria -> mes ("aaaa-MM") -> monto. Claves de categoria normalizadas por la API. */
   catSerie: Record<string, Record<string, number>> | null;
+  /** El titular del informe (entrega 6/7): el acumulado de las acciones de optimizacion
+   * ejecutadas, modelo de la PPT de MERCANTIL. `null` = sin barrido, sin matriz y sin reservas. */
+  ejecutado: InformeEjecutado | null;
+  /** Score del pilar de costos de Azure Advisor, con su evolucion mensual. Clave de nivel superior
+   * y no anidada en `advisor`: un cliente puede tener score sin recomendaciones activas. */
+  opex: InformeOpex | null;
+  /** Linea de tiempo derivada de la bitacora de la matriz de mejoras, ya filtrada por lista blanca
+   * de campos publicables. `null` = sin hitos publicables (no cuelga de `matriz`). */
+  cronologia: InformeCronologia | null;
+}
+
+/** Score del pilar de costos de Azure Advisor. `medido`=false con `motivo` cuando no hay snapshot
+ * o el snapshot no trae el pilar: la tarjeta dice "sin medicion", nunca 0%. */
+export interface InformeOpex {
+  actual: number | null;
+  /** Fecha del snapshot, "aaaa-MM-dd". */
+  fecha: string | null;
+  estado: string | null;
+  /** [mes "aaaa-MM", score] por punto mensual, orden cronologico. */
+  serie: FilaInforme[];
+  medido: boolean;
+  motivo: string | null;
+}
+
+/** Un hito de la cronologia. Solo los tres campos de la lista blanca llegan aca (`completion_pct`,
+ * `remediation_start_date`, `remediation_end_date`): las notas internas y la bitacora de ejecucion
+ * nunca viajan, ni siquiera en la variante interna. */
+export interface InformeHito {
+  /** "aaaa-MM-dd". */
+  fecha: string;
+  campo: string;
+  antes: string | null;
+  despues: string | null;
+  rec: string;
+  codigo: string | null;
+  pilar: number;
+}
+
+export interface InformeCronologia {
+  hitos: InformeHito[];
+  /** Cuantas entradas de la bitacora quedaron fuera por no estar en la lista blanca: se publica
+   * para que nadie lea una cronologia corta como "no paso nada". */
+  omitidos: number;
+}
+
+/** Una accion de optimizacion ejecutada: la unidad de la PPT de MERCANTIL. */
+export interface InformeAccionEjecutada {
+  /** "barrido" | "matriz" | "reserva". */
+  fuente: string;
+  oportunidad: string;
+  cat: string;
+  sub: string | null;
+  rg: string | null;
+  rec: string | null;
+  /** "aaaa-MM". */
+  mes: string;
+  /** "aaaa-MM": solo reservas (vencimiento). */
+  fin: string | null;
+  /** Ya redondeado. `null` = sin monto, con `sinMonto` declarando por que. */
+  monto: number | null;
+  /** "facturado" | "estimado" | null. */
+  fuenteMonto: string | null;
+  sinMonto: string | null;
+  /** "declarada" | "automatica" | "indeterminada". */
+  autoria: string;
+}
+
+/** Que ejes del registro se pudieron medir: el informe declara, no rellena. */
+export interface InformeEjes {
+  barridoMedido: boolean;
+  barridoMotivo: string | null;
+  reservasMedidas: boolean;
+  reservasMotivo: string | null;
+  /** Filas con autoria indeterminada. */
+  indeterminadas: number;
+}
+
+export interface InformeReservaVm {
+  reservationId: string | null;
+  vm: string;
+  sku: string | null;
+  demanda: number | null;
+  reserva: number;
+  ahorro: number | null;
+  compartida: boolean;
+  vence: string | null;
+  porVencer: boolean;
+  nota: string | null;
+}
+
+export interface InformeReservasFacturadas {
+  medido: boolean;
+  motivo: string | null;
+  filas: InformeReservaVm[];
+  totalDemanda: number;
+  totalReserva: number;
+  totalAhorro: number;
+  ahorroAnualizado: number;
+  sinLineaEnEvolucion: string[];
+  consumidoresNoLeidos: number;
+}
+
+/**
+ * El titular del informe (decision 2026-08-13): el acumulado de lo ejecutado, modelo de la PPT de
+ * MERCANTIL. `medido` es true en cuanto CUALQUIER eje aporta algo que mostrar; `motivo` declara
+ * cada eje que fallo aunque el conjunto si produzca cifra (ver `ejes`).
+ */
+export interface InformeEjecutado {
+  medido: boolean;
+  motivo: string | null;
+  filas: InformeAccionEjecutada[];
+  /** [mes "aaaa-MM", tasa vigente, acumulado]. */
+  serie: FilaInforme[];
+  /** [oportunidad, acumulado del rango] ordenado descendente. */
+  porOportunidad: FilaInforme[];
+  /** categoria -> (mes -> tasa vigente de esa categoria). */
+  catAcum: Record<string, Record<string, number>>;
+  /** Acumulado del ultimo mes del rango. */
+  total: number;
+  /** Tasa del ultimo mes del rango. */
+  tasaVigente: number;
+  /** Tarjeta 1 del resumen: total/gasto, 1 decimal. `null` si el gasto no es medible. */
+  pctGasto: number | null;
+  facturado: number;
+  estimado: number;
+  sinMonto: number;
+  /** [mes, tasa proyectada, acumulado proyectado] desde el mes siguiente al corte hasta diciembre. */
+  proyeccion: FilaInforme[];
+  proyeccionFin: number | null;
+  reservas: InformeReservasFacturadas;
+  ejes: InformeEjes;
 }
 
 export interface InformeMeta {
@@ -1425,6 +1556,23 @@ export interface InformeMeta {
   cobertura: InformeCobertura;
   /** De que fuente salieron las filas de RBAC ("base" | "archivo"), o null si no hubo ninguna. */
   rbacOrigen: string | null;
+  /** Los dos archivos de facturacion (tabla de hechos vs. archivo de evolucion) conciliados mes a
+   * mes dentro del rango. `null` = sin el segundo archivo cargado, no hay nada que conciliar. */
+  conciliacion: InformeConciliacion | null;
+}
+
+/**
+ * Totales mensuales de la tabla de hechos contra los del archivo de evolucion, dentro del rango
+ * del informe. No se promedia ni se elige una fuente en silencio: si difieren mas alla del umbral,
+ * el informe lo declara con la cifra de cada fuente.
+ */
+export interface InformeConciliacion {
+  /** true solo cuando `difs` queda vacia: ningun mes supero su propio umbral. */
+  coincide: boolean;
+  /** [mes "aaaa-MM", total hechos, total evolucion, diferencia] -- solo meses con diferencia sobre
+   * el umbral. */
+  difs: FilaInforme[];
+  umbralTasa: number;
 }
 
 export interface InformeCobertura {
@@ -1475,6 +1623,10 @@ export interface InformeConsumo {
   cc: FilaInforme[];
   /** Fase 2: en la respuesta de /preview el eje de reservas viene siempre sin medir. */
   variacionConsumo: InformeVariacionConsumo | null;
+  /** [mes, recursos, monto, costo por recurso, parcial]. */
+  unitario: FilaInforme[];
+  /** [mes, reducciones, incrementos, neto, parcial]. */
+  mom: FilaInforme[];
 }
 
 export interface InformeAhorro {

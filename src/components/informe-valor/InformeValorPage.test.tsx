@@ -14,16 +14,17 @@ vi.mock("@/lib/auth", () => ({
 const modelo: InformeValorModelo = {
   meta: {
     cliente: "Cliente de prueba", periodo: "2025-09 a 2026-08", corte: "2026-08-12",
-    cobertura: { total: 0, suscripciones: [] }, rbacOrigen: "base",
+    cobertura: { total: 0, suscripciones: [] }, rbacOrigen: "base", conciliacion: null,
   },
   tickets: null, rbac: null, matriz: null, advisor: null, catSerie: null,
+  ejecutado: null, opex: null, cronologia: null,
   fact: {
     filas: 10, filasEnRango: 8, total: 154000,
     meses: [["2026-01", 80000, 0]],
     ultCompleto: "2026-01", parciales: [], autoParciales: [], parcialesInexistentes: [],
     subs: [], nRecursos: 0, nIds: 0, nRg: 0, nCats: 1, picoAct: 0, picoMes: null,
     serie: [], bajasDef: 0, cargaRet: 0, unidadCargaRet: "USD",
-    prom: [], ahorro: null, comp: null, cc: [], variacionConsumo: null,
+    prom: [], ahorro: null, comp: null, cc: [], variacionConsumo: null, unitario: [], mom: [],
   },
 };
 
