@@ -97,6 +97,58 @@ describe("SeccionConsumo", () => {
     expect(screen.getAllByText("340").length).toBeGreaterThan(0);
     expect(screen.queryByText("320")).toBeNull();
   });
+
+  // Tarea 9b: el costo por recurso deriva de fact.unitario. Recursos activos NO se dibuja en el
+  // mismo eje (ver el comentario del componente): normalizarlo junto al costo pondría en pantalla
+  // un número que no es el real.
+  it("con datos de costo por recurso dibuja el grafico", () => {
+    render(<SeccionConsumo catSerie={null} fact={fact({
+      unitario: [["2026-01", 318, 80000, 251.57, 0], ["2026-02", 300, 74000, 246.67, 1]],
+    })} />);
+
+    const panel = screen.getByRole("heading", { name: "Costo por recurso" }).closest("div");
+    expect(panel?.querySelector(".recharts-responsive-container")).not.toBeNull();
+    expect(screen.getByText("$251.57")).toBeInTheDocument();
+  });
+
+  it("sin datos de costo por recurso no dibuja el grafico", () => {
+    render(<SeccionConsumo fact={fact()} catSerie={null} />);
+
+    expect(screen.queryByRole("heading", { name: "Costo por recurso" })).toBeNull();
+    expect(screen.getByText("Sin datos de costo por recurso en el rango.")).toBeInTheDocument();
+  });
+
+  // Un mes sin ningun recurso activo no tiene base sobre la que dividir el gasto: el modelo manda
+  // null y la tabla lo declara, nunca un costo de cero ni un guion mudo.
+  it("sin recursos activos en un mes declara por que no hay costo unitario, no publica cero", () => {
+    render(<SeccionConsumo catSerie={null} fact={fact({
+      unitario: [["2026-01", 0, 0, null, 0]],
+    })} />);
+
+    expect(screen.getByTitle(/no hay base sobre la que dividir el gasto/i)).toBeInTheDocument();
+  });
+
+  // Tarea 9b, Observación 6 de la reunión: reducciones e incrementos son dos magnitudes positivas,
+  // nunca una serie firmada. El neto con su signo va aparte, en la tabla.
+  it("con variacion mes a mes dibuja reducciones e incrementos como magnitudes", () => {
+    render(<SeccionConsumo catSerie={null} fact={fact({
+      mom: [["2026-02", 5000, 1500, 3500, 0]],
+    })} />);
+
+    const panel = screen.getByRole("heading", { name: "Variación mes a mes" }).closest("div");
+    expect(panel?.querySelector(".recharts-responsive-container")).not.toBeNull();
+    expect(screen.getByText(/son magnitudes/i)).toBeInTheDocument();
+    expect(screen.getByText("$5,000.00")).toBeInTheDocument();
+    expect(screen.getByText("$1,500.00")).toBeInTheDocument();
+    expect(screen.getByText("$3,500.00")).toBeInTheDocument();
+  });
+
+  it("sin variacion mes a mes no dibuja el grafico", () => {
+    render(<SeccionConsumo fact={fact()} catSerie={null} />);
+
+    expect(screen.queryByRole("heading", { name: "Variación mes a mes" })).toBeNull();
+    expect(screen.getByText("Sin variación mes a mes en el rango.")).toBeInTheDocument();
+  });
 });
 
 function tickets(over: Partial<InformeOperacion> = {}): InformeOperacion {
@@ -247,14 +299,14 @@ describe("SeccionPostura", () => {
   // Azure no siempre devuelve el ahorro anual y no se persiste en columna propia: sin ninguna
   // línea cuantificada, el cero es falta de dato, no falta de ahorro.
   it("sin lineas cuantificadas no publica un ahorro de cero", () => {
-    render(<SeccionPostura ad={advisor()} corte="31/7/2026" />);
+    render(<SeccionPostura ad={advisor()} corte="31/7/2026" opex={null} />);
 
     expect(screen.queryByText("$0.00")).toBeNull();
     expect(screen.getAllByTitle(/ahorro anual cuantificado/i).length).toBeGreaterThan(0);
   });
 
   it("con lineas cuantificadas publica bruto, realizable y descartado", () => {
-    render(<SeccionPostura corte="31/7/2026" ad={advisor({
+    render(<SeccionPostura corte="31/7/2026" opex={null} ad={advisor({
       bruto: 12000, real: 9000, descarte: 3000, nSav: 2,
       savLineas: [
         { rec: "Comprar reserva", sub: "Suscripción principal", monto: 9000, tipo: "reserva", contada: true },
@@ -271,7 +323,7 @@ describe("SeccionPostura", () => {
   // Contrato F0: el desglose de impacto por pilar decide por dónde empezar y el informe entregado lo
   // dibuja como barra segmentada; un gráfico de barras simple solo lleva el total, así que va en tabla.
   it("publica el desglose de impacto por pilar y la concentracion del backlog", () => {
-    render(<SeccionPostura ad={advisor()} corte="31/7/2026" />);
+    render(<SeccionPostura ad={advisor()} corte="31/7/2026" opex={null} />);
 
     expect(screen.getByText("Concentración del backlog")).toBeInTheDocument();
     expect(screen.getByText(/las 15 recomendaciones más repetidas suman 12 de 51/i)).toBeInTheDocument();
@@ -281,7 +333,7 @@ describe("SeccionPostura", () => {
   // Los retiros salen del módulo Boletín, que se sincroniza a mano y por cliente: "0 retiros" y
   // "nadie fue a buscarlos" son dos hechos distintos y hasta acá salían iguales en las dos vistas.
   it("sin corrida del boletin no afirma que no hay retiros", () => {
-    render(<SeccionPostura corte="31/7/2026" ad={advisor({
+    render(<SeccionPostura corte="31/7/2026" opex={null} ad={advisor({
       retirosMedido: false,
       retirosMotivo: "El módulo Boletín todavía no sincronizó los anuncios de Azure para este cliente.",
     })} />);
@@ -292,13 +344,13 @@ describe("SeccionPostura", () => {
   });
 
   it("con la corrida completa publica el cero de retiros como un hecho", () => {
-    render(<SeccionPostura ad={advisor({ retirosMedido: true, retirosMotivo: null })} corte="31/7/2026" />);
+    render(<SeccionPostura ad={advisor({ retirosMedido: true, retirosMotivo: null })} corte="31/7/2026" opex={null} />);
 
     expect(screen.getByText(/no registra ningún retiro vigente/i)).toBeInTheDocument();
   });
 
   it("publica el backlog desagregado por suscripcion", () => {
-    render(<SeccionPostura corte="31/7/2026" ad={advisor({
+    render(<SeccionPostura corte="31/7/2026" opex={null} ad={advisor({
       det: [["Redimensionar VMs", "Costos", "Alto", "Suscripción secundaria", 7]],
     })} />);
 
@@ -306,12 +358,42 @@ describe("SeccionPostura", () => {
   });
 
   it("distingue un pilar de seguridad vacio de uno gestionado por fuera", () => {
-    render(<SeccionPostura corte="31/7/2026" ad={advisor({
+    render(<SeccionPostura corte="31/7/2026" opex={null} ad={advisor({
       seguridadGestionadaExternamente: true,
       seguridadGestionadaNota: "El cliente gestiona la seguridad con su propio servicio.",
     })} />);
 
     expect(screen.getByText(/quedaron excluidas a propósito/i)).toBeInTheDocument();
+  });
+
+  // Tarea 9b: opex es una clave de nivel superior independiente de advisor (un cliente puede tener
+  // score sin recomendaciones activas), así que esta sección la recibe aparte y declara sus propios
+  // estados en vez de asumir que "hay advisor" significa "hay score".
+  it("con serie de opex dibuja la evolucion del pilar de costos", () => {
+    render(<SeccionPostura ad={advisor()} corte="31/7/2026" opex={{
+      actual: 76, fecha: "2026-06-30", estado: "ok",
+      serie: [["2026-01", 60], ["2026-06", 76]], medido: true, motivo: null,
+    }} />);
+
+    const panel = screen.getByText("Evolución del pilar de costos (Opex)").closest("section");
+    expect(panel?.querySelector(".recharts-responsive-container")).not.toBeNull();
+  });
+
+  it("sin opex medido declara el motivo en vez de dibujar el grafico", () => {
+    render(<SeccionPostura ad={advisor()} corte="31/7/2026" opex={{
+      actual: null, fecha: null, estado: null, serie: [], medido: false,
+      motivo: "El snapshot no trae el pilar de costos.",
+    }} />);
+
+    expect(screen.getByText("El snapshot no trae el pilar de costos.")).toBeInTheDocument();
+    expect(screen.queryByText("Evolución del pilar de costos (Opex)")
+      ?.closest("section")?.querySelector(".recharts-responsive-container")).toBeNull();
+  });
+
+  it("sin bloque de opex declara el motivo por defecto", () => {
+    render(<SeccionPostura ad={advisor()} corte="31/7/2026" opex={null} />);
+
+    expect(screen.getByText(/no hay serie histórica del pilar de costos/i)).toBeInTheDocument();
   });
 });
 
@@ -322,7 +404,7 @@ describe("los seis bloques economicos", () => {
   it("estan todos marcados en la vista, con la etiqueta de la lista compartida", () => {
     render(<>
       <SeccionConsumo fact={fact()} catSerie={null} />
-      <SeccionPostura ad={advisor()} corte="31/7/2026" />
+      <SeccionPostura ad={advisor()} corte="31/7/2026" opex={null} />
     </>);
 
     const titulos = screen.getAllByText("Económico").map((b) => b.getAttribute("title") ?? "");

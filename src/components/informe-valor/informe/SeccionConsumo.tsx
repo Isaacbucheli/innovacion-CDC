@@ -53,6 +53,69 @@ export default function SeccionConsumo({ fact, catSerie }: {
     Bajas: num(s[3]),
   }));
 
+  /**
+   * Costo por recurso (`fact.unitario`, entrega 6): solo el costo se dibuja en el gráfico. El HTML
+   * pone "recursos activos" en el mismo eje normalizándolo contra el máximo del costo, con un
+   * tooltip que devuelve el valor real (ver `linea()` en la plantilla). `ReportLine` no tiene ese
+   * tooltip a medida -- usa el `<Tooltip>` genérico de Recharts, que muestra el dato tal cual está
+   * en la serie -- así que normalizar acá pondría en pantalla un número que no es el real, sin forma
+   * de corregirlo al pasar el mouse. Recursos activos y el monto facturado van en la tabla de abajo.
+   */
+  const unitarioLinea = fact.unitario.map((r) => {
+    const costo = r[3];
+    return {
+      x: etiquetaMes(txt(r[0])),
+      ...(typeof costo === "number" ? { Costo: costo } : {}),
+    };
+  });
+  const costosUnitarios = fact.unitario
+    .map((r) => r[3])
+    .filter((v): v is number => typeof v === "number");
+  const maxCostoUnitario = costosUnitarios.length > 0 ? Math.max(...costosUnitarios) : 0;
+
+  const colsUnitario: SimpleCol<FilaInforme>[] = [
+    { key: "mes", label: "Mes", render: (r) => etiquetaMes(txt(r[0])) },
+    { key: "act", label: "Recursos activos", align: "right", render: (r) => fmtNum(num(r[1])) },
+    { key: "monto", label: "Facturado", align: "right", render: (r) => fmtMonto(num(r[2])) },
+    {
+      key: "costo", label: "Costo por recurso", align: "right",
+      render: (r) => (r[3] === null
+        ? <SinMedir motivo="Ningún recurso activo ese mes: no hay base sobre la que dividir el gasto." etiqueta="—" />
+        : fmtMonto(num(r[3]))),
+    },
+  ];
+
+  /**
+   * Variación mes a mes (`fact.mom`, entrega 6, Observación 6 de la reunión del 2026-08-13):
+   * reducciones e incrementos llegan ya separados y en positivo -- son dos MAGNITUDES, no una serie
+   * firmada. El HTML las reparte a los dos lados de una línea de cero con `colsBidir()`; `ReportLine`
+   * no tiene esa primitiva, así que acá se dibujan como dos líneas positivas y se dice en el texto
+   * que ninguna de las dos es una pérdida. El neto (con su signo) va aparte, en la tabla.
+   */
+  const momLinea = fact.mom.map((r) => ({
+    x: etiquetaMes(txt(r[0])),
+    Reducciones: num(r[1]),
+    Incrementos: num(r[2]),
+  }));
+  const maxMom = momLinea.reduce((m, r) => Math.max(m, r.Reducciones, r.Incrementos), 0);
+
+  const colsMom: SimpleCol<FilaInforme>[] = [
+    { key: "mes", label: "Mes", render: (r) => etiquetaMes(txt(r[0])) },
+    { key: "red", label: "Reducciones", align: "right", render: (r) => fmtMonto(num(r[1])) },
+    { key: "inc", label: "Incrementos", align: "right", render: (r) => fmtMonto(num(r[2])) },
+    {
+      key: "neto", label: "Neto", align: "right",
+      render: (r) => {
+        const neto = num(r[3]);
+        return (
+          <span className={neto > 0 ? "text-primary" : neto < 0 ? "text-red-700 dark:text-red-400" : "text-muted-foreground"}>
+            {fmtMonto(neto)}
+          </span>
+        );
+      },
+    },
+  ];
+
   const colsPromedio: SimpleCol<FilaInforme>[] = [
     { key: "anio", label: "Año", render: (r) => txt(r[0]) },
     { key: "meses", label: "Meses cerrados", align: "right", render: (r) => fmtNum(num(r[1])) },
@@ -157,6 +220,23 @@ export default function SeccionConsumo({ fact, catSerie }: {
         )}
 
         <SimpleTable cols={colsMeses} rows={fact.meses} empty="Ningún mes con facturación en el rango." />
+
+        {fact.unitario.length > 0 && (
+          <div className="rounded-xl border bg-card p-4">
+            <h4 className="mb-2 text-sm font-medium">Costo por recurso</h4>
+            <ReportLine
+              data={unitarioLinea}
+              series={[{ key: "Costo", name: "Costo por recurso (USD)", color: REPORT_COLORS.greenDark }]}
+              yDomain={[0, maxCostoUnitario > 0 ? Math.ceil(maxCostoUnitario * 1.1) : 1]}
+              height={220}
+            />
+            <p className="mt-2 text-xs text-muted-foreground">
+              Recursos activos y facturación van en la tabla, no en el mismo eje: normalizarlos junto
+              al costo haría que la escala del gráfico mostrara un número que no es el real.
+            </p>
+          </div>
+        )}
+        <SimpleTable cols={colsUnitario} rows={fact.unitario} empty="Sin datos de costo por recurso en el rango." />
       </Seccion>
 
       <Seccion
@@ -198,6 +278,27 @@ export default function SeccionConsumo({ fact, catSerie }: {
             El modelo no trae la serie por categoría para este rango (sin filas de facturación en el período).
           </p>
         )}
+
+        {fact.mom.length > 0 && (
+          <div className="rounded-xl border bg-card p-4">
+            <h4 className="mb-2 text-sm font-medium">Variación mes a mes</h4>
+            <ReportLine
+              data={momLinea}
+              series={[
+                { key: "Reducciones", name: "Reducciones (USD)", color: REPORT_COLORS.greenDark },
+                { key: "Incrementos", name: "Incrementos (USD)", color: REPORT_COLORS.crit },
+              ]}
+              yDomain={[0, maxMom > 0 ? Math.ceil(maxMom * 1.1) : 1]}
+              height={220}
+            />
+            <p className="mt-2 text-xs text-muted-foreground">
+              Reducciones e incrementos son magnitudes, las dos siempre positivas: el gráfico compara
+              cuánto bajó contra cuánto subió, no dibuja una serie negativa. El neto con su signo va en
+              la tabla.
+            </p>
+          </div>
+        )}
+        <SimpleTable cols={colsMom} rows={fact.mom} empty="Sin variación mes a mes en el rango." />
       </Seccion>
 
       <Seccion

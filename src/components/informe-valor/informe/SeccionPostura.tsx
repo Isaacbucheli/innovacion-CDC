@@ -1,9 +1,13 @@
 import ReportBars from "@/components/reports/ReportBars";
+import ReportLine from "@/components/reports/ReportLine";
 import SimpleTable, { type SimpleCol } from "@/components/reports/SimpleTable";
 import { REPORT_COLORS } from "@/lib/report";
-import { MOTIVO_SIN_AHORRO_ADVISOR, fmtMonto, fmtNum, fmtPct, num, txt } from "@/lib/informeValor";
+import {
+  MOTIVO_SIN_AHORRO_ADVISOR, etiquetaMes, fmtMonto, fmtNum, fmtPct, num, txt,
+} from "@/lib/informeValor";
 import type {
-  FilaInforme, InformePostura, InformePosturaLineaAhorro, InformePosturaPilar, InformePosturaRetiro,
+  FilaInforme, InformeOpex, InformePostura, InformePosturaLineaAhorro, InformePosturaPilar,
+  InformePosturaRetiro,
 } from "@/types";
 import { Aviso, Kpi, Recorte, Seccion, SinMedir } from "./Piezas";
 
@@ -24,9 +28,21 @@ const MOTIVO_SIN_AHORRO = MOTIVO_SIN_AHORRO_ADVISOR;
  * - Un pilar de Seguridad vacío puede ser un cliente sin hallazgos o un cliente que gestiona su
  *   seguridad por fuera y cuyos hallazgos ya se excluyeron. El modelo trae la bandera y la nota:
  *   se muestran.
+ *
+ * `opex` (score del pilar de costos de Azure Advisor) es una clave de nivel superior del modelo,
+ * independiente de `advisor`/`ad`: un cliente puede tener score sin recomendaciones activas. Por
+ * eso llega como prop aparte y nullable, y esta sección declara sus propios tres estados (sin
+ * bloque, sin medir, medido) en vez de asumir que tener `ad` implica tener `opex`.
  */
-export default function SeccionPostura({ ad, corte }: { ad: InformePostura; corte: string }) {
+export default function SeccionPostura({ ad, corte, opex }: {
+  ad: InformePostura;
+  corte: string;
+  opex: InformeOpex | null;
+}) {
   const sinAhorroCuantificado = ad.nSav === 0;
+
+  const opexLinea = (opex?.serie ?? []).map((r) => ({ x: etiquetaMes(txt(r[0])), Score: num(r[1]) }));
+  const opexDibujable = !!opex && opex.medido && opexLinea.length > 1;
 
   const colsLineas: SimpleCol<InformePosturaLineaAhorro>[] = [
     { key: "rec", label: "Recomendación", render: (l) => l.rec },
@@ -117,6 +133,26 @@ export default function SeccionPostura({ ad, corte }: { ad: InformePostura; cort
         </div>
         <SimpleTable cols={colsPilares} rows={ad.cats}
           empty="Sin recomendaciones agrupadas por pilar." />
+      </Seccion>
+
+      <Seccion
+        titulo="Evolución del pilar de costos (Opex)"
+        descripcion="Score de Azure Advisor para el pilar de costos, mes a mes. Es una clave independiente de las recomendaciones: un cliente puede tener score sin recomendaciones activas."
+      >
+        {opexDibujable ? (
+          <div className="rounded-xl border bg-card p-4">
+            <ReportLine
+              data={opexLinea}
+              series={[{ key: "Score", name: "Pilar de costos (%)", color: REPORT_COLORS.greenDark }]}
+              yDomain={[0, 100]}
+              height={220}
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {opex?.motivo ?? "No hay serie histórica del pilar de costos para este período."}
+          </p>
+        )}
       </Seccion>
 
       <Seccion

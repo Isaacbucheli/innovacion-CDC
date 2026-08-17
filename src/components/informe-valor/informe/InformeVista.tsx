@@ -208,7 +208,7 @@ export default function InformeVista({ modelo, variacion, faseReservas, errorRes
           motivo="Sin insumo de permisos: ni la Revisión de accesos ni un archivo subido tienen filas para este cliente. No es un cliente sin permisos asignados." />)}
 
       {seccion === "postura" && (modelo.advisor
-        ? <SeccionPostura ad={modelo.advisor} corte={fmtDateOnly(meta.corte)} />
+        ? <SeccionPostura ad={modelo.advisor} corte={fmtDateOnly(meta.corte)} opex={opex} />
         : <BloqueAusente titulo="Postura"
           motivo="Sin recomendaciones de Advisor para este cliente. Puede ser que la sincronización todavía no haya corrido: no equivale a una postura perfecta." />)}
 
