@@ -1416,7 +1416,7 @@ export interface InformeValorModelo {
   /** Categoria -> mes ("aaaa-MM") -> monto. Claves de categoria normalizadas por la API. */
   catSerie: Record<string, Record<string, number>> | null;
   /** El titular del informe (entrega 6/7): el acumulado de las acciones de optimizacion
-   * ejecutadas, modelo de la PPT de MERCANTIL. `null` = sin barrido, sin matriz y sin reservas. */
+   * ejecutadas, modelo de la PPT de referencia. `null` = sin barrido, sin matriz y sin reservas. */
   ejecutado: InformeEjecutado | null;
   /** Score del pilar de costos de Azure Advisor, con su evolucion mensual. Clave de nivel superior
    * y no anidada en `advisor`: un cliente puede tener score sin recomendaciones activas. */
@@ -1460,7 +1460,7 @@ export interface InformeCronologia {
   omitidos: number;
 }
 
-/** Una accion de optimizacion ejecutada: la unidad de la PPT de MERCANTIL. */
+/** Una accion de optimizacion ejecutada: la unidad de la PPT de referencia. */
 export interface InformeAccionEjecutada {
   /** "barrido" | "matriz" | "reserva". */
   fuente: string;
@@ -1519,7 +1519,7 @@ export interface InformeReservasFacturadas {
 
 /**
  * El titular del informe (decision 2026-08-13): el acumulado de lo ejecutado, modelo de la PPT de
- * MERCANTIL. `medido` es true en cuanto CUALQUIER eje aporta algo que mostrar; `motivo` declara
+ * referencia. `medido` es true en cuanto CUALQUIER eje aporta algo que mostrar; `motivo` declara
  * cada eje que fallo aunque el conjunto si produzca cifra (ver `ejes`).
  */
 export interface InformeEjecutado {

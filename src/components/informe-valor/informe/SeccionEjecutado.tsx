@@ -12,7 +12,7 @@ const MOTIVO_PROYECCION = "La proyección a fin de año no se pudo calcular para
 
 /**
  * Bloque titular del informe (`ejecutado`, decisión 2026-08-13): el acumulado de las acciones de
- * optimización ejecutadas en el período, modelo de la PPT de MERCANTIL.
+ * optimización ejecutadas en el período, modelo de la PPT de referencia.
  *
  * `medido` es independiente de tener filas: es `true` en cuanto CUALQUIER eje (barrido, matriz o
  * reservas) aporta algo que mostrar. Con `medido` en `false` la sección no dibuja una serie de
