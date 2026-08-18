@@ -15,9 +15,10 @@ const cuerpo: InformeValorPreviewRequest = {
 const modelo: InformeValorModelo = {
   meta: {
     cliente: "Cliente de prueba", periodo: "2026-01 a 2026-06", corte: "2026-07-31",
-    cobertura: { total: 0, suscripciones: [] }, rbacOrigen: null,
+    cobertura: { total: 0, suscripciones: [] }, rbacOrigen: null, conciliacion: null,
   },
   tickets: null, fact: null, rbac: null, advisor: null, matriz: null, catSerie: null,
+  ejecutado: null, opex: null, cronologia: null,
 };
 
 const variacion: InformeVariacionConsumo = {

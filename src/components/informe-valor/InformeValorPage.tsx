@@ -24,6 +24,7 @@ import type { InformeValorEntrega, InsumoKind, VarianteInforme } from "@/types";
 
 const NOMBRE_INSUMO: Record<string, string> = {
   facturacion: "BITCOST (facturación)",
+  evolucion: "evolución por recurso (BITCOST)",
   casos: "casos de la mesa de servicio",
   rbac: "permisos (RBAC)",
 };
@@ -35,7 +36,7 @@ export default function InformeValorPage({ onNavigate }: { onNavigate: (key: str
   const [busy, setBusy] = useState(false);
   const [busyMsg, setBusyMsg] = useState<{ title: string; detail?: string }>({ title: "Procesando…" });
   const [params, setParams] = useState<ParametrosInforme>(parametrosPorDefecto);
-  // Los seis bloques económicos nacen APAGADOS (F1): generar sin decidir produce el informe sin
+  // Los ocho bloques económicos nacen APAGADOS (F1): generar sin decidir produce el informe sin
   // cifras, que es una entrega válida. Ningún estado inicial los prende, ni "para arrancar".
   const [aprobados, setAprobados] = useState<BloqueEconomico[]>([]);
   const [ultimaEntrega, setUltimaEntrega] = useState<InformeValorEntrega | null>(null);
@@ -47,7 +48,7 @@ export default function InformeValorPage({ onNavigate }: { onNavigate: (key: str
   // una fila del archivo).
   const entregas = useEntregas(clientId);
 
-  // La aprobación es de un informe concreto: al cambiar de cliente, los seis vuelven a apagarse. Una
+  // La aprobación es de un informe concreto: al cambiar de cliente, los ocho vuelven a apagarse. Una
   // aprobación heredada del cliente anterior es la peor forma de equivocarse en este módulo.
   useEffect(() => {
     setAprobados([]);
@@ -86,7 +87,7 @@ export default function InformeValorPage({ onNavigate }: { onNavigate: (key: str
   /**
    * Genera el artefacto con el cuerpo REVISADO (no con el del formulario, que se puede haber tocado
    * después) y lo descarga. Lo que se cuenta al terminar sale de lo que la API archivó, no de los
-   * interruptores: la variante interna publica los seis sin mirarlos.
+   * interruptores: la variante interna publica los ocho sin mirarlos.
    */
   async function generarArtefacto(variante: VarianteInforme) {
     const cuerpo = informe.cuerpoRevisado;

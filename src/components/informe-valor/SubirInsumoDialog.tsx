@@ -4,8 +4,11 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Label } from "@/components/ui/label";
 import type { InsumoKind } from "@/types";
 
-const TITULO: Record<InsumoKind, string> = {
+// Partial a propósito: tolerancia de deploy ante un kind que la API ya anuncia y este
+// front todavía no conoce (el dialogo debe mostrar genérico, no empty).
+const TITULO: Partial<Record<InsumoKind, string>> = {
   facturacion: "Subir el export de BITCOST",
+  evolucion: "Subir evolución por recurso (BITCOST)",
   casos: "Subir el Excel de la mesa de servicio",
   rbac: "Subir el reporte de RBAC",
 };
@@ -30,7 +33,7 @@ export default function SubirInsumoDialog({
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!busy) onOpenChange(v); }}>
       <DialogContent busy={busy}>
-        <DialogHeader><DialogTitle>{kind ? TITULO[kind] : "Subir insumo"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{(kind && TITULO[kind]) || "Subir insumo"}</DialogTitle></DialogHeader>
         <div className="space-y-2">
           <Label htmlFor="insumo-file">Archivo Excel (.xlsx)</Label>
           <input id="insumo-file" type="file" accept=".xlsx" className="w-full text-sm"

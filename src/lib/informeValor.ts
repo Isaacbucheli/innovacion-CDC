@@ -7,7 +7,7 @@ import type {
 } from "@/types";
 
 /**
- * Los seis bloques económicos que se aprueban uno por uno en la ENTREGA (spec §UX). En la vista de
+ * Los ocho bloques económicos que se aprueban uno por uno en la ENTREGA (spec §UX). En la vista de
  * revisión se muestran todos: el consultor tiene que ver el monto para poder decidir si lo publica.
  * Esta lista existe en un solo lugar para que la pestaña de entrega y las marcas de la vista no
  * puedan discrepar sobre cuáles son ni cómo se llaman.
@@ -56,18 +56,28 @@ export const BLOQUES_ECONOMICOS = [
     publica: "La cifra realizable tras depurar duplicados y opciones excluyentes",
     apagado: "El ahorro bruto, el realizable, el descartado y el monto de cada línea",
   },
+  {
+    clave: "ahorroEjecutado", etiqueta: "Ahorro ejecutado",
+    publica: "El acumulado, sus gráficos por categoría y por oportunidad, y la proyección a fin de año",
+    apagado: "El acumulado, la tasa vigente, la proyección, los dos gráficos y el monto de cada acción de la tabla",
+  },
+  {
+    clave: "reservasFacturadas", etiqueta: "Reservas facturadas",
+    publica: "La tabla que cruza cada VM cubierta por reserva contra lo que costaba por demanda",
+    apagado: "El total por demanda, el de la reserva, el ahorro, el ahorro anualizado y el monto de cada fila",
+  },
 ] as const;
 
 export type BloqueEconomico = (typeof BLOQUES_ECONOMICOS)[number]["clave"];
 
 /**
  * Lo que la variante del cliente no lleva nunca, con interruptores o sin ellos: la variación del
- * consumo (los tres baldes de la atribución) no la cubre ninguno de los seis bloques, así que el
+ * consumo (los tres baldes de la atribución) no la cubre ninguno de los ocho bloques, así que el
  * exportador la recorta entera. Se dice en pantalla porque el consultor la acaba de revisar en la
  * pestaña del informe y no tiene por qué adivinar que no viaja.
  */
-export const FUERA_DE_LOS_SEIS = "La variación del consumo (aporte de reservas y los tres baldes) "
-  + "no la cubre ninguno de los seis bloques: el informe del cliente no la lleva, ni siquiera "
+export const FUERA_DE_LOS_OCHO = "La variación del consumo (aporte de reservas y los tres baldes) "
+  + "no la cubre ninguno de los ocho bloques: el informe del cliente no la lleva, ni siquiera "
   + "aprobando todo. Para publicarla hace falta su propio interruptor.";
 
 /**
@@ -364,6 +374,26 @@ export function resumenBloques(
         return advisor.nSav === 0
           ? { valor: null, motivo: MOTIVO_SIN_AHORRO_ADVISOR }
           : { valor: fmtMonto(advisor.real), motivo: null };
+      case "ahorroEjecutado": {
+        const ej = modelo.ejecutado;
+        if (!ej || !ej.medido) {
+          return {
+            valor: null,
+            motivo: ej?.motivo
+              ?? "No hay registro de acciones ejecutadas para este período: sin barrido, sin matriz y sin reservas.",
+          };
+        }
+        return { valor: `${fmtMonto(ej.total)} acumulado · ${fmtMonto(ej.tasaVigente)}/mes vigente`, motivo: null };
+      }
+      case "reservasFacturadas": {
+        const rs = modelo.ejecutado?.reservas;
+        if (!rs || !rs.medido) {
+          return { valor: null, motivo: rs?.motivo ?? "No se pudieron leer las reservas del cliente." };
+        }
+        return rs.filas.length > 0
+          ? { valor: `${fmtNum(rs.filas.length)} VM · ${fmtMonto(rs.totalAhorro)}/mes de ahorro`, motivo: null }
+          : { valor: null, motivo: "Ninguna VM está cubierta por una instancia reservada en este rango." };
+      }
     }
   }
 
@@ -398,7 +428,7 @@ export function bloquesPublicadosTexto(claves: readonly string[]): {
   }
   if (claves.length === 0) return { texto: "Ninguno: sin montos", etiquetas, desconocidas };
   if (desconocidas.length === 0 && etiquetas.length === BLOQUES_ECONOMICOS.length) {
-    return { texto: "Los seis", etiquetas, desconocidas };
+    return { texto: "Todos", etiquetas, desconocidas };
   }
   return { texto: `${claves.length} de ${BLOQUES_ECONOMICOS.length}`, etiquetas, desconocidas };
 }

@@ -14,16 +14,17 @@ vi.mock("@/lib/auth", () => ({
 const modelo: InformeValorModelo = {
   meta: {
     cliente: "Cliente de prueba", periodo: "2025-09 a 2026-08", corte: "2026-08-12",
-    cobertura: { total: 0, suscripciones: [] }, rbacOrigen: "base",
+    cobertura: { total: 0, suscripciones: [] }, rbacOrigen: "base", conciliacion: null,
   },
   tickets: null, rbac: null, matriz: null, advisor: null, catSerie: null,
+  ejecutado: null, opex: null, cronologia: null,
   fact: {
     filas: 10, filasEnRango: 8, total: 154000,
     meses: [["2026-01", 80000, 0]],
     ultCompleto: "2026-01", parciales: [], autoParciales: [], parcialesInexistentes: [],
     subs: [], nRecursos: 0, nIds: 0, nRg: 0, nCats: 1, picoAct: 0, picoMes: null,
     serie: [], bajasDef: 0, cargaRet: 0, unidadCargaRet: "USD",
-    prom: [], ahorro: null, comp: null, cc: [], variacionConsumo: null,
+    prom: [], ahorro: null, comp: null, cc: [], variacionConsumo: null, unitario: [], mom: [],
   },
 };
 
@@ -133,7 +134,7 @@ describe("InformeValorPage - el cable entre las pestanas", () => {
     await waitFor(() => expect(api.descargarEntregaInformeValor).toHaveBeenCalledWith(3, entrega));
   });
 
-  it("la interna se pide con los seis apagados y sin tocar los interruptores", async () => {
+  it("la interna se pide con los ocho apagados y sin tocar los interruptores", async () => {
     montar();
     await screen.findByRole("tab", { name: "Informe" });
     await calcularElInforme();
@@ -154,7 +155,7 @@ describe("InformeValorPage - el cable entre las pestanas", () => {
     irA("Entregas");
 
     expect(await screen.findByText("consultor@ejemplo")).toBeInTheDocument();
-    expect(screen.getByText("1 de 6")).toBeInTheDocument();
+    expect(screen.getByText("1 de 8")).toBeInTheDocument();
   });
 
   it("descarga una entrega vieja desde el historial", async () => {
@@ -190,5 +191,25 @@ describe("InformeValorPage - el cable entre las pestanas", () => {
 
     irA("Entrega");
     expect(screen.getByText(/todavía no hay nada que entregar/i)).toBeInTheDocument();
+  });
+
+  it("el banner de faltantes nombra a la evolución por su nombre legible", async () => {
+    vi.mocked(api.getInformeValorEstado).mockResolvedValue({
+      insumos: [
+        { kind: "facturacion", obligatorio: true, cargado: true, source_file_name: "insumo.xlsx", cargado_en: "2026-08-01T12:00:00Z", filas: 100, status: "ok", warnings: [] },
+        { kind: "evolucion", obligatorio: true, cargado: false, source_file_name: null, cargado_en: null, filas: 0, status: "ausente", warnings: [] },
+      ],
+      estado_rbac: {
+        disponibilidad: "completo", estado_cuenta_medido: true, ultimo_login_medido: true,
+        fecha_corrida: "2026-08-01T12:00:00Z", motivo: "La revisión de accesos resuelve el insumo.",
+        origen: "base",
+      },
+    });
+    montar();
+    await screen.findByRole("tab", { name: "Informe" });
+    irA("Informe");
+    await screen.findByRole("tab", { name: "Informe", selected: true });
+
+    expect(screen.getByText(/Falta el insumo de evolución por recurso \(BITCOST\)/)).toBeInTheDocument();
   });
 });

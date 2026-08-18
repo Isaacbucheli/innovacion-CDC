@@ -129,10 +129,11 @@ function modeloConCifras(over: Partial<InformeValorModelo> = {}): InformeValorMo
   return {
     meta: {
       cliente: "Cliente de prueba", periodo: "2026-01 a 2026-02", corte: "2026-03-01",
-      cobertura: { total: 0, suscripciones: [] }, rbacOrigen: null,
+      cobertura: { total: 0, suscripciones: [] }, rbacOrigen: null, conciliacion: null,
     },
     tickets: null, rbac: null, matriz: null,
     catSerie: { compute: { "2026-01": 300 }, storage: { "2026-01": 100 } },
+    ejecutado: null, opex: null, cronologia: null,
     fact: {
       filas: 10, filasEnRango: 8, total: 154000,
       meses: [["2026-01", 80000, 0], ["2026-02", 74000, 0]],
@@ -140,7 +141,7 @@ function modeloConCifras(over: Partial<InformeValorModelo> = {}): InformeValorMo
       subs: [], nRecursos: 0, nIds: 0, nRg: 0, nCats: 2, picoAct: 0, picoMes: null,
       serie: [], bajasDef: 0, cargaRet: 0, unidadCargaRet: "USD",
       prom: [], ahorro: null, comp: null, cc: [["Operaciones", 100000], ["TI", 54000]],
-      variacionConsumo: null,
+      variacionConsumo: null, unitario: [], mom: [],
     },
     advisor: {
       n: 12, tipos_rec: 3, cats: [], subs: [], tipos: [], top: [], topSum: 0, det: [],
@@ -160,6 +161,7 @@ describe("BLOQUES_ECONOMICOS", () => {
   it("usa las mismas claves camelCase que la API", () => {
     expect(BLOQUES_ECONOMICOS.map((b) => b.clave)).toEqual([
       "gastoTotal", "serieMensual", "composicionServicio", "ahorroActivo", "centroCosto", "ahorroAdvisor",
+      "ahorroEjecutado", "reservasFacturadas",
     ]);
   });
 
@@ -234,7 +236,7 @@ describe("resumenBloques", () => {
     expect(por("ahorroAdvisor").valor).toBe("$24,000.00");
   });
 
-  it("los seis salen apagados cuando no se aprobo ninguno", () => {
+  it("los ocho salen apagados cuando no se aprobo ninguno", () => {
     expect(resumenBloques(modeloConCifras(), []).every((f) => !f.aprobado)).toBe(true);
   });
 
@@ -277,9 +279,9 @@ describe("bloquesPublicadosTexto", () => {
     expect(bloquesPublicadosTexto([]).texto).toBe("Ninguno: sin montos");
   });
 
-  it("los seis se resumen y los parciales se cuentan", () => {
-    expect(bloquesPublicadosTexto(BLOQUES_ECONOMICOS.map((b) => b.clave)).texto).toBe("Los seis");
-    expect(bloquesPublicadosTexto(["gastoTotal", "centroCosto"]).texto).toBe("2 de 6");
+  it("los ocho se resumen como Todos y los parciales se cuentan", () => {
+    expect(bloquesPublicadosTexto(BLOQUES_ECONOMICOS.map((b) => b.clave)).texto).toBe("Todos");
+    expect(bloquesPublicadosTexto(["gastoTotal", "centroCosto"]).texto).toBe("2 de 8");
   });
 
   // Un bloque que esta versión del front no conoce no desaparece de la fila: la entrega publicó algo
@@ -288,6 +290,6 @@ describe("bloquesPublicadosTexto", () => {
     const r = bloquesPublicadosTexto(["gastoTotal", "bloqueNuevo"]);
     expect(r.desconocidas).toEqual(["bloqueNuevo"]);
     expect(r.etiquetas).toEqual(["Gasto total del período"]);
-    expect(r.texto).toBe("2 de 6");
+    expect(r.texto).toBe("2 de 8");
   });
 });

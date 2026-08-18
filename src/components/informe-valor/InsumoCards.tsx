@@ -11,10 +11,19 @@ import {
 import { fmtDateTime } from "@/lib/dates";
 import type { EstadoRbacInfo, InsumoEstado, InsumoKind } from "@/types";
 
-const ETIQUETAS: Record<"facturacion" | "casos", { titulo: string; detalle: string }> = {
+// Partial (no Record<InsumoKind, ...>) a propósito: el lookup de abajo tiene que poder devolver
+// undefined de verdad, no solo aparentarlo, para que el fallback defensivo (tolerancia de deploy
+// ante un kind que la API ya anuncia y este front todavía no conoce) no sea un `??` que el tipado
+// vuelve inalcanzable. "rbac" no entra acá: tiene su propia tarjeta (RbacInsumoCard) con título fijo.
+const ETIQUETAS: Partial<Record<InsumoKind, { titulo: string; detalle: string }>> = {
   facturacion: {
     titulo: "BITCOST: facturación e inventario",
     detalle: "Export \"tabla de hechos\" del Power BI. Alimenta eficiencia financiera, cobertura y altas y bajas.",
+  },
+  evolucion: {
+    titulo: "Evolución por recurso (BITCOST)",
+    detalle:
+      "Export matriz del Power BI: la serie mensual por recurso con su categoría y el precio facturado de las reservas.",
   },
   casos: {
     titulo: "Requerimientos e incidentes",
@@ -38,9 +47,9 @@ const AMBER_TEXT = "text-amber-700 dark:text-amber-400";
  * BI y subirlo, y el borrado es irreversible del lado del servidor, así que ni un clic ni un
  * Enter accidental sobre el ítem del menú alcanzan para descartarlo sin aviso.
  *
- * El insumo de RBAC (`RbacInsumoCard` más abajo) es distinto de los otros dos: no es "cargado o
- * no", son tres presentaciones según `estadoRbac.disponibilidad` -- ver el comentario de esa
- * función para el detalle de cada una.
+ * El insumo de RBAC (`RbacInsumoCard` más abajo) es distinto de los demás (facturación, evolución,
+ * casos): no es "cargado o no", son tres presentaciones según `estadoRbac.disponibilidad` -- ver
+ * el comentario de esa función para el detalle de cada una.
  */
 export default function InsumoCards({
   insumos, estadoRbac = null, canEdit, busy = false, onSubir, onBorrar, onIrARevisionAccesos,
@@ -63,7 +72,7 @@ export default function InsumoCards({
   const [confirmar, setConfirmar] = useState<InsumoEstado | null>(null);
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {insumos.map((i) => {
         if (i.kind === "rbac") {
           return (
@@ -81,7 +90,7 @@ export default function InsumoCards({
         }
 
         const falta = i.obligatorio && !i.cargado;
-        const etiqueta = ETIQUETAS[i.kind];
+        const etiqueta = ETIQUETAS[i.kind] ?? { titulo: i.kind, detalle: "" };
         return (
           <div key={i.kind}
             className={`rounded-xl border bg-card p-4 ${falta ? "border-amber-300 dark:border-amber-800" : ""}`}>

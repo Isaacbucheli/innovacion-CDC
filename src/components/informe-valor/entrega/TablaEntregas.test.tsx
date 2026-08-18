@@ -27,7 +27,7 @@ describe("TablaEntregas", () => {
 
   it("resume los bloques publicados", () => {
     render(<TablaEntregas entregas={[entrega()]} cargando={false} error={null} onDescargar={() => {}} />);
-    expect(screen.getByText("2 de 6")).toBeInTheDocument();
+    expect(screen.getByText("2 de 8")).toBeInTheDocument();
   });
 
   // Una entrega sin bloques es legítima y frecuente (es el default). En blanco se leería como "no se
