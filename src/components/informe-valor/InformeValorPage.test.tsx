@@ -59,6 +59,9 @@ beforeEach(() => {
       fecha_corrida: "2026-08-01T12:00:00Z", motivo: "La revisión de accesos resuelve el insumo.",
       origen: "base",
     },
+    periodo: {
+      facturacion: { desde: "2025-03", hasta: "2026-06" }, evolucion: null, casos: null,
+    },
   });
   vi.mocked(api.previewInformeValor).mockResolvedValue(modelo);
   vi.mocked(api.previewVariacionConsumo).mockResolvedValue(variacion);
@@ -97,6 +100,26 @@ describe("InformeValorPage - el cable entre las pestanas", () => {
     for (const t of ["Insumos", "Informe", "Entrega", "Entregas"]) {
       expect(screen.getByRole("tab", { name: t })).toBeInTheDocument();
     }
+  });
+
+  it("el periodo arranca en lo que cubre el insumo, no en los ultimos doce meses", async () => {
+    montar();
+    await screen.findByRole("tab", { name: "Informe" });
+    irA("Informe");
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Primer mes del período" })).toHaveTextContent("mar 2025"));
+    expect(screen.getByRole("button", { name: "Último mes del período" })).toHaveTextContent("jun 2026");
+  });
+
+  it("el informe se pide con el periodo del insumo", async () => {
+    montar();
+    await screen.findByRole("tab", { name: "Informe" });
+    await calcularElInforme();
+
+    const [, cuerpo] = vi.mocked(api.previewInformeValor).mock.calls[0];
+    expect(cuerpo.period_start).toBe("2025-03-01");
+    expect(cuerpo.period_end).toBe("2026-06-01");
   });
 
   it("la entrega pide calcular el informe antes de ofrecer descargas", async () => {

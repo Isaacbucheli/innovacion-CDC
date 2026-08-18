@@ -5,7 +5,11 @@ import {
   DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { etiquetaMes, mesesDelRango, type ParametrosInforme } from "@/lib/informeValor";
+import {
+  etiquetaMes, mesesDelRango, NOMBRE_FUENTE, periodoSugerido, type ParametrosInforme,
+} from "@/lib/informeValor";
+import type { CoberturaInsumos } from "@/types";
+import MesPicker from "./MesPicker";
 
 /**
  * Lo que hay que elegir antes de calcular: el período, la fecha de corte y qué meses son parciales.
@@ -19,13 +23,27 @@ import { etiquetaMes, mesesDelRango, type ParametrosInforme } from "@/lib/inform
  * La fecha de corte no es cosmética: contra ella se clasifican los retiros de Azure (vencido, menos
  * de tres meses, menos de un año). Queda congelada en el cálculo, así que el mismo informe dice lo
  * mismo dentro de seis meses.
+ *
+ * Los dos meses del período se eligen con `MesPicker` y no con `<input type="month">`: el nativo
+ * escribía "septiembre de 2025" en un campo de 150 px, así que cortaba el año y dejaba el botón del
+ * calendario fuera de la caja (el campo se veía, pero no se podía abrir).
+ *
+ * El período arranca en el que cubren los insumos cargados (`cobertura`), no en una ventana fija de
+ * doce meses: con un export que empieza en marzo, el informe abría pidiendo meses que ningún
+ * archivo tiene y el consultor lo descubría recién en las cifras. La pantalla dice de qué insumo
+ * salió el rango, y si se corrió a mano ofrece volver a él.
  */
-export default function ControlesPreview({ params, onChange, onGenerar, cargando }: {
+export default function ControlesPreview({ params, onChange, onGenerar, cargando, cobertura }: {
   params: ParametrosInforme;
   onChange: (p: ParametrosInforme) => void;
   onGenerar: () => void;
   cargando: boolean;
+  /** Qué meses cubre cada insumo cargado. Sin esto (API vieja) el período queda como esté. */
+  cobertura?: CoberturaInsumos;
 }) {
+  const sugerido = periodoSugerido(cobertura);
+  const corridoAMano = sugerido !== null
+    && (params.desde !== sugerido.desde || params.hasta !== sugerido.hasta);
   const meses = mesesDelRango(params.desde, params.hasta);
   const rangoInvalido = !params.desde || !params.hasta || params.hasta < params.desde;
   const set = (cambio: Partial<ParametrosInforme>) => onChange({ ...params, ...cambio });
@@ -44,23 +62,23 @@ export default function ControlesPreview({ params, onChange, onGenerar, cargando
   return (
     <div className="space-y-2 rounded-xl border bg-card p-4">
       <div className="flex flex-wrap items-end gap-3">
-        <label className="text-xs text-muted-foreground">
+        <div className="flex flex-col text-xs text-muted-foreground">
           Desde
-          <Input type="month" className="mt-1 h-9 w-[150px]" value={params.desde}
-            aria-label="Primer mes del período" onChange={(e) => set({ desde: e.target.value })} />
-        </label>
-        <label className="text-xs text-muted-foreground">
+          <MesPicker etiqueta="Primer mes del período" className="mt-1 w-[130px]"
+            value={params.desde} onChange={(m) => set({ desde: m })} />
+        </div>
+        <div className="flex flex-col text-xs text-muted-foreground">
           Hasta
-          <Input type="month" className="mt-1 h-9 w-[150px]" value={params.hasta}
-            aria-label="Último mes del período" onChange={(e) => set({ hasta: e.target.value })} />
-        </label>
-        <label className="text-xs text-muted-foreground">
+          <MesPicker etiqueta="Último mes del período" className="mt-1 w-[130px]"
+            value={params.hasta} onChange={(m) => set({ hasta: m })} />
+        </div>
+        <label className="flex flex-col text-xs text-muted-foreground">
           Fecha de corte
           <Input type="date" className="mt-1 h-9 w-[160px]" value={params.corte}
             aria-label="Fecha de corte" onChange={(e) => set({ corte: e.target.value })} />
         </label>
 
-        <div className="text-xs text-muted-foreground">
+        <div className="flex flex-col text-xs text-muted-foreground">
           Meses parciales
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -103,6 +121,30 @@ export default function ControlesPreview({ params, onChange, onGenerar, cargando
         </Button>
       </div>
 
+      {sugerido && (
+        <p className="text-xs text-muted-foreground">
+          El insumo de {NOMBRE_FUENTE[sugerido.fuente]} cubre{" "}
+          <strong>{etiquetaMes(sugerido.desde)} a {etiquetaMes(sugerido.hasta)}</strong>.
+          {corridoAMano && (
+            <>
+              {" "}Estás pidiendo otro período.{" "}
+              <button
+                type="button"
+                className="underline underline-offset-2 hover:text-foreground"
+                onClick={() => set({ desde: sugerido.desde, hasta: sugerido.hasta })}
+              >
+                Volver al del insumo
+              </button>
+            </>
+          )}
+        </p>
+      )}
+      {!sugerido && (
+        <p className="text-xs text-muted-foreground">
+          Ningún insumo cargado trae meses todavía, así que el período arranca en los últimos doce.
+          Cuando cargues facturación, se ajusta a lo que cubra el archivo.
+        </p>
+      )}
       {rangoInvalido && (
         <p className="text-xs text-amber-700 dark:text-amber-400">
           El rango está invertido: el mes final es anterior al inicial.

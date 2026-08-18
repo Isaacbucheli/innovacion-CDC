@@ -17,7 +17,7 @@ import { useEntregas } from "@/hooks/useEntregas";
 import { borrarInsumoInformeValor, descargarEntregaInformeValor, subirInsumoInformeValor } from "@/lib/api";
 import { canEditModule } from "@/lib/auth";
 import {
-  cuerpoDeGeneracion, cuerpoDeParametros, parametrosPorDefecto,
+  cuerpoDeGeneracion, cuerpoDeParametros, parametrosPorDefecto, periodoSugerido,
   type BloqueEconomico, type ParametrosInforme,
 } from "@/lib/informeValor";
 import type { InformeValorEntrega, InsumoKind, VarianteInforme } from "@/types";
@@ -54,6 +54,21 @@ export default function InformeValorPage({ onNavigate }: { onNavigate: (key: str
     setAprobados([]);
     setUltimaEntrega(null);
   }, [clientId]);
+
+  // El período por defecto sale de lo que cubren los insumos del cliente, no de una ventana fija de
+  // doce meses. Se recalcula cuando cambia la cobertura -- otro cliente, o una carga nueva que
+  // corrió las fechas -- y no en cada render: mientras la cobertura sea la misma, el rango que el
+  // consultor haya elegido a mano se queda como está.
+  const sugerido = periodoSugerido(estado?.periodo);
+  const claveSugerida = sugerido ? `${sugerido.desde}:${sugerido.hasta}` : "";
+  useEffect(() => {
+    setParams((p) => {
+      // Sin cobertura no se hereda el rango del cliente anterior: se vuelve al criterio propio.
+      if (!claveSugerida) return parametrosPorDefecto();
+      const [desde, hasta] = claveSugerida.split(":");
+      return { ...p, desde, hasta };
+    });
+  }, [clientId, claveSugerida]);
 
   const faltantes = (estado?.insumos ?? [])
     .filter((i) => i.obligatorio && !i.cargado)
@@ -186,6 +201,7 @@ export default function InformeValorPage({ onNavigate }: { onNavigate: (key: str
                 params={params}
                 onChange={setParams}
                 cargando={informe.cargando}
+                cobertura={estado?.periodo}
                 onGenerar={() => void informe.generar(cuerpoDeParametros(params))}
               />
 

@@ -3,7 +3,8 @@
 
 import { fmtDateISO } from "@/lib/dates";
 import type {
-  InformeValorGenerarRequest, InformeValorModelo, InformeValorPreviewRequest, VarianteInforme,
+  CoberturaInsumos, InformeValorGenerarRequest, InformeValorModelo, InformeValorPreviewRequest,
+  RangoMeses, VarianteInforme,
 } from "@/types";
 
 /**
@@ -114,7 +115,7 @@ export function fmtHoras(n: number): string {
   return Number.isFinite(n) ? `${n.toFixed(1)} h` : "n/d";
 }
 
-const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+export const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
 /**
  * "2026-01" -> "ene 2026". Es una etiqueta de mes calendario, no un instante: se formatea por
@@ -172,6 +173,37 @@ export interface ParametrosInforme {
   parcialesAuto: boolean;
   /** Meses declarados parciales cuando `parcialesAuto` es false. Vacío = "ninguno es parcial". */
   parciales: string[];
+}
+
+/** De qué insumo salió el período que la pantalla propone. */
+export type FuenteDelPeriodo = "facturacion" | "evolucion" | "casos";
+
+export interface PeriodoSugerido extends RangoMeses {
+  fuente: FuenteDelPeriodo;
+}
+
+/** Cómo se llama cada insumo cuando hay que decir de dónde salió el período. */
+export const NOMBRE_FUENTE: Record<FuenteDelPeriodo, string> = {
+  facturacion: "facturación (BITCOST)",
+  evolucion: "evolución por recurso (BITCOST)",
+  casos: "casos de la mesa de servicio",
+};
+
+/**
+ * El período que la pantalla propone: el que cubren los insumos cargados, no una ventana fija.
+ *
+ * Manda facturación porque es el eje económico del informe (gasto, costo unitario, variación); si
+ * no está, sirve evolución, que trae los mismos meses por otro camino, y recién al final los casos,
+ * que cubren la operación pero no el dinero. Sin ninguno de los tres devuelve `null` y quien llama
+ * se queda con su criterio: proponer un rango sin datos detrás sería inventarlo.
+ */
+export function periodoSugerido(cobertura: CoberturaInsumos | null | undefined): PeriodoSugerido | null {
+  const fuentes: FuenteDelPeriodo[] = ["facturacion", "evolucion", "casos"];
+  for (const fuente of fuentes) {
+    const r = cobertura?.[fuente];
+    if (r?.desde && r.hasta && r.hasta >= r.desde) return { ...r, fuente };
+  }
+  return null;
 }
 
 /** Doce meses hasta el mes en curso, corte de hoy, meses parciales por heurística. */
