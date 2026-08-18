@@ -21,7 +21,7 @@ const ejecutadoBase: InformeEjecutado = {
   medido: true, motivo: null,
   filas: [], serie: [], porOportunidad: [], catAcum: {},
   total: 0, tasaVigente: 0, pctGasto: 12.5,
-  facturado: 0, estimado: 0, sinMonto: 0,
+  facturado: 0, estimado: 0, declarado: 0, sinMonto: 0,
   proyeccion: [], proyeccionFin: null,
   reservas: {
     medido: true, motivo: null, filas: [],

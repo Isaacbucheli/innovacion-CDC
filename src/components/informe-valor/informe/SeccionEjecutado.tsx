@@ -4,7 +4,8 @@ import SimpleTable, { type SimpleCol } from "@/components/reports/SimpleTable";
 import { REPORT_COLORS } from "@/lib/report";
 import { etiquetaMes, fmtMonto, fmtNum, num, txt } from "@/lib/informeValor";
 import type {
-  InformeAccionEjecutada, InformeEjecutado, InformeReservaVm, InformeReservasFacturadas,
+  InformeAccionEjecutada, InformeEjecutado, InformeReservaArchivoFila, InformeReservasArchivo,
+  InformeReservaVm, InformeReservasFacturadas,
 } from "@/types";
 import { Aviso, BloqueAusente, Cifra, Kpi, Seccion } from "./Piezas";
 
@@ -65,7 +66,8 @@ export default function SeccionEjecutado({ ej }: { ej: InformeEjecutado }) {
           <Kpi
             label="Acciones ejecutadas"
             valor={fmtNum(ej.filas.length)}
-            hint={`${fmtMonto(ej.facturado)} medidos contra la facturación y ${fmtMonto(ej.estimado)} estimados por el catálogo`
+            hint={`${fmtMonto(ej.facturado)} medidos contra la facturación, ${fmtMonto(ej.estimado)} estimados por el catálogo`
+              + ` y ${fmtMonto(ej.declarado)} declarados por el consultor`
               + (ej.sinMonto > 0 ? `, ${fmtNum(ej.sinMonto)} de ellas sin monto medible` : "")}
             tono="neutro"
           />
@@ -121,6 +123,13 @@ function SeccionReservas({ reservas }: { reservas: InformeReservasFacturadas }) 
     );
   }
 
+  // Entrega 8, pieza A: modo respaldo. La foto de Azure no midió pero el archivo de evolución
+  // trae las líneas de reserva: tabla POR LÍNEA (sin foto no se sabe qué VMs cubre cada reserva,
+  // y eso no se inventa), con el cargo facturado y el ahorro estimado por catálogo de precios.
+  if (reservas.respaldo) {
+    return <SeccionReservasRespaldo reservas={reservas} respaldo={reservas.respaldo} />;
+  }
+
   const cols: SimpleCol<InformeReservaVm>[] = [
     {
       key: "vm", label: "VM",
@@ -173,6 +182,70 @@ function SeccionReservas({ reservas }: { reservas: InformeReservasFacturadas }) 
           su cobertura puede estar incompleta.
         </Aviso>
       )}
+    </Seccion>
+  );
+}
+
+/**
+ * El modo respaldo de la tabla de reservas (entrega 8, pieza A): las líneas de reserva del archivo
+ * de evolución cuando la foto de Azure no midió. Mismo bloque económico que la tabla por VM
+ * (`reservasFacturadas`): son la misma conversación de dinero por otra vía.
+ */
+function SeccionReservasRespaldo({
+  reservas, respaldo,
+}: { reservas: InformeReservasFacturadas; respaldo: InformeReservasArchivo }) {
+  const cols: SimpleCol<InformeReservaArchivoFila>[] = [
+    {
+      key: "sku", label: "Reserva",
+      render: (f) => (
+        <>
+          {f.sku}
+          {f.heredada && <span className="ml-1 text-xs text-muted-foreground">(desde antes del rango)</span>}
+        </>
+      ),
+    },
+    { key: "term", label: "Término", render: (f) => f.term },
+    {
+      key: "cargo", label: "Cargo mensual", align: "right",
+      render: (f) => <Cifra valor={f.cargo} formato={fmtMonto} motivoSinMedir="El cargo no se publicó." />,
+    },
+    {
+      key: "ahorro", label: "Ahorro estimado", align: "right",
+      render: (f) => (f.ahorro === null
+        ? <span className="text-muted-foreground">{f.sinMonto ?? "sin precio de catálogo"}</span>
+        : fmtMonto(f.ahorro)),
+    },
+    { key: "desde", label: "Desde", render: (f) => etiquetaMes(f.desde) },
+    { key: "vence", label: "Vence", render: (f) => (f.vence ? etiquetaMes(f.vence) : "—") },
+  ];
+
+  return (
+    <Seccion
+      titulo="Reservas contra la factura"
+      bloque="reservasFacturadas"
+      descripcion="Reservas leídas desde el archivo de evolución (respaldo): la conexión Azure del cliente no estaba disponible, así que no hay confirmación de cobertura por VM. Por cada línea: el cargo mensual facturado y el ahorro estimado por catálogo de precios."
+    >
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kpi label="Líneas de reserva" valor={fmtNum(respaldo.filas.length)} tono="neutro" />
+        <Kpi
+          label="Cargo mensual (total)"
+          valor={<Cifra valor={respaldo.totalCargo} formato={fmtMonto} motivoSinMedir="El cargo no se publicó." />}
+          tono="neutro"
+        />
+        <Kpi
+          label="Ahorro estimado"
+          valor={<Cifra valor={respaldo.totalAhorro} formato={fmtMonto} motivoSinMedir="El ahorro no se publicó." />}
+          hint="Según el catálogo de precios de Azure"
+        />
+        <Kpi label="Sin precio de catálogo" valor={fmtNum(respaldo.sinPrecio)} tono="neutro"
+          hint={respaldo.sinPrecio > 0 ? "Se publica su cargo, sin ahorro" : undefined} />
+      </div>
+
+      <SimpleTable cols={cols} rows={respaldo.filas} empty="El archivo de evolución no trae líneas de reserva en este rango." />
+
+      <Aviso>
+        {reservas.motivo ?? "Las reservas se leyeron desde el archivo de evolución, sin confirmación de Azure."}
+      </Aviso>
     </Seccion>
   );
 }

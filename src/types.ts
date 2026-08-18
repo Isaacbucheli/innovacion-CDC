@@ -1482,7 +1482,7 @@ export interface InformeCronologia {
 
 /** Una accion de optimizacion ejecutada: la unidad de la PPT de referencia. */
 export interface InformeAccionEjecutada {
-  /** "barrido" | "matriz" | "reserva". */
+  /** "barrido" | "matriz" | "reserva" | "reserva-archivo" | "manual". */
   fuente: string;
   oportunidad: string;
   cat: string;
@@ -1491,15 +1491,17 @@ export interface InformeAccionEjecutada {
   rec: string | null;
   /** "aaaa-MM". */
   mes: string;
-  /** "aaaa-MM": solo reservas (vencimiento). */
+  /** "aaaa-MM": reservas (vencimiento) o fin declarado a mano. */
   fin: string | null;
   /** Ya redondeado. `null` = sin monto, con `sinMonto` declarando por que. */
   monto: number | null;
-  /** "facturado" | "estimado" | null. */
+  /** "facturado" | "estimado" | "declarado" | null. */
   fuenteMonto: string | null;
   sinMonto: string | null;
   /** "declarada" | "automatica" | "indeterminada". */
   autoria: string;
+  /** Entrega 8: reservas heredadas del respaldo — suman en el rango, la proyeccion las excluye. */
+  sinProyeccion?: boolean;
 }
 
 /** Que ejes del registro se pudieron medir: el informe declara, no rellena. */
@@ -1525,6 +1527,28 @@ export interface InformeReservaVm {
   nota: string | null;
 }
 
+/** Una linea de reserva del archivo de evolucion, en modo respaldo (entrega 8, pieza A). */
+export interface InformeReservaArchivoFila {
+  linea: string;
+  sku: string;
+  region: string;
+  term: string;
+  cargo: number | null;
+  ahorro: number | null;
+  desde: string;
+  vence: string | null;
+  heredada: boolean;
+  sinMonto: string | null;
+}
+
+/** Las reservas leidas SOLO desde el archivo de evolucion, cuando la foto de Azure no midio. */
+export interface InformeReservasArchivo {
+  filas: InformeReservaArchivoFila[];
+  totalCargo: number | null;
+  totalAhorro: number | null;
+  sinPrecio: number;
+}
+
 export interface InformeReservasFacturadas {
   medido: boolean;
   motivo: string | null;
@@ -1535,6 +1559,8 @@ export interface InformeReservasFacturadas {
   ahorroAnualizado: number;
   sinLineaEnEvolucion: string[];
   consumidoresNoLeidos: number;
+  /** Entrega 8: presente solo cuando la foto de Azure no midio y el archivo trae las lineas. */
+  respaldo?: InformeReservasArchivo | null;
 }
 
 /**
@@ -1560,6 +1586,8 @@ export interface InformeEjecutado {
   pctGasto: number | null;
   facturado: number;
   estimado: number;
+  /** Entrega 8: montos registrados a mano por el consultor — rotulo propio, nunca "facturado". */
+  declarado: number;
   sinMonto: number;
   /** [mes, tasa proyectada, acumulado proyectado] desde el mes siguiente al corte hasta diciembre. */
   proyeccion: FilaInforme[];
