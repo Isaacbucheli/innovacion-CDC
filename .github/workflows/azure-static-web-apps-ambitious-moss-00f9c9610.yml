@@ -5,13 +5,43 @@ on:
     branches:
       - main
   pull_request:
-    types: [opened, synchronize, reopened, closed]
     branches:
       - main
 
 jobs:
+  # En los PR ya NO se despliega a un entorno de preview del SWA.
+  #
+  # Por que: el plan del Static Web App es Free, que admite 3 entornos de staging. Cada PR creaba
+  # uno y el job de cierre nunca lograba borrarlo, asi que se llenaron en julio de 2026 (ramas
+  # feat/pendientes-bloqueantes, feat/advisor-score-refresh-consultor y feat/boletin-azure) y desde
+  # ahi TODA corrida de pull_request fallo con "This Static Web App already has the maximum number
+  # of staging environments". El job de cierre fallaba detras con "No matching static site found",
+  # que no era otro problema sino la consecuencia: como la creacion fallaba, no habia entorno que
+  # cerrar. El circulo no se rompia solo, y dejaba una X roja en cada PR que no decia nada del codigo.
+  #
+  # Lo que hace ahora el check del PR es lo que de verdad puede romper un merge: el build completo
+  # (prebuild que genera staticwebapp.config.json, tsc -b y vite build) y la suite de tests. Eso da
+  # una senal que sirve; el preview no la daba, porque el front sin la API ni sesion no se puede
+  # probar de todos modos.
+  verificacion:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    name: Build y tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Build (el mismo que corre en el deploy)
+        run: npm run build
+      - name: Tests
+        run: npm test
+
   build_and_deploy_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     permissions:
@@ -45,15 +75,3 @@ jobs:
           output_location: "dist" # Vite genera en dist (no "build")
           github_id_token: ${{ steps.idtoken.outputs.result }}
           ###### End of Repository/Build Configurations ######
-
-  close_pull_request_job:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close Pull Request Job
-    steps:
-      - name: Close Pull Request
-        id: closepullrequest
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AMBITIOUS_MOSS_00F9C9610 }}
-          action: "close"
