@@ -1323,8 +1323,28 @@ export interface InsumoEstado {
   warnings: string[];
 }
 
+/** Rango de meses ("aaaa-MM") que cubre un insumo cargado, tal cual sale de la base. */
+export interface RangoMeses {
+  desde: string;
+  hasta: string;
+}
+
+/**
+ * Qué período cubre cada insumo con eje de tiempo (GET /estado, bloque `periodo`). Un insumo en
+ * `null` no tiene filas con fecha, y eso no es lo mismo que un rango vacío: con `null` la pantalla
+ * se queda con su propio criterio en vez de proponer un período que ningún archivo respalda.
+ */
+export interface CoberturaInsumos {
+  facturacion: RangoMeses | null;
+  evolucion: RangoMeses | null;
+  casos: RangoMeses | null;
+}
+
 export interface InformeValorEstado {
   insumos: InsumoEstado[];
+  /** Opcional a propósito: el front sube al SWA en un minuto y la API tarda entre cinco y ocho, así
+   * que durante ese rato esta pantalla corre contra una API que todavía no manda el bloque. */
+  periodo?: CoberturaInsumos;
   /** Condicional de RBAC, resuelta por el camino liviano (ver EstadoRbacInfo abajo). Vive en
    * /estado desde la entrega 2b: antes salía de /insumos-bd, el endpoint de diagnóstico que
    * paga Advisor/Matriz/Retiros completos, y esta pantalla no necesita nada de eso. */

@@ -3,7 +3,8 @@ import { fmtDateISO } from "@/lib/dates";
 import {
   BLOQUES_ECONOMICOS, MOTIVO_SIN_AHORRO_ADVISOR, bloquesPublicadosTexto, claveNormalizada,
   cuerpoDeGeneracion, cuerpoDeParametros, cuerpoPreview, etiquetaMes, fmtPct, lecturaVariacion,
-  mesMas, mesesDelRango, mismoCuerpo, parametrosPorDefecto, porCategoria, resumenBloques,
+  mesMas, mesesDelRango, mismoCuerpo, parametrosPorDefecto, periodoSugerido, porCategoria,
+  resumenBloques,
 } from "@/lib/informeValor";
 import type { InformeValorModelo } from "@/types";
 
@@ -291,5 +292,38 @@ describe("bloquesPublicadosTexto", () => {
     expect(r.desconocidas).toEqual(["bloqueNuevo"]);
     expect(r.etiquetas).toEqual(["Gasto total del período"]);
     expect(r.texto).toBe("2 de 8");
+  });
+});
+
+describe("periodoSugerido - el periodo que se propone sale de los insumos", () => {
+  const rango = (desde: string, hasta: string) => ({ desde, hasta });
+
+  it("manda facturacion, que es el eje economico del informe", () => {
+    expect(periodoSugerido({
+      facturacion: rango("2025-03", "2026-06"),
+      evolucion: rango("2024-01", "2024-12"),
+      casos: rango("2020-01", "2020-02"),
+    })).toEqual({ desde: "2025-03", hasta: "2026-06", fuente: "facturacion" });
+  });
+
+  it("sin facturacion cae a evolucion y despues a casos", () => {
+    expect(periodoSugerido({ facturacion: null, evolucion: rango("2025-01", "2025-08"), casos: null }))
+      .toEqual({ desde: "2025-01", hasta: "2025-08", fuente: "evolucion" });
+    expect(periodoSugerido({ facturacion: null, evolucion: null, casos: rango("2026-02", "2026-05") }))
+      .toEqual({ desde: "2026-02", hasta: "2026-05", fuente: "casos" });
+  });
+
+  it("sin ningun insumo con meses no propone nada, en vez de inventar un rango", () => {
+    expect(periodoSugerido({ facturacion: null, evolucion: null, casos: null })).toBeNull();
+    expect(periodoSugerido(null)).toBeNull();
+    expect(periodoSugerido(undefined)).toBeNull();
+  });
+
+  it("un rango invertido no se propone: pasa al siguiente insumo", () => {
+    expect(periodoSugerido({
+      facturacion: rango("2026-06", "2025-03"),
+      evolucion: rango("2025-01", "2025-08"),
+      casos: null,
+    })).toEqual({ desde: "2025-01", hasta: "2025-08", fuente: "evolucion" });
   });
 });
