@@ -1527,6 +1527,44 @@ export interface InformeReservaVm {
   nota: string | null;
 }
 
+/** Una accion ejecutada registrada a mano (entrega 8, pieza B): la unidad de la PPT de referencia. */
+export interface AccionManual {
+  accion_id: number;
+  oportunidad: string;
+  categoria: string | null;
+  /** "aaaa-MM". */
+  mes_ejecucion: string;
+  mes_fin: string | null;
+  monto_mensual: number | null;
+  recurso: string | null;
+  nota: string | null;
+  /** Texto fuente de la captura asistida. Respaldo interno: JAMAS sale al informe. */
+  evidencia: string | null;
+  creado_por: string | null;
+  creado_en: string;
+}
+
+/** El cuerpo del alta/edicion de una accion manual (snake_case: el MVC bindea SnakeCaseLower). */
+export interface AccionManualBody {
+  oportunidad: string;
+  categoria: string | null;
+  mes_ejecucion: string;
+  mes_fin: string | null;
+  monto_mensual: number | null;
+  recurso: string | null;
+  nota: string | null;
+  evidencia: string | null;
+}
+
+/** Una accion propuesta por la IA desde la evidencia pegada: nada se persiste sin confirmar. */
+export interface AccionCandidata {
+  oportunidad: string;
+  mes: string | null;
+  monto: number | null;
+  recurso: string | null;
+  cita: string | null;
+}
+
 /** Una linea de reserva del archivo de evolucion, en modo respaldo (entrega 8, pieza A). */
 export interface InformeReservaArchivoFila {
   linea: string;

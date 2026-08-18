@@ -49,6 +49,8 @@ beforeEach(() => {
   vi.mocked(api.listClients).mockResolvedValue([
     { client_id: 3, client_name: "Cliente de prueba", has_logo: false },
   ]);
+  // El panel de acciones manuales (entrega 8) carga el registro al montar la pestaña de insumos.
+  vi.mocked(api.getAccionesManuales).mockResolvedValue([]);
   vi.mocked(api.getInformeValorEstado).mockResolvedValue({
     insumos: [
       { kind: "facturacion", obligatorio: true, cargado: true, source_file_name: "insumo.xlsx", cargado_en: "2026-08-01T12:00:00Z", filas: 100, status: "ok", warnings: [] },

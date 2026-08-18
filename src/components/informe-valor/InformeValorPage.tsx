@@ -5,6 +5,7 @@ import BusyOverlay from "@/components/BusyOverlay";
 import ClientHeader from "@/components/ClientHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import AccionesManuales from "./AccionesManuales";
 import InsumoCards from "./InsumoCards";
 import SubirInsumoDialog from "./SubirInsumoDialog";
 import ControlesPreview from "./informe/ControlesPreview";
@@ -179,15 +180,24 @@ export default function InformeValorPage({ onNavigate }: { onNavigate: (key: str
               {dataLoading ? (
                 <div className="text-sm text-muted-foreground">Cargando insumos…</div>
               ) : estado ? (
-                <InsumoCards
-                  insumos={estado.insumos}
-                  estadoRbac={estadoRbac}
-                  canEdit={canEdit}
-                  busy={busy}
-                  onSubir={(k) => { setKind(k); setOpen(true); }}
-                  onBorrar={borrar}
-                  onIrARevisionAccesos={() => onNavigate("access-review")}
-                />
+                <>
+                  <InsumoCards
+                    insumos={estado.insumos}
+                    estadoRbac={estadoRbac}
+                    canEdit={canEdit}
+                    busy={busy}
+                    onSubir={(k) => { setKind(k); setOpen(true); }}
+                    onBorrar={borrar}
+                    onIrARevisionAccesos={() => onNavigate("access-review")}
+                  />
+                  {clientId != null && (
+                    <AccionesManuales
+                      clientId={clientId}
+                      canEdit={canEdit}
+                      onCambio={() => informe.limpiar()}
+                    />
+                  )}
+                </>
               ) : null}
             </TabsContent>
 
