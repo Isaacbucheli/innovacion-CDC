@@ -473,7 +473,7 @@ function ejecutadoDePrueba(over: Partial<InformeEjecutado> = {}): InformeEjecuta
     porOportunidad: [["Rightsizing de VMs", 500]],
     catAcum: { Costos: { "2026-01": 0, "2026-02": 500 } },
     total: 500, tasaVigente: 500, pctGasto: 2.4,
-    facturado: 500, estimado: 0, sinMonto: 0,
+    facturado: 500, estimado: 0, declarado: 0, sinMonto: 0,
     proyeccion: [["2026-03", 500, 1000]],
     proyeccionFin: 3000,
     reservas: {
@@ -549,6 +549,49 @@ describe("SeccionEjecutado", () => {
 
     expect(screen.getByText(/El archivo de evolución no trae líneas de reserva/)).toBeInTheDocument();
     expect(screen.queryByText("Reserva facturada (total)")).toBeNull();
+  });
+
+  // Entrega 8, pieza B: el monto declarado por el consultor es la tercera componente de la
+  // composición y se publica junto a las otras dos — mismo texto que la plantilla.
+  it("la tarjeta de composición publica los declarados", () => {
+    render(<SeccionEjecutado ej={ejecutadoDePrueba({ declarado: 450 })} />);
+    expect(screen.getByText(/\$450\.00 declarados por el consultor/)).toBeInTheDocument();
+  });
+
+  // Entrega 8, pieza A: sin foto de Azure pero con respaldo del archivo, la tabla de reservas
+  // se dibuja POR LÍNEA rotulada como respaldo — nunca la tabla por VM ni el bloque ausente.
+  it("la tabla de reservas dibuja el respaldo desde archivo", () => {
+    render(<SeccionEjecutado ej={ejecutadoDePrueba({
+      reservas: {
+        medido: true,
+        motivo: "Reservas leídas desde el archivo de evolución (respaldo): la conexión Azure del cliente no estaba disponible.",
+        filas: [], totalDemanda: 0, totalReserva: 0, totalAhorro: 0, ahorroAnualizado: 0,
+        sinLineaEnEvolucion: [], consumidoresNoLeidos: 0,
+        respaldo: {
+          filas: [
+            {
+              linea: "Reserved VM Instance, Standard_D4s_v3, US East 2, 3 Years",
+              sku: "Standard_D4s_v3", region: "US East 2", term: "3 Years",
+              cargo: 300, ahorro: 200, desde: "2026-03", vence: "2029-03",
+              heredada: false, sinMonto: null,
+            },
+            {
+              linea: "Reserved VM Instance, Standard_B4ms, US East, 1 Year",
+              sku: "Standard_B4ms", region: "US East", term: "1 Year",
+              cargo: 120, ahorro: null, desde: "2026-01", vence: null,
+              heredada: true, sinMonto: "sin precio de catálogo",
+            },
+          ],
+          totalCargo: 420, totalAhorro: 200, sinPrecio: 1,
+        },
+      },
+    })} />);
+
+    expect(screen.getByText("Standard_D4s_v3")).toBeInTheDocument();
+    expect(screen.getByText(/desde antes del rango/)).toBeInTheDocument();
+    expect(screen.getByText(/sin precio de catálogo/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Reservas leídas desde el archivo de evolución \(respaldo\)/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Reserva facturada (total)")).toBeNull(); // la tabla por VM no se dibuja
   });
 });
 

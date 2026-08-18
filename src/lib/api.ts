@@ -2,6 +2,9 @@ import type {
   AccessDecisionItem,
   AccessReviewResponse,
   AccessReviewRun,
+  AccionCandidata,
+  AccionManual,
+  AccionManualBody,
   ActionPlanItem,
   ActionPlanItemWrite,
   ActionPlanResponse,
@@ -570,6 +573,32 @@ export const getEntregasInformeValor = (clientId: number) =>
 export const descargarEntregaInformeValor = (clientId: number, entrega: InformeValorEntrega) =>
   downloadFromApi(
     `/informe-valor/clients/${clientId}/entregas/${entrega.entrega_id}/descargar`, entrega.file_name);
+
+// ---- El registro manual de acciones ejecutadas (entrega 8, pieza B) ----
+
+/** Las acciones activas del cliente: la quinta fuente del registro de lo ejecutado. */
+export const getAccionesManuales = (clientId: number) =>
+  request<{ acciones: AccionManual[] }>(`/informe-valor/clients/${clientId}/acciones`)
+    .then((r) => r.acciones);
+
+export const crearAccionManual = (clientId: number, body: AccionManualBody) =>
+  request<{ accion_id: number }>(`/informe-valor/clients/${clientId}/acciones`, jsonOpts("POST", body));
+
+export const actualizarAccionManual = (clientId: number, accionId: number, body: AccionManualBody) =>
+  request<void>(`/informe-valor/clients/${clientId}/acciones/${accionId}`, jsonOpts("PUT", body));
+
+export const eliminarAccionManual = (clientId: number, accionId: number) =>
+  request<void>(`/informe-valor/clients/${clientId}/acciones/${accionId}`, { method: "DELETE" });
+
+/**
+ * La captura asistida: manda la evidencia pegada (correo, chat, minuta) y vuelven las acciones
+ * CANDIDATAS que la IA propone, con su cita textual. No persiste nada: la confirmacion del
+ * consultor va por crearAccionManual, una por seleccionada.
+ */
+export const extraerAccionesEvidencia = (clientId: number, texto: string) =>
+  request<{ acciones: AccionCandidata[] }>(
+    `/informe-valor/clients/${clientId}/acciones/extraer`, jsonOpts("POST", { texto }))
+    .then((r) => r.acciones);
 
 /** Sube un insumo del informe de valor (multipart, campo "file"). Mismo patrón que uploadWafIngestion. */
 export async function subirInsumoInformeValor(
