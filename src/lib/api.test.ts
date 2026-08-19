@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { login, request } from "@/lib/api";
-import { getName, getRole, getToken, setSession } from "@/lib/auth";
+import { getName, getRefresh, getRole, getToken, setRefresh, setSession, setTokenExp } from "@/lib/auth";
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); localStorage.clear(); });
 
@@ -257,4 +257,112 @@ describe("Optimización api", () => {
     expect((calls[0][1] as RequestInit).method).toBe("PUT");
     expect(JSON.parse((calls[0][1] as RequestInit).body as string)).toEqual({ state: "resuelto", notes: "ya migrado" });
   });
+});
+
+test("logout llama al endpoint, limpia la sesión y recarga", async () => {
+  setSession("tok", "consultor", "Nombre");
+  const fetchMock = vi.fn(async (_url: RequestInfo | URL) => new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const reload = vi.fn();
+  vi.stubGlobal("location", { reload });
+
+  const { logout } = await import("@/lib/api");
+  await logout();
+
+  const urls = fetchMock.mock.calls.map((c) => String(c[0]));
+  expect(urls.some((u) => u.endsWith("/auth/logout"))).toBe(true);
+  expect(getToken()).toBe("");
+  expect(reload).toHaveBeenCalled();
+});
+
+test("logout limpia y recarga aunque el endpoint falle", async () => {
+  setSession("tok", "consultor", "Nombre");
+  vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 500 })));
+  const reload = vi.fn();
+  vi.stubGlobal("location", { reload });
+
+  const { logout } = await import("@/lib/api");
+  await logout();
+
+  expect(getToken()).toBe("");
+  expect(reload).toHaveBeenCalled();
+});
+
+// ---- Refresh silencioso (spec DAST 2026-08-19) ----
+
+function stubRefreshableFetch(opts: { dataOkToken: string }) {
+  const urls: string[] = [];
+  let dataCalls = 0;
+  const fetchMock = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+    const u = String(url);
+    urls.push(u);
+    if (u.endsWith("/auth/refresh"))
+      return new Response(JSON.stringify({
+        access_token: opts.dataOkToken, refresh_token: "refresh-2",
+        expires_in: 900, refresh_expires_in: 28800, role: "consultor",
+      }), { status: 200 });
+    dataCalls++;
+    const auth = new Headers(init?.headers).get("Authorization");
+    return auth === `Bearer ${opts.dataOkToken}`
+      ? new Response(JSON.stringify({ ok: true }), { status: 200 })
+      : new Response("{}", { status: 401 });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return { urls, dataCalls: () => dataCalls };
+}
+
+test("renueva proactivamente cuando el access está por vencer, con single-flight", async () => {
+  setSession("tok-viejo", "consultor", "N");
+  setRefresh("refresh-1");
+  setTokenExp(Date.now() + 10_000); // vence en 10s < margen de 60s
+  const { urls } = stubRefreshableFetch({ dataOkToken: "tok-nuevo" });
+
+  const [a, b] = await Promise.all([
+    request<{ ok: boolean }>("/clients"),
+    request<{ ok: boolean }>("/clients"),
+  ]);
+
+  expect(urls.filter((u) => u.endsWith("/auth/refresh"))).toHaveLength(1); // single-flight
+  expect(a.ok).toBe(true);
+  expect(b.ok).toBe(true);
+  expect(getToken()).toBe("tok-nuevo");
+  expect(getRefresh()).toBe("refresh-2");
+});
+
+test("ante un 401 canjea el refresh y reintenta una sola vez", async () => {
+  setSession("tok-revocado", "consultor", "N");
+  setRefresh("refresh-1");
+  setTokenExp(Date.now() + 600_000); // el reloj local cree que sigue vivo
+  const { dataCalls } = stubRefreshableFetch({ dataOkToken: "tok-nuevo" });
+
+  const r = await request<{ ok: boolean }>("/clients");
+
+  expect(r.ok).toBe(true);
+  expect(dataCalls()).toBe(2); // 401 + reintento OK
+});
+
+test("si el refresh falla, limpia la sesión y recarga (comportamiento histórico)", async () => {
+  setSession("tok", "consultor", "N");
+  setRefresh("refresh-muerto");
+  setTokenExp(Date.now() - 1000);
+  vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 401 })));
+  const reload = vi.fn();
+  vi.stubGlobal("location", { reload });
+
+  await expect(request("/clients")).rejects.toThrow("Sesión expirada");
+
+  expect(getToken()).toBe("");
+  expect(reload).toHaveBeenCalled();
+});
+
+test("login persiste refresh_token y la expiración del access", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+    new Response(
+      JSON.stringify({ access_token: "abc", role: "consultor", full_name: "Isaac", refresh_token: "r-1", expires_in: 900, refresh_expires_in: 28800 }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    )
+  ));
+  await login("isaac@bit.com", "secret");
+  expect(getRefresh()).toBe("r-1");
+  expect(Number(localStorage.getItem("innovacion_cdc_token_exp"))).toBeGreaterThan(Date.now());
 });

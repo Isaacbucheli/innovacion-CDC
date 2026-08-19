@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { changePassword } from "@/lib/api";
-import { clearSession } from "@/lib/auth";
+import { changePassword, logout } from "@/lib/api";
 
 // Pantalla forzada tras el login cuando la contraseña es temporal (must_change_password=1):
 // el usuario debe definir su contraseña definitiva antes de entrar a la plataforma.
@@ -24,6 +23,8 @@ export default function ChangePasswordScreen({ onChanged }: { onChanged: () => v
     if (next !== confirm) { setError("La confirmación no coincide con la nueva contraseña."); return; }
     setBusy(true);
     try {
+      // WEB-12: el backend revoca las sesiones anteriores (incluido el token con el que se
+      // hace esta llamada) y devuelve un reemplazo, que changePassword ya deja persistido.
       await changePassword(current, next);
       onChanged();
     } catch (err) {
@@ -31,11 +32,6 @@ export default function ChangePasswordScreen({ onChanged }: { onChanged: () => v
     } finally {
       setBusy(false);
     }
-  }
-
-  function logout() {
-    clearSession();
-    location.reload();
   }
 
   return (

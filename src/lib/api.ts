@@ -96,7 +96,7 @@ import type {
   WafSummary,
   WafTrackingUpdate,
 } from "@/types";
-import { clearSession, getToken, setEmail, setSession } from "@/lib/auth";
+import { clearSession, getName, getRefresh, getRole, getToken, getTokenExp, setEmail, setRefresh, setSession, setTokenExp } from "@/lib/auth";
 
 // Backend ÚNICO de la plataforma: la API .NET. En DEV se usa el proxy de Vite (/api → API .NET local).
 // En prod el host sale de VITE_API_BASE_URL, cuya fuente ÚNICA es .env.production (ver
@@ -113,16 +113,88 @@ export function apiBase(): string {
   return base;
 }
 
-export async function request<T>(path: string, opts: RequestInit = {}, base: string = apiBase()): Promise<T> {
-  const headers = new Headers(opts.headers);
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  const res = await fetch(`${base}${path}`, { ...opts, headers });
+// ---- Ciclo de vida del token (refresh silencioso, spec DAST 2026-08-19) ----
+
+/** Margen antes del vencimiento del access para renovarlo sin esperar el 401. */
+const REFRESH_MARGIN_MS = 60_000;
+
+/** Single-flight: todas las llamadas concurrentes esperan el MISMO canje; sin esto, N
+ * peticiones simultáneas dispararían N canjes y el backend rotaría N veces. */
+let refreshInFlight: Promise<boolean> | null = null;
+
+interface SessionBody {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+  refresh_expires_in?: number;
+  role?: Role;
+  full_name?: string;
+  email?: string;
+}
+
+function persistSession(body: SessionBody): void {
+  setSession(body.access_token, (body.role ?? getRole()) as Role, body.full_name ?? getName());
+  if (body.email) setEmail(body.email);
+  if (body.refresh_token) setRefresh(body.refresh_token);
+  if (body.expires_in) setTokenExp(Date.now() + body.expires_in * 1000);
+}
+
+/** Canjea el refresh una sola vez aunque lo pidan N llamadas a la vez.
+ * true = hay access nuevo persistido; false = la sesión no se pudo renovar. */
+async function tryRefresh(base: string): Promise<boolean> {
+  refreshInFlight ??= (async () => {
+    const refresh = getRefresh();
+    if (!refresh) return false;
+    try {
+      const res = await fetch(`${base}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refresh }),
+      });
+      if (!res.ok) return false;
+      persistSession(await res.json() as SessionBody);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      // Liberar el vuelo al terminar: quienes ya esperaban esta promesa la retienen por
+      // referencia; la próxima renovación arranca limpia. Si dos pestañas/llamadas llegaran
+      // a canjear casi a la vez, la gracia de reuso del backend absorbe la carrera.
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
+
+/** Único punto que adjunta el Bearer y absorbe el ciclo de vida del token: renueva antes
+ * de vencer, reintenta UNA vez tras un 401 y, si no hay manera, cierra la sesión local
+ * (el comportamiento histórico). Las sesiones anteriores al deploy (sin refresh guardado)
+ * caen directo al cierre, como siempre. */
+async function authFetch(path: string, opts: RequestInit = {}, base: string = apiBase()): Promise<Response> {
+  if (getRefresh() && getTokenExp() > 0 && Date.now() > getTokenExp() - REFRESH_MARGIN_MS)
+    await tryRefresh(base);
+
+  const doFetch = () => {
+    const headers = new Headers(opts.headers);
+    const token = getToken();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    return fetch(`${base}${path}`, { ...opts, headers });
+  };
+
+  let res = await doFetch();
+  if (res.status === 401 && getRefresh() && (await tryRefresh(base)))
+    res = await doFetch();
+
   if (res.status === 401) {
     clearSession();
     if (typeof location !== "undefined") location.reload();
     throw new Error("Sesión expirada");
   }
+  return res;
+}
+
+export async function request<T>(path: string, opts: RequestInit = {}, base: string = apiBase()): Promise<T> {
+  const res = await authFetch(path, opts, base);
   const text = await res.text();
   if (!res.ok) {
     let detail = text;
@@ -137,10 +209,20 @@ function jsonOpts(method: string, body: unknown): RequestInit {
 }
 
 // ---- Auth ----
-export interface LoginResult { access_token: string; role: Role; full_name?: string; email?: string; must_change_password?: boolean }
+export interface LoginResult {
+  access_token: string;
+  role: Role;
+  full_name?: string;
+  email?: string;
+  must_change_password?: boolean;
+  refresh_token?: string;
+  expires_in?: number;
+  refresh_expires_in?: number;
+}
 export async function login(email: string, password: string): Promise<LoginResult> {
   const r = await request<LoginResult>("/auth/login", jsonOpts("POST", { username: email, password }));
-  setSession(r.access_token, r.role, r.full_name ?? r.email ?? "");
+  // Contrato histórico: sin full_name, el nombre visible es el email.
+  persistSession({ ...r, full_name: r.full_name ?? r.email ?? "" });
   setEmail(r.email ?? email);
   return r;
 }
@@ -148,8 +230,27 @@ export interface MeModule { key: string; can_view: boolean; can_edit: boolean }
 export const me = () =>
   request<{ role: Role; full_name?: string; email?: string; must_change_password?: boolean; modules?: MeModule[] }>("/auth/me");
 // Cambio de contraseña del propio usuario (obligatorio cuando es temporal: must_change_password=1).
-export const changePassword = (current_password: string, new_password: string) =>
-  request<{ changed: boolean; must_change_password: boolean }>("/auth/change-password", jsonOpts("POST", { current_password, new_password }));
+// WEB-12: el backend revoca las sesiones anteriores (access y refresh) y devuelve el par de
+// reemplazo, que acá mismo se persiste para que el usuario no pierda la sesión.
+export async function changePassword(current_password: string, new_password: string) {
+  const r = await request<{ changed: boolean; must_change_password: boolean } & Partial<SessionBody>>(
+    "/auth/change-password", jsonOpts("POST", { current_password, new_password }));
+  if (r.access_token) persistSession(r as SessionBody);
+  return r;
+}
+
+/** Cierre de sesión real (WEB-12): avisa al backend para revocar server-side y recién
+ * entonces limpia y recarga. Si la llamada falla (red caída, token ya vencido), el cierre
+ * local procede igual: quedarse "adentro" sería peor. */
+export async function logout(): Promise<void> {
+  try {
+    await request("/auth/logout", jsonOpts("POST", {}));
+  } catch {
+    // mejor esfuerzo: el logout local no se bloquea por el backend
+  }
+  clearSession();
+  if (typeof location !== "undefined") location.reload();
+}
 
 // ---- Permisos por módulo (matriz rol×módulo, solo admin) ----
 export interface ModulePermissionRow { module_key: string; can_view: boolean; can_edit: boolean }
@@ -253,17 +354,9 @@ export const deleteClientLogo = (id: number) =>
 
 /** Sube el logo del cliente (multipart). El browser fija el Content-Type con su boundary. */
 export async function uploadClientLogo(id: number, file: File, base: string = apiBase()): Promise<void> {
-  const headers = new Headers();
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${base}/clients/${id}/logo`, { method: "PUT", headers, body: form });
-  if (res.status === 401) {
-    clearSession();
-    if (typeof location !== "undefined") location.reload();
-    throw new Error("Sesión expirada");
-  }
+  const res = await authFetch(`/clients/${id}/logo`, { method: "PUT", body: form }, base);
   if (!res.ok) {
     const text = await res.text();
     let detail = text;
@@ -274,16 +367,8 @@ export async function uploadClientLogo(id: number, file: File, base: string = ap
 
 /** Descarga autenticada del logo y devuelve un objectURL, o null si el cliente no tiene logo (404). */
 export async function fetchClientLogoObjectUrl(id: number, base: string = apiBase()): Promise<string | null> {
-  const headers = new Headers();
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  const res = await fetch(`${base}/clients/${id}/logo`, { headers });
+  const res = await authFetch(`/clients/${id}/logo`, {}, base);
   if (res.status === 404) return null;
-  if (res.status === 401) {
-    clearSession();
-    if (typeof location !== "undefined") location.reload();
-    throw new Error("Sesión expirada");
-  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const blob = await res.blob();
   return URL.createObjectURL(blob);
@@ -485,17 +570,9 @@ export const getWafAdvisorSyncStatus = (clientId: number, jobId: number) =>
 
 /** Sube un CSV de Advisor (multipart, campo "file"). Igual patrón que uploadClientLogo. */
 export async function uploadWafIngestion(clientId: number, file: File, base: string = apiBase()): Promise<unknown> {
-  const headers = new Headers();
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${base}/waf/clients/${clientId}/ingestions`, { method: "POST", headers, body: form });
-  if (res.status === 401) {
-    clearSession();
-    if (typeof location !== "undefined") location.reload();
-    throw new Error("Sesión expirada");
-  }
+  const res = await authFetch(`/waf/clients/${clientId}/ingestions`, { method: "POST", body: form }, base);
   const text = await res.text();
   if (!res.ok) {
     let detail = text;
@@ -604,18 +681,10 @@ export const extraerAccionesEvidencia = (clientId: number, texto: string) =>
 export async function subirInsumoInformeValor(
   clientId: number, kind: InsumoKind, file: File, base: string = apiBase(),
 ): Promise<SubidaInsumoResult> {
-  const headers = new Headers();
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${base}/informe-valor/clients/${clientId}/insumos/${kind}`,
-    { method: "POST", headers, body: form });
-  if (res.status === 401) {
-    clearSession();
-    if (typeof location !== "undefined") location.reload();
-    throw new Error("Sesión expirada");
-  }
+  const res = await authFetch(`/informe-valor/clients/${clientId}/insumos/${kind}`,
+    { method: "POST", body: form }, base);
   const text = await res.text();
   if (!res.ok) {
     let detail = text;
@@ -641,13 +710,9 @@ export const refreshWafAdvisorScoreAll = (includeInReports: boolean) =>
 // ---- WAF: acciones (Slice B) — Import Excel ----
 /** Preview de la matriz Excel (multipart "file", ?use_ai). */
 export async function previewWafExcel(clientId: number, file: File, useAi: boolean, base: string = apiBase()): Promise<WafExcelPreview> {
-  const headers = new Headers();
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${base}/waf/clients/${clientId}/excel-import/preview?use_ai=${useAi}`, { method: "POST", headers, body: form });
-  if (res.status === 401) { clearSession(); if (typeof location !== "undefined") location.reload(); throw new Error("Sesión expirada"); }
+  const res = await authFetch(`/waf/clients/${clientId}/excel-import/preview?use_ai=${useAi}`, { method: "POST", body: form }, base);
   const text = await res.text();
   if (!res.ok) { let d = text; try { d = JSON.parse(text).detail ?? text; } catch { /* texto plano */ } throw new Error(d || `HTTP ${res.status}`); }
   return (text ? JSON.parse(text) : {}) as WafExcelPreview;
@@ -734,10 +799,8 @@ export function sugerirMigracion(clientId: number): Promise<{ sugerencias: Migra
 
 /** Descarga autenticada (blob) desde el backend .NET; usado por la exportación a Excel. */
 export async function downloadFromApi(path: string, fileName: string, base: string = apiBase()): Promise<void> {
-  const headers = new Headers();
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  const res = await fetch(`${base}${path}`, { headers });
+  // authFetch le da a las descargas el manejo de 401 (y el refresh) que antes no tenían.
+  const res = await authFetch(path, {}, base);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
