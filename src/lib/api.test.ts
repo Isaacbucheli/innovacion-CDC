@@ -51,13 +51,13 @@ test("401 limpia la sesión, recarga y lanza 'Sesión expirada'", async () => {
 test("login persiste la sesión vía setSession", async () => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
     new Response(
-      JSON.stringify({ access_token: "abc", role: "consultor", full_name: "Isaac" }),
+      JSON.stringify({ csrf_token: "csrf", role: "consultor", full_name: "Isaac" }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     )
   ));
   const r = await login("isaac@bit.com", "secret");
-  expect(r.access_token).toBe("abc");
-  expect(getToken()).toBe("abc");
+  expect(r.csrf_token).toBe("csrf");
+  expect(getToken()).toBe("");
   expect(getRole()).toBe("consultor");
   expect(getName()).toBe("Isaac");
 });
@@ -65,7 +65,7 @@ test("login persiste la sesión vía setSession", async () => {
 test("login usa email como nombre cuando falta full_name", async () => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
     new Response(
-      JSON.stringify({ access_token: "abc", role: "consultor", email: "isaac@bit.com" }),
+      JSON.stringify({ csrf_token: "csrf", role: "consultor", email: "isaac@bit.com" }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     )
   ));
@@ -76,7 +76,7 @@ test("login usa email como nombre cuando falta full_name", async () => {
 test("login envía 'username' (no 'email') en el body, según el contrato de la API", async () => {
   const fetchMock = vi.fn().mockResolvedValue(
     new Response(
-      JSON.stringify({ access_token: "abc", role: "lector" }),
+      JSON.stringify({ csrf_token: "csrf", role: "lector" }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     )
   );

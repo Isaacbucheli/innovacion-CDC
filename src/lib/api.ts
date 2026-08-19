@@ -96,7 +96,7 @@ import type {
   WafSummary,
   WafTrackingUpdate,
 } from "@/types";
-import { clearSession, getToken, setEmail, setSession } from "@/lib/auth";
+import { clearSession, getCsrfToken, setCsrfToken, setEmail, setSession } from "@/lib/auth";
 
 // Backend ÚNICO de la plataforma: la API .NET. En DEV se usa el proxy de Vite (/api → API .NET local).
 // En prod el host sale de VITE_API_BASE_URL, cuya fuente ÚNICA es .env.production (ver
@@ -115,9 +115,9 @@ export function apiBase(): string {
 
 export async function request<T>(path: string, opts: RequestInit = {}, base: string = apiBase()): Promise<T> {
   const headers = new Headers(opts.headers);
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  const res = await fetch(`${base}${path}`, { ...opts, headers });
+  const csrf = getCsrfToken();
+  if (csrf) headers.set("X-CSRF-Token", csrf);
+  const res = await fetch(`${base}${path}`, { ...opts, headers, credentials: "include" });
   if (res.status === 401) {
     clearSession();
     if (typeof location !== "undefined") location.reload();
@@ -137,16 +137,18 @@ function jsonOpts(method: string, body: unknown): RequestInit {
 }
 
 // ---- Auth ----
-export interface LoginResult { access_token: string; role: Role; full_name?: string; email?: string; must_change_password?: boolean }
+export interface LoginResult { csrf_token?: string; role: Role; full_name?: string; email?: string; must_change_password?: boolean }
 export async function login(email: string, password: string): Promise<LoginResult> {
   const r = await request<LoginResult>("/auth/login", jsonOpts("POST", { username: email, password }));
-  setSession(r.access_token, r.role, r.full_name ?? r.email ?? "");
+  setSession(r.role, r.full_name ?? r.email ?? "");
   setEmail(r.email ?? email);
+  setCsrfToken(r.csrf_token);
   return r;
 }
 export interface MeModule { key: string; can_view: boolean; can_edit: boolean }
 export const me = () =>
-  request<{ role: Role; full_name?: string; email?: string; must_change_password?: boolean; modules?: MeModule[] }>("/auth/me");
+  request<{ csrf_token?: string; role: Role; full_name?: string; email?: string; must_change_password?: boolean; modules?: MeModule[] }>("/auth/me");
+export const logout = () => request<void>("/auth/logout", { method: "POST" });
 // Cambio de contraseña del propio usuario (obligatorio cuando es temporal: must_change_password=1).
 export const changePassword = (current_password: string, new_password: string) =>
   request<{ changed: boolean; must_change_password: boolean }>("/auth/change-password", jsonOpts("POST", { current_password, new_password }));
@@ -254,11 +256,11 @@ export const deleteClientLogo = (id: number) =>
 /** Sube el logo del cliente (multipart). El browser fija el Content-Type con su boundary. */
 export async function uploadClientLogo(id: number, file: File, base: string = apiBase()): Promise<void> {
   const headers = new Headers();
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const csrf = getCsrfToken();
+  if (csrf) headers.set("X-CSRF-Token", csrf);
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${base}/clients/${id}/logo`, { method: "PUT", headers, body: form });
+  const res = await fetch(`${base}/clients/${id}/logo`, { method: "PUT", headers, body: form, credentials: "include" });
   if (res.status === 401) {
     clearSession();
     if (typeof location !== "undefined") location.reload();
@@ -275,9 +277,7 @@ export async function uploadClientLogo(id: number, file: File, base: string = ap
 /** Descarga autenticada del logo y devuelve un objectURL, o null si el cliente no tiene logo (404). */
 export async function fetchClientLogoObjectUrl(id: number, base: string = apiBase()): Promise<string | null> {
   const headers = new Headers();
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  const res = await fetch(`${base}/clients/${id}/logo`, { headers });
+  const res = await fetch(`${base}/clients/${id}/logo`, { headers, credentials: "include" });
   if (res.status === 404) return null;
   if (res.status === 401) {
     clearSession();
@@ -486,11 +486,11 @@ export const getWafAdvisorSyncStatus = (clientId: number, jobId: number) =>
 /** Sube un CSV de Advisor (multipart, campo "file"). Igual patrón que uploadClientLogo. */
 export async function uploadWafIngestion(clientId: number, file: File, base: string = apiBase()): Promise<unknown> {
   const headers = new Headers();
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const csrf = getCsrfToken();
+  if (csrf) headers.set("X-CSRF-Token", csrf);
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${base}/waf/clients/${clientId}/ingestions`, { method: "POST", headers, body: form });
+  const res = await fetch(`${base}/waf/clients/${clientId}/ingestions`, { method: "POST", headers, body: form, credentials: "include" });
   if (res.status === 401) {
     clearSession();
     if (typeof location !== "undefined") location.reload();
@@ -642,11 +642,11 @@ export const refreshWafAdvisorScoreAll = (includeInReports: boolean) =>
 /** Preview de la matriz Excel (multipart "file", ?use_ai). */
 export async function previewWafExcel(clientId: number, file: File, useAi: boolean, base: string = apiBase()): Promise<WafExcelPreview> {
   const headers = new Headers();
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const csrf = getCsrfToken();
+  if (csrf) headers.set("X-CSRF-Token", csrf);
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${base}/waf/clients/${clientId}/excel-import/preview?use_ai=${useAi}`, { method: "POST", headers, body: form });
+  const res = await fetch(`${base}/waf/clients/${clientId}/excel-import/preview?use_ai=${useAi}`, { method: "POST", headers, body: form, credentials: "include" });
   if (res.status === 401) { clearSession(); if (typeof location !== "undefined") location.reload(); throw new Error("Sesión expirada"); }
   const text = await res.text();
   if (!res.ok) { let d = text; try { d = JSON.parse(text).detail ?? text; } catch { /* texto plano */ } throw new Error(d || `HTTP ${res.status}`); }
@@ -735,9 +735,7 @@ export function sugerirMigracion(clientId: number): Promise<{ sugerencias: Migra
 /** Descarga autenticada (blob) desde el backend .NET; usado por la exportación a Excel. */
 export async function downloadFromApi(path: string, fileName: string, base: string = apiBase()): Promise<void> {
   const headers = new Headers();
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  const res = await fetch(`${base}${path}`, { headers });
+  const res = await fetch(`${base}${path}`, { headers, credentials: "include" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);

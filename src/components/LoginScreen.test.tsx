@@ -6,7 +6,7 @@ import * as api from "@/lib/api";
 afterEach(() => { vi.restoreAllMocks(); localStorage.clear(); });
 
 test("hace login y llama onAuthed sin cambio forzado", async () => {
-  vi.spyOn(api, "login").mockResolvedValue({ access_token: "tok", role: "consultor", full_name: "Isaac" });
+  vi.spyOn(api, "login").mockResolvedValue({ csrf_token: "csrf", role: "consultor", full_name: "Isaac" });
   const onAuthed = vi.fn();
   render(<LoginScreen onAuthed={onAuthed} />);
   fireEvent.change(screen.getByLabelText(/correo/i), { target: { value: "a@b.com" } });
@@ -16,7 +16,7 @@ test("hace login y llama onAuthed sin cambio forzado", async () => {
 });
 
 test("con contraseña temporal llama onAuthed(true)", async () => {
-  vi.spyOn(api, "login").mockResolvedValue({ access_token: "tok", role: "lector", full_name: "Nuevo", must_change_password: true });
+  vi.spyOn(api, "login").mockResolvedValue({ csrf_token: "csrf", role: "lector", full_name: "Nuevo", must_change_password: true });
   const onAuthed = vi.fn();
   render(<LoginScreen onAuthed={onAuthed} />);
   fireEvent.change(screen.getByLabelText(/correo/i), { target: { value: "n@b.com" } });
