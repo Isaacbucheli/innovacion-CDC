@@ -603,6 +603,16 @@ export interface WafExcelPreviewRow {
   reason: string | null;
   suggested_match: WafExcelSuggestedMatch | null;
 }
+/** Metadatos del parseo del Excel (UPL-01 del DAST): el backend declara cuántas filas con
+ * contenido descartó y por qué; rows_total sigue contando solo las aceptadas. */
+export interface WafExcelParseMetrics {
+  sheet: string;
+  rows_total: number;
+  rows_with_warnings: number;
+  header_found: boolean;
+  rows_skipped: number;
+  warnings: string[];
+}
 export interface WafExcelPreview {
   file_name: string;
   client_id: number;
@@ -610,6 +620,7 @@ export interface WafExcelPreview {
   rows_matched: number;
   rows_needs_review: number;
   ai_enabled: boolean;
+  metrics?: WafExcelParseMetrics;
   rows: WafExcelPreviewRow[];
 }
 export interface WafExcelApplyItem {

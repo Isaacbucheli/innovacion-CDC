@@ -84,7 +84,20 @@ export default function ExcelImportDialog({ open, clientId, onOpenChange, onChan
               <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200">{preview.rows_matched} match</span>
               <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200">{preview.rows_needs_review} revisar</span>
               <span className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground">{newCount} nuevas</span>
+              {(preview.metrics?.rows_skipped ?? 0) > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200">
+                  {preview.metrics!.rows_skipped} filas descartadas
+                </span>
+              )}
             </div>
+            {(preview.metrics?.rows_skipped ?? 0) > 0 && (
+              <div className="rounded-lg border border-amber-300/60 bg-amber-50 dark:bg-amber-950/40 p-2.5 text-[12px] space-y-1">
+                <p className="font-medium">El archivo trae filas que no se pudieron interpretar como matriz:</p>
+                <ul className="list-disc pl-4 text-muted-foreground">
+                  {preview.metrics!.warnings.map((w) => <li key={w}>{w}</li>)}
+                </ul>
+              </div>
+            )}
             <div className="border rounded-lg overflow-auto max-h-[50vh]">
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-xs text-muted-foreground border-b">
