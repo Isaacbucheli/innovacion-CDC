@@ -5,6 +5,8 @@ const ROLE_KEY = "innovacion_cdc_role";
 const NAME_KEY = "innovacion_cdc_name";
 const EMAIL_KEY = "innovacion_cdc_email";
 const PERMS_KEY = "innovacion_cdc_perms";
+const REFRESH_KEY = "innovacion_cdc_refresh";
+const TOKEN_EXP_KEY = "innovacion_cdc_token_exp";
 
 export interface ModulePerm { can_view: boolean; can_edit: boolean }
 
@@ -30,6 +32,22 @@ export function setSession(token: string, role: Role, name: string): void {
   localStorage.setItem(ROLE_KEY, role || "lector");
   localStorage.setItem(NAME_KEY, name || "Usuario BIT");
 }
+/** Refresh token opaco (rotatorio, spec DAST 2026-08-19). Vive en localStorage como el
+ * access; la migración de ambos a cookie HttpOnly quedó atada a dominio propio + WAF. */
+export function setRefresh(token: string): void {
+  localStorage.setItem(REFRESH_KEY, token);
+}
+export function getRefresh(): string {
+  return localStorage.getItem(REFRESH_KEY) ?? "";
+}
+/** Expiración del access en epoch ms (calculada de expires_in): permite renovar ANTES del
+ * 401. Compartida entre pestañas vía localStorage. */
+export function setTokenExp(epochMs: number): void {
+  localStorage.setItem(TOKEN_EXP_KEY, String(epochMs));
+}
+export function getTokenExp(): number {
+  return Number(localStorage.getItem(TOKEN_EXP_KEY) ?? 0);
+}
 /** Claves de contexto de negocio que también mueren con la sesión (hallazgo 4.5 del DAST:
  * minimización al cerrar sesión). Las preferencias de dispositivo (sidebar contraído,
  * densidad de tablas) se quedan a propósito: no identifican al usuario ni a sus clientes. */
@@ -46,6 +64,8 @@ export function clearSession(): void {
   localStorage.removeItem(NAME_KEY);
   localStorage.removeItem(EMAIL_KEY);
   localStorage.removeItem(PERMS_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+  localStorage.removeItem(TOKEN_EXP_KEY);
   for (const key of CONTEXT_KEYS) localStorage.removeItem(key);
 }
 export function canEdit(): boolean {

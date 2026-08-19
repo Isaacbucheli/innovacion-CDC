@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { changePassword, logout } from "@/lib/api";
-import { getName, getRole, setSession } from "@/lib/auth";
 
 // Pantalla forzada tras el login cuando la contraseña es temporal (must_change_password=1):
 // el usuario debe definir su contraseña definitiva antes de entrar a la plataforma.
@@ -24,10 +23,9 @@ export default function ChangePasswordScreen({ onChanged }: { onChanged: () => v
     if (next !== confirm) { setError("La confirmación no coincide con la nueva contraseña."); return; }
     setBusy(true);
     try {
-      const r = await changePassword(current, next);
-      // WEB-12: el backend revocó las sesiones anteriores (incluido el token con el que se
-      // hizo esta llamada) y devolvió un reemplazo; persistirlo evita quedar expulsado.
-      if (r.access_token) setSession(r.access_token, r.role ?? getRole(), r.full_name ?? getName());
+      // WEB-12: el backend revoca las sesiones anteriores (incluido el token con el que se
+      // hace esta llamada) y devuelve un reemplazo, que changePassword ya deja persistido.
+      await changePassword(current, next);
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo cambiar la contraseña");
