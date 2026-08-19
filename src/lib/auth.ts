@@ -30,12 +30,23 @@ export function setSession(token: string, role: Role, name: string): void {
   localStorage.setItem(ROLE_KEY, role || "lector");
   localStorage.setItem(NAME_KEY, name || "Usuario BIT");
 }
+/** Claves de contexto de negocio que también mueren con la sesión (hallazgo 4.5 del DAST:
+ * minimización al cerrar sesión). Las preferencias de dispositivo (sidebar contraído,
+ * densidad de tablas) se quedan a propósito: no identifican al usuario ni a sus clientes. */
+const CONTEXT_KEYS = [
+  "innovacion_cdc_waf_client",
+  "innovacion_cdc_advisor_sync_job",
+  "innovacion_cdc_section",
+  "innovacion_cdc_recent",
+];
+
 export function clearSession(): void {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(NAME_KEY);
   localStorage.removeItem(EMAIL_KEY);
   localStorage.removeItem(PERMS_KEY);
+  for (const key of CONTEXT_KEYS) localStorage.removeItem(key);
 }
 export function canEdit(): boolean {
   return getRole() === "admin" || getRole() === "consultor";

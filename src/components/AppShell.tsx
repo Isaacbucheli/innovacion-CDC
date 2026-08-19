@@ -2,7 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { ChevronDown, ChevronsLeft, ChevronsRight, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
-import { canViewModule, clearSession, getName, getRole } from "@/lib/auth";
+import { canViewModule, getName, getRole } from "@/lib/auth";
+import { logout } from "@/lib/api";
 import { azIcon } from "@/lib/azureIcons";
 
 // Menú espejo del sidebar de PRD (sidebar.js): mismos grupos, orden, etiquetas
@@ -479,7 +480,7 @@ export default function AppShell({
             variant="ghost"
             size="icon"
             className="text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            onClick={() => { clearSession(); if (typeof location !== "undefined") location.reload(); }}
+            onClick={() => { void logout(); }}
             aria-label="Salir"
           >
             <LogOut className="w-4 h-4" />

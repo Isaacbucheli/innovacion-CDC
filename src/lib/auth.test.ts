@@ -60,3 +60,21 @@ test("getEmail/setEmail y clearSession", () => {
   clearSession();
   expect(getEmail()).toBe("");
 });
+
+test("clearSession limpia también el contexto de negocio y respeta las preferencias de dispositivo", () => {
+  setSession("tok", "consultor", "Nombre");
+  localStorage.setItem("innovacion_cdc_waf_client", "42");
+  localStorage.setItem("innovacion_cdc_advisor_sync_job", '{"clientId":1}');
+  localStorage.setItem("innovacion_cdc_section", "waf");
+  localStorage.setItem("innovacion_cdc_recent", '["waf"]');
+  localStorage.setItem("innovacion_cdc_sidebar_collapsed", "1");
+
+  clearSession();
+
+  expect(localStorage.getItem("innovacion_cdc_waf_client")).toBeNull();
+  expect(localStorage.getItem("innovacion_cdc_advisor_sync_job")).toBeNull();
+  expect(localStorage.getItem("innovacion_cdc_section")).toBeNull();
+  expect(localStorage.getItem("innovacion_cdc_recent")).toBeNull();
+  // Preferencia de dispositivo, no contexto del usuario: se queda.
+  expect(localStorage.getItem("innovacion_cdc_sidebar_collapsed")).toBe("1");
+});

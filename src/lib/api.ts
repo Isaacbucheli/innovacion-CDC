@@ -148,8 +148,24 @@ export interface MeModule { key: string; can_view: boolean; can_edit: boolean }
 export const me = () =>
   request<{ role: Role; full_name?: string; email?: string; must_change_password?: boolean; modules?: MeModule[] }>("/auth/me");
 // Cambio de contraseña del propio usuario (obligatorio cuando es temporal: must_change_password=1).
+// WEB-12: el backend revoca las sesiones anteriores y devuelve un token de reemplazo,
+// que el llamador debe persistir (ChangePasswordScreen) para no perder la sesión.
 export const changePassword = (current_password: string, new_password: string) =>
-  request<{ changed: boolean; must_change_password: boolean }>("/auth/change-password", jsonOpts("POST", { current_password, new_password }));
+  request<{ changed: boolean; must_change_password: boolean; access_token?: string; role?: Role; full_name?: string }>(
+    "/auth/change-password", jsonOpts("POST", { current_password, new_password }));
+
+/** Cierre de sesión real (WEB-12): avisa al backend para revocar server-side y recién
+ * entonces limpia y recarga. Si la llamada falla (red caída, token ya vencido), el cierre
+ * local procede igual: quedarse "adentro" sería peor. */
+export async function logout(): Promise<void> {
+  try {
+    await request("/auth/logout", jsonOpts("POST", {}));
+  } catch {
+    // mejor esfuerzo: el logout local no se bloquea por el backend
+  }
+  clearSession();
+  if (typeof location !== "undefined") location.reload();
+}
 
 // ---- Permisos por módulo (matriz rol×módulo, solo admin) ----
 export interface ModulePermissionRow { module_key: string; can_view: boolean; can_edit: boolean }

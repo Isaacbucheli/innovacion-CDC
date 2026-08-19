@@ -258,3 +258,32 @@ describe("Optimización api", () => {
     expect(JSON.parse((calls[0][1] as RequestInit).body as string)).toEqual({ state: "resuelto", notes: "ya migrado" });
   });
 });
+
+test("logout llama al endpoint, limpia la sesión y recarga", async () => {
+  setSession("tok", "consultor", "Nombre");
+  const fetchMock = vi.fn(async (_url: RequestInfo | URL) => new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const reload = vi.fn();
+  vi.stubGlobal("location", { reload });
+
+  const { logout } = await import("@/lib/api");
+  await logout();
+
+  const urls = fetchMock.mock.calls.map((c) => String(c[0]));
+  expect(urls.some((u) => u.endsWith("/auth/logout"))).toBe(true);
+  expect(getToken()).toBe("");
+  expect(reload).toHaveBeenCalled();
+});
+
+test("logout limpia y recarga aunque el endpoint falle", async () => {
+  setSession("tok", "consultor", "Nombre");
+  vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 500 })));
+  const reload = vi.fn();
+  vi.stubGlobal("location", { reload });
+
+  const { logout } = await import("@/lib/api");
+  await logout();
+
+  expect(getToken()).toBe("");
+  expect(reload).toHaveBeenCalled();
+});
