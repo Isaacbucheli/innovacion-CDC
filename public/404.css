@@ -1,0 +1,53 @@
+/* Página 404 propia del SWA (servida vía responseOverrides en staticwebapp.config).
+   Reemplaza la página de error por defecto de Azure Static Web Apps, que cargaba
+   Bootstrap y jQuery desde un CDN externo (hallazgos WEB-02/03/06/07 del DAST).
+   Autocontenida y sin estilos inline para respetar la CSP estricta (style-src 'self'). */
+:root {
+  --bg: #f7f7f5;
+  --fg: #1a1a1a;
+  --muted: #6b6b6b;
+  --border: #d8d8d4;
+  --accent: #1f7a3d;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141414;
+    --fg: #f2f2f0;
+    --muted: #a0a0a0;
+    --border: #303030;
+    --accent: #4caf6b;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+.wrap { text-align: center; max-width: 26rem; }
+.logo { height: auto; margin-bottom: 1.75rem; opacity: 0.95; }
+.code {
+  font-size: 3.5rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin: 0;
+  color: var(--accent);
+}
+h1 { font-size: 1.25rem; font-weight: 600; margin: 0.25rem 0 0.5rem; }
+.msg { color: var(--muted); margin: 0 0 1.75rem; font-size: 0.95rem; }
+.btn {
+  display: inline-block;
+  padding: 0.6rem 1.4rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: border-color 0.15s ease;
+}
+.btn:hover { border-color: var(--accent); }
