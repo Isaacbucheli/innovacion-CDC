@@ -35,7 +35,7 @@ export function tituloHito(h: InformeHito): string {
 export default function SeccionCronologia({ cr }: { cr: InformeCronologia }) {
   const cols: SimpleCol<InformeHito>[] = [
     { key: "fecha", label: "Fecha", render: (h) => fmtDateOnly(h.fecha) },
-    { key: "codigo", label: "Código", render: (h) => h.codigo ?? "—" },
+    { key: "codigo", label: "Código", render: (h) => h.codigo ?? "" },
     { key: "hito", label: "Hito", render: (h) => tituloHito(h) },
     { key: "rec", label: "Recomendación", render: (h) => h.rec },
   ];

@@ -52,12 +52,9 @@ function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
 // Chip genérico (mismo idiom ad-hoc que ReservationsPage: span + clases Tailwind, sin componente nuevo).
 const chip = (cls: string, text: React.ReactNode) => <span className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{text}</span>;
 
-function dateOrDash(iso: string | null | undefined): string {
-  return fmtDateTime(iso);
-}
-
 function enabledChip(v: boolean | null | undefined) {
-  if (v === null || v === undefined) return chip("bg-muted text-muted-foreground", "—");
+  // Sin dato no hay chip: una píldora vacía o con relleno no informa nada.
+  if (v === null || v === undefined) return null;
   return v
     ? chip("bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300", "Sí")
     : chip("bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300", "No");
@@ -212,7 +209,8 @@ const ENVIRONMENTS = ["produccion", "preproduccion", "desarrollo", "transversal"
 
 const mfaCell = (m: AccessAssignment["mfa_status"] | AccessGuest["mfa_status"] | AccessGlobalAdmin["mfa_status"]) => {
   const c = mfaChip(m);
-  return chip(c.cls, c.text);
+  // Sin dato mfaChip devuelve texto vacío: no se renderiza una píldora en blanco.
+  return c.text ? chip(c.cls, c.text) : null;
 };
 
 const nameCell = (displayName: string | null, fallbackId: string, orphan = false) =>
@@ -772,7 +770,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
       id: "privilegio", header: "Privilegio",
       cell: (c) => {
         const a = c.row.original;
-        if (a.total_assignments === 0) return <span className="text-muted-foreground">—</span>;
+        if (a.total_assignments === 0) return null;
         const p = accountPrivilege(a);
         return <span className="whitespace-nowrap">{chip(roleClassChip(p), roleClassShortLabel(p))}</span>;
       },
@@ -783,11 +781,10 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
       id: "decision", header: "Decisión",
       cell: (c) => {
         const a = c.row.original;
-        const progreso = decisionProgress(a);
         const resumen = decisionSummary(a);
         return (
-          <span className="text-xs tabular-nums whitespace-nowrap" title={resumen}>
-            <span className={progreso === "—" ? "text-muted-foreground" : ""}>{progreso}</span>
+          <span className="text-xs tabular-nums whitespace-nowrap" title={resumen || undefined}>
+            {decisionProgress(a)}
             <span className="sr-only"> {resumen}</span>
           </span>
         );
@@ -795,7 +792,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
     }),
     colAccount.accessor((a) => a.last_sign_in ?? "", {
       id: "last_sign_in", header: "Último login",
-      cell: (c) => <span className="whitespace-nowrap">{dateOrDash(c.row.original.last_sign_in)}</span>,
+      cell: (c) => <span className="whitespace-nowrap">{fmtDateTime(c.row.original.last_sign_in)}</span>,
     }),
     // Acceso por teclado al panel de detalle (la fila entera también abre, con el mouse). El nombre
     // accesible dice "Ver asignaciones" porque eso es lo que el panel lista abajo, además del resto de
@@ -890,17 +887,17 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
       id: "display_name", header: "Nombre",
       cell: (c) => nameCell(c.row.original.display_name, c.row.original.principal_object_id, isOrphanAssignment(c.row.original)),
     }),
-    colAssign.accessor((a) => a.login ?? "", { id: "login", header: "Correo/Login", cell: (c) => c.getValue() || "—" }),
+    colAssign.accessor((a) => a.login ?? "", { id: "login", header: "Correo/Login" }),
     colAssign.accessor((a) => a.via_group_name || a.via_group_id || "", {
       id: "via_group", header: "Vía grupo",
       cell: (c) => {
         const { via_group_name, via_group_id } = c.row.original;
         if (via_group_name) return via_group_name;
         if (via_group_id) return <span className="font-mono text-xs">{via_group_id}</span>;
-        return "—";
+        return null;
       },
     }),
-    colAssign.accessor((a) => a.last_sign_in ?? "", { id: "last_sign_in", header: "Último login", cell: (c) => dateOrDash(c.row.original.last_sign_in) }),
+    colAssign.accessor((a) => a.last_sign_in ?? "", { id: "last_sign_in", header: "Último login", cell: (c) => fmtDateTime(c.row.original.last_sign_in) }),
     colAssign.accessor((a) => a.mfa_status ?? "", { id: "mfa", header: "MFA", cell: (c) => mfaCell(c.row.original.mfa_status) }),
   ], [isOrphanAssignment, editable]);
 
@@ -921,7 +918,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
         const { via_group_name, via_group_id } = c.row.original;
         if (via_group_name) return via_group_name;
         if (via_group_id) return <span className="font-mono text-xs">{via_group_id}</span>;
-        return "—";
+        return null;
       },
     }),
   ], [isOrphanAssignment]);
@@ -931,10 +928,10 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
       id: "display_name", header: "Nombre",
       cell: (c) => nameCell(c.row.original.display_name, c.row.original.object_id),
     }),
-    colAdmin.accessor((a) => a.upn ?? "", { id: "upn", header: "UPN", cell: (c) => c.getValue() || "—" }),
-    colAdmin.accessor((a) => a.user_type ?? "", { id: "user_type", header: "Tipo", cell: (c) => c.getValue() || "—" }),
+    colAdmin.accessor((a) => a.upn ?? "", { id: "upn", header: "UPN" }),
+    colAdmin.accessor((a) => a.user_type ?? "", { id: "user_type", header: "Tipo" }),
     colAdmin.accessor("account_enabled", { header: "Habilitada", cell: (c) => enabledChip(c.getValue()) }),
-    colAdmin.accessor((a) => a.last_sign_in ?? "", { id: "last_sign_in", header: "Último login", cell: (c) => dateOrDash(c.row.original.last_sign_in) }),
+    colAdmin.accessor((a) => a.last_sign_in ?? "", { id: "last_sign_in", header: "Último login", cell: (c) => fmtDateTime(c.row.original.last_sign_in) }),
     colAdmin.accessor((a) => a.mfa_status ?? "", { id: "mfa", header: "MFA", cell: (c) => mfaCell(c.row.original.mfa_status) }),
   ], []);
 
@@ -943,13 +940,13 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
       id: "display_name", header: "Nombre",
       cell: (c) => nameCell(c.row.original.display_name, c.row.original.object_id),
     }),
-    colGuest.accessor((g) => g.email ?? "", { id: "email", header: "Correo", cell: (c) => c.getValue() || "—" }),
-    colGuest.accessor((g) => g.external_domain ?? "", { id: "external_domain", header: "Dominio externo", cell: (c) => c.getValue() || "—" }),
+    colGuest.accessor((g) => g.email ?? "", { id: "email", header: "Correo" }),
+    colGuest.accessor((g) => g.external_domain ?? "", { id: "external_domain", header: "Dominio externo" }),
     colGuest.accessor("account_enabled", { header: "Habilitada", cell: (c) => enabledChip(c.getValue()) }),
-    colGuest.accessor((g) => g.external_state ?? "", { id: "external_state", header: "Estado externo", cell: (c) => c.getValue() || "—" }),
-    colGuest.accessor((g) => g.created_at_azure ?? "", { id: "created_at", header: "Creado", cell: (c) => dateOrDash(c.row.original.created_at_azure) }),
-    colGuest.accessor((g) => g.last_sign_in ?? "", { id: "last_sign_in", header: "Último login", cell: (c) => dateOrDash(c.row.original.last_sign_in) }),
-    colGuest.accessor((g) => g.roles_in_subs ?? "", { id: "roles", header: "Roles/Subs", cell: (c) => (c.getValue() ? <span className="text-xs">{c.getValue()}</span> : "—") }),
+    colGuest.accessor((g) => g.external_state ?? "", { id: "external_state", header: "Estado externo" }),
+    colGuest.accessor((g) => g.created_at_azure ?? "", { id: "created_at", header: "Creado", cell: (c) => fmtDateTime(c.row.original.created_at_azure) }),
+    colGuest.accessor((g) => g.last_sign_in ?? "", { id: "last_sign_in", header: "Último login", cell: (c) => fmtDateTime(c.row.original.last_sign_in) }),
+    colGuest.accessor((g) => g.roles_in_subs ?? "", { id: "roles", header: "Roles/Subs", cell: (c) => (c.getValue() ? <span className="text-xs">{c.getValue()}</span> : null) }),
     colGuest.accessor((g) => g.mfa_status ?? "", { id: "mfa", header: "MFA", cell: (c) => mfaCell(c.row.original.mfa_status) }),
   ], []);
 
@@ -993,7 +990,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                 <td className="py-1 pr-4">{roleClassLabel(x.role_class)}</td>
                 <td className="py-1 pr-4">{scopeLabel(x.scope_level)}</td>
                 <td className="py-1 pr-4">{x.subscription_name || x.subscription_id}</td>
-                <td className="py-1">{x.via_group_name || (x.via_group_id ? x.via_group_id : "—")}</td>
+                <td className="py-1">{x.via_group_name || x.via_group_id}</td>
               </tr>
             ))}
           </tbody>
@@ -1529,7 +1526,7 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
             </Tabs>
 
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground border-t pt-3">
-              <span>{resp?.finished_at ? `Última sincronización: ${dateOrDash(resp.finished_at)}` : "Sin sincronizaciones registradas."}</span>
+              <span>{resp?.finished_at ? `Última sincronización: ${fmtDateTime(resp.finished_at)}` : "Sin sincronizaciones registradas."}</span>
               <span>Solo asignaciones activas: los roles elegibles vía PIM y los Classic administrators no se incluyen.</span>
             </div>
           </>
@@ -1554,11 +1551,11 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                   {chip(externalChip(detailAccount.is_external), externalLabel(detailAccount.is_external))}
                 </DetailField>
                 <DetailField label="Correo/Login">
-                  <span className="break-all">{detailAccount.login || "—"}</span>
+                  <span className="break-all">{detailAccount.login}</span>
                 </DetailField>
                 <DetailField label="Habilitada">{enabledChip(detailAccount.account_enabled)}</DetailField>
                 <DetailField label="MFA">{mfaCell(detailAccount.mfa_status)}</DetailField>
-                <DetailField label="Último login">{dateOrDash(detailAccount.last_sign_in)}</DetailField>
+                <DetailField label="Último login">{fmtDateTime(detailAccount.last_sign_in)}</DetailField>
                 <DetailField label="Suscripciones">
                   <span className="tabular-nums">{detailAccount.subscriptions}</span>
                 </DetailField>
@@ -1566,8 +1563,9 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                 <DetailField label="Vía">{viaLabel(detailAccount.via)}</DetailField>
               </div>
 
-              {/* El desglose numérico que antes ocupaba cuatro columnas de la tabla. Un 0 se muestra
-                  como "—": lo que importa es dónde sí hay privilegio. */}
+              {/* El desglose numérico que antes ocupaba cuatro columnas de la tabla. Las clases en
+                  cero se omiten: lo que importa es dónde sí hay privilegio, y una etiqueta seguida
+                  de nada no informa. Siempre queda al menos una (la cuenta tiene asignaciones). */}
               <div>
                 <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                   Accesos por clase de rol
@@ -1580,12 +1578,10 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                     ["escritura_servicio", detailAccount.escritura_servicio],
                     ["lectura", detailAccount.lectura],
                     [null, detailAccount.sin_clasificar],
-                  ] as [AccessRoleClass, number][]).map(([cls, n]) => (
+                  ] as [AccessRoleClass, number][]).filter(([, n]) => n > 0).map(([cls, n]) => (
                     <span key={cls ?? "sin_clasificar"} className="inline-flex items-center gap-1.5">
                       <span className="text-muted-foreground">{roleClassLabel(cls)}:</span>
-                      <span className={`tabular-nums ${n > 0 ? "font-medium" : "text-muted-foreground"}`}>
-                        {n > 0 ? n : "—"}
-                      </span>
+                      <span className="tabular-nums font-medium">{n}</span>
                     </span>
                   ))}
                 </div>
@@ -1660,9 +1656,9 @@ export default function AccessReviewPage({ onNavigate }: { onNavigate?: (key: st
                     <TableRow key={r.run_id}>
                       <TableCell className="tabular-nums">{r.run_id}</TableCell>
                       <TableCell>{chip(s.cls, s.label)}</TableCell>
-                      <TableCell>{dateOrDash(r.started_at)}</TableCell>
-                      <TableCell>{dateOrDash(r.finished_at)}</TableCell>
-                      <TableCell className="max-w-[220px] truncate" title={r.error ?? undefined}>{r.error ?? "—"}</TableCell>
+                      <TableCell>{fmtDateTime(r.started_at)}</TableCell>
+                      <TableCell>{fmtDateTime(r.finished_at)}</TableCell>
+                      <TableCell className="max-w-[220px] truncate" title={r.error ?? undefined}>{r.error}</TableCell>
                     </TableRow>
                   );
                 })}

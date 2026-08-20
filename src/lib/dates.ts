@@ -22,22 +22,22 @@ export function parseApiDate(value: string | Date | null | undefined): Date | nu
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** Fecha y hora en Quito, ej. "31/7/2026, 10:29:40 a. m.". */
+/** Fecha y hora en Quito, ej. "31/7/2026, 10:29:40 a. m.". Vacío si no hay valor. */
 export function fmtDateTime(
   value: string | Date | null | undefined,
   options?: Intl.DateTimeFormatOptions,
 ): string {
   const d = parseApiDate(value);
-  return d ? d.toLocaleString(LOCALE, { timeZone: APP_TIME_ZONE, ...options }) : "—";
+  return d ? d.toLocaleString(LOCALE, { timeZone: APP_TIME_ZONE, ...options }) : "";
 }
 
-/** Solo la fecha (de un timestamp) en Quito, ej. "31/7/2026". */
+/** Solo la fecha (de un timestamp) en Quito, ej. "31/7/2026". Vacío si no hay valor. */
 export function fmtDate(
   value: string | Date | null | undefined,
   options?: Intl.DateTimeFormatOptions,
 ): string {
   const d = parseApiDate(value);
-  return d ? d.toLocaleDateString(LOCALE, { timeZone: APP_TIME_ZONE, ...options }) : "—";
+  return d ? d.toLocaleDateString(LOCALE, { timeZone: APP_TIME_ZONE, ...options }) : "";
 }
 
 /** Fecha de un timestamp como "yyyy-MM-dd" en Quito (para nombres de archivo, inputs date). */
@@ -53,7 +53,7 @@ export function fmtDateISO(value: string | Date | null | undefined): string {
  * mes): convertirlas a Quito las movería al día anterior.
  */
 export function fmtDateOnly(value: string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "";
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
   if (!m) return fmtDate(value);
   return `${Number(m[3])}/${Number(m[2])}/${m[1]}`;

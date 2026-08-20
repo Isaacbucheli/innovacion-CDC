@@ -23,14 +23,14 @@ export default function SeccionRoadmap({ mz }: { mz: InformeRoadmap }) {
   const cols: SimpleCol<InformeRoadmapItem>[] = [
     { key: "a", label: "Ámbito", render: (i) => i.a },
     { key: "t", label: "Hallazgo", render: (i) => i.t },
-    { key: "p", label: "Prioridad", render: (i) => i.p ?? "—" },
+    { key: "p", label: "Prioridad", render: (i) => i.p ?? "" },
     { key: "i", label: "Impacto", align: "right", render: (i) => fmtNum(i.i) },
     { key: "v", label: "Avance", align: "right", render: (i) => fmtPct(i.v, 0) },
     {
       key: "e", label: "Esfuerzo", align: "right",
       render: (i) => <Cifra valor={i.e} formato={(n) => `${n} h`} motivoSinMedir={MOTIVO_HORAS} etiquetaSinMedir="Sin medir" />,
     },
-    { key: "f", label: "Desde", render: (i) => (i.f ? fmtDateOnly(i.f) : "—") },
+    { key: "f", label: "Desde", render: (i) => (i.f ? fmtDateOnly(i.f) : "") },
     { key: "n", label: "Recomendaciones", align: "right", render: (i) => fmtNum(i.n) },
   ];
 

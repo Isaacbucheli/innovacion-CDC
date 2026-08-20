@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import type { PendienteCliente, PendienteItem } from "@/types";
@@ -49,6 +49,13 @@ export default function PendienteDetailSheet({
 
   const cliente = clientes.find((c) => c.num === pendiente.cliente_num);
   const notas = [...pendiente.historial].sort((a, b) => a.orden - b.orden || a.hist_id - b.hist_id);
+  // Cabecera: solo los segmentos con dato, para no dejar separadores "·" huérfanos.
+  const meta = [
+    tipoLabel(pendiente.tipo),
+    estadoLabel(pendiente.estado),
+    pendiente.prioridad ? `Prioridad ${pendiente.prioridad}` : "",
+    pendiente.fecha_creacion ? `Creado ${pendiente.fecha_creacion}` : "",
+  ].filter(Boolean);
 
   async function agregar() {
     if (!nota.trim()) return;
@@ -82,12 +89,12 @@ export default function PendienteDetailSheet({
         <div className="space-y-4 mt-4">
           <div className="rounded-lg border bg-background p-3 space-y-3">
             <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-              <span>{tipoLabel(pendiente.tipo)}</span>
-              <span>·</span>
-              <span>{estadoLabel(pendiente.estado)}</span>
-              <span>·</span>
-              <span>Prioridad {pendiente.prioridad ?? "—"}</span>
-              {pendiente.fecha_creacion && (<><span>·</span><span>Creado {pendiente.fecha_creacion}</span></>)}
+              {meta.map((m, i) => (
+                <Fragment key={m}>
+                  {i > 0 && <span>·</span>}
+                  <span>{m}</span>
+                </Fragment>
+              ))}
             </div>
             <div className="text-sm whitespace-pre-line leading-relaxed">{tituloPrincipal(pendiente)}</div>
             <Field label="Responsable" value={pendiente.responsable} />

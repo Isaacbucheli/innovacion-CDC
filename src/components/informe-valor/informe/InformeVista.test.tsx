@@ -114,10 +114,13 @@ describe("la cabecera de cuatro tarjetas (reunión del 2026-08-13)", () => {
     expect(screen.getByText(/No hay snapshot de Azure Advisor/i)).toBeInTheDocument();
     expect(screen.getByText(/Falta el export de la mesa de servicio/i)).toBeInTheDocument();
     expect(screen.getByText(/Falta la matriz de mejoras/i)).toBeInTheDocument();
+    // El valor de una tarjeta sin insumo queda vacío (el hint ya explica): ningún guion de relleno.
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
   });
 
-  // Tres estados, no dos: sin insumo ("—") es distinto de insumo sin medir ("Sin medición" con el
-  // motivo real) y de insumo medido sin gasto contra el que comparar.
+  // Tres estados, no dos: sin insumo (valor vacío, con el hint de que falta el registro) es
+  // distinto de insumo sin medir ("Sin medición" con el motivo real) y de insumo medido sin gasto
+  // contra el que comparar.
   it("la tarjeta de optimización distingue sus tres estados", () => {
     const sinMedir: InformeValorModelo = {
       ...vacio, ejecutado: { ...ejecutadoBase, medido: false, motivo: "El barrido no se pudo leer." },

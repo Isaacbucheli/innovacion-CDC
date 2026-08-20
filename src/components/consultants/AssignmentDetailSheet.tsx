@@ -16,18 +16,15 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 }
 
 function People({ label, refs }: { label: string; refs: PersonRef[] }) {
+  if (refs.length === 0) return null;
   return (
     <div>
       <div className="text-xs font-medium uppercase tracking-wide text-primary mb-1">{label}</div>
-      {refs.length === 0 ? (
-        <span className="text-sm text-muted-foreground">—</span>
-      ) : (
-        <div className="flex flex-wrap gap-1">
-          {refs.map((r) => (
-            <Badge key={r.person_id} variant="outline" className="font-normal">{r.name}</Badge>
-          ))}
-        </div>
-      )}
+      <div className="flex flex-wrap gap-1">
+        {refs.map((r) => (
+          <Badge key={r.person_id} variant="outline" className="font-normal">{r.name}</Badge>
+        ))}
+      </div>
     </div>
   );
 }

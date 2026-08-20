@@ -34,7 +34,7 @@ export default function SeccionOperacion({ t }: { t: InformeOperacion }) {
 
   const colsFuera: SimpleCol<FilaInforme>[] = [
     { key: "caso", label: "Caso", render: (r) => txt(r[0]) },
-    { key: "fecha", label: "Fecha", render: (r) => (txt(r[1]) ? txt(r[1]).slice(0, 10) : "—") },
+    { key: "fecha", label: "Fecha", render: (r) => (txt(r[1]) ? txt(r[1]).slice(0, 10) : "") },
     { key: "cat", label: "Categoría", render: (r) => txt(r[2]) || "(sin categoría)" },
     { key: "sub", label: "Subcategoría", render: (r) => txt(r[3]) || "(sin subcategoría)" },
     { key: "sla", label: "SLA", align: "right", render: (r) => fmtHoras(num(r[4])) },
@@ -64,7 +64,7 @@ export default function SeccionOperacion({ t }: { t: InformeOperacion }) {
     { key: "c", label: "Casos", align: "right", render: (c) => fmtNum(c.c) },
     {
       key: "f", label: "Fuera de SLA", align: "right",
-      render: (c) => (c.f > 0 ? <span className="text-red-700 dark:text-red-400">{fmtNum(c.f)}</span> : "—"),
+      render: (c) => (c.f > 0 ? <span className="text-red-700 dark:text-red-400">{fmtNum(c.f)}</span> : ""),
     },
     { key: "med", label: "Mediana de atención", align: "right", render: (c) => fmtHoras(c.med) },
   ];

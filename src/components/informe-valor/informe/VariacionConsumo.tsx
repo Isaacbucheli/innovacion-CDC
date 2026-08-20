@@ -108,8 +108,8 @@ function PanelReservas({ reservas }: { reservas: InformeReservas }) {
   const porVencer = reservas.confirmados.filter((c) => c.expiring).length;
   const colsConfirmados: SimpleCol<InformeReservas["confirmados"][number]>[] = [
     { key: "rec", label: "Recurso", render: (r) => r.resourceName ?? "(sin nombre)" },
-    { key: "res", label: "Reserva", render: (r) => r.reservationName ?? r.reservationId ?? "—" },
-    { key: "ini", label: "Inicio", render: (r) => r.inicioReserva ?? "—" },
+    { key: "res", label: "Reserva", render: (r) => r.reservationName ?? r.reservationId ?? "" },
+    { key: "ini", label: "Inicio", render: (r) => r.inicioReserva ?? "" },
     { key: "uso", label: "Horas usadas", align: "right", render: (r) => fmtNum(Math.round(r.usedHours)) },
     {
       key: "ahorro", label: "Ahorro", align: "right",
@@ -159,8 +159,8 @@ function PanelReservas({ reservas }: { reservas: InformeReservas }) {
       {reservas.estimados.length > 0 && (
         <SimpleTable
           cols={[
-            { key: "n", label: "Reserva", render: (r: InformeReservas["estimados"][number]) => r.nombre ?? r.reservationId ?? "—" },
-            { key: "p", label: "Producto", render: (r) => r.producto ?? "—" },
+            { key: "n", label: "Reserva", render: (r: InformeReservas["estimados"][number]) => r.nombre ?? r.reservationId ?? "" },
+            { key: "p", label: "Producto", render: (r) => r.producto ?? "" },
             { key: "u", label: "Unidades estimadas", align: "right", render: (r) => fmtNum(r.unidadesEstimadas) },
             {
               key: "m", label: "Por qué es estimada",

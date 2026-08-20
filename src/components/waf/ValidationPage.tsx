@@ -126,7 +126,7 @@ export default function ValidationPage({ onNavigate }: { onNavigate?: (key: stri
       header: "Costo", filterFn: costFilterFn,
       cell: (c) => c.getValue()
         ? <span className="text-[11px] text-amber-600 dark:text-amber-400">posible</span>
-        : <span className="text-muted-foreground">—</span>,
+        : null,
     }),
     col.display({
       id: "actions",

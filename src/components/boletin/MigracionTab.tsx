@@ -55,7 +55,7 @@ function RutaRow({ ruta, english }: { ruta: MigracionRuta; english: boolean }) {
         </div>
       </td>
       <td className="max-w-72 px-4 py-2.5 text-xs text-muted-foreground">
-        <span className="line-clamp-2" title={ruta.notas || undefined}>{ruta.notas || "—"}</span>
+        {ruta.notas ? <span className="line-clamp-2" title={ruta.notas}>{ruta.notas}</span> : null}
         {ruta.learn_more_url ? (
           <a href={ruta.learn_more_url} target="_blank" rel="noopener noreferrer"
             className="mt-0.5 inline-flex items-center gap-1 text-primary hover:underline">

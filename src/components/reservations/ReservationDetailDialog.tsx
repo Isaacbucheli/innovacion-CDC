@@ -71,8 +71,8 @@ export default function ReservationDetailDialog({ reservation, clientId, util, o
                       {consumers.map((c, i) => (
                         <tr key={i} className="border-b last:border-0">
                           <td className="px-3 py-2">{c.resource_name}</td>
-                          <td className="px-3 py-2">{c.resource_group || "—"}<br /><span className="text-xs text-muted-foreground">{c.subscription_name || c.subscription_id || ""}</span></td>
-                          <td className="px-3 py-2 text-right tabular-nums">{c.used_hours ?? "—"}</td>
+                          <td className="px-3 py-2">{c.resource_group ? <>{c.resource_group}<br /></> : null}<span className="text-xs text-muted-foreground">{c.subscription_name || c.subscription_id || ""}</span></td>
+                          <td className="px-3 py-2 text-right tabular-nums">{c.used_hours ?? ""}</td>
                         </tr>
                       ))}
                     </tbody>

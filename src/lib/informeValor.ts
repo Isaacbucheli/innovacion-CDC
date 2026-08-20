@@ -123,7 +123,7 @@ export const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "a
  * anterior (la regla de lib/dates aplica a timestamps del backend, no a estas claves).
  */
 export function etiquetaMes(ym: string | null | undefined): string {
-  if (!ym) return "—";
+  if (!ym) return "";
   const m = /^(\d{4})-(\d{2})$/.exec(ym);
   if (!m) return ym;
   const i = Number(m[2]) - 1;

@@ -81,16 +81,16 @@ export default function InformeVista({ modelo, variacion, faseReservas, errorRes
 
   const colsCobertura: SimpleCol<InformeCoberturaSub>[] = [
     { key: "nombre", label: "Suscripción", render: (s) => s.nombre },
-    { key: "fact", label: "Facturación", render: (s) => (s.facturacion ? "Sí" : "—") },
-    { key: "rbac", label: "Permisos", render: (s) => (s.rbac ? "Sí" : "—") },
-    { key: "advisor", label: "Advisor", render: (s) => (s.advisor ? "Sí" : "—") },
+    { key: "fact", label: "Facturación", render: (s) => (s.facturacion ? "Sí" : "") },
+    { key: "rbac", label: "Permisos", render: (s) => (s.rbac ? "Sí" : "") },
+    { key: "advisor", label: "Advisor", render: (s) => (s.advisor ? "Sí" : "") },
   ];
 
   // Las cuatro tarjetas de la reunión del 2026-08-13 (mismo contenido que el hero de la plantilla
   // HTML): Optimización, Opex, Operación (SLA) y Avance de remediación. RBAC no entra acá -- su
   // detalle sigue viviendo en la sección Seguridad.
   const optimizacion = !ejecutado
-    ? { valor: "—", hint: "Falta el registro de acciones ejecutadas para medir la optimización.", tono: "aviso" as const }
+    ? { valor: "", hint: "Falta el registro de acciones ejecutadas para medir la optimización.", tono: "aviso" as const }
     : !ejecutado.medido
       ? {
         valor: "Sin medición",
@@ -124,13 +124,13 @@ export default function InformeVista({ modelo, variacion, faseReservas, errorRes
     };
 
   const operacion = !tickets
-    ? { valor: "—", hint: "Falta el export de la mesa de servicio para medir el cumplimiento de SLA.", tono: "aviso" as const }
+    ? { valor: "", hint: "Falta el export de la mesa de servicio para medir el cumplimiento de SLA.", tono: "aviso" as const }
     : tickets.denominadorPct > 0
       ? { valor: fmtPct(tickets.pct, 2), hint: operacionProsa(tickets), tono: "" as const }
       : { valor: "Sin medir", hint: operacionProsa(tickets), tono: "aviso" as const };
 
   const avanceRemediacion = !matriz
-    ? { valor: "—", hint: "Falta la matriz de mejoras para medir el avance de remediación.", tono: "aviso" as const }
+    ? { valor: "", hint: "Falta la matriz de mejoras para medir el avance de remediación.", tono: "aviso" as const }
     : {
       valor: fmtPct(matriz.avance, 0),
       hint: `Avance promedio de remediación de la matriz de mejoras. ${fmtNum(matriz.cerrados)} de `

@@ -67,7 +67,7 @@ describe("meses", () => {
   it("etiqueta el mes sin construir un Date (no se corre de mes por zona horaria)", () => {
     expect(etiquetaMes("2026-01")).toBe("ene 2026");
     expect(etiquetaMes("2026-12")).toBe("dic 2026");
-    expect(etiquetaMes(null)).toBe("—");
+    expect(etiquetaMes(null)).toBe("");
   });
 });
 

@@ -96,9 +96,9 @@ export default function TrackingForm({ clientId, canonicalId, detail, onSaved, l
               {logHistory.map((h) => (
                 <li key={h.history_id} className="text-xs">
                   <div className="text-muted-foreground">
-                    {fmtDate(h.changed_at)} · {h.changed_by ?? "—"}
+                    {[fmtDate(h.changed_at), h.changed_by].filter(Boolean).join(" · ")}
                   </div>
-                  <div className="whitespace-pre-wrap text-foreground">{h.new_value ?? "—"}</div>
+                  <div className="whitespace-pre-wrap text-foreground">{h.new_value ?? ""}</div>
                 </li>
               ))}
             </ul>

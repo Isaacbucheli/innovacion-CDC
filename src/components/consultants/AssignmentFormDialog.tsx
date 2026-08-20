@@ -16,7 +16,7 @@ import PersonMultiSelect from "@/components/consultants/PersonMultiSelect";
 const selectClass =
   "h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-// "" (opción "—") → null; el value de <option> siempre es string → number.
+// "" (opción "Ninguno") → null; el value de <option> siempre es string → number.
 const optionalPersonId = z.preprocess(
   (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
   z.number().nullable(),
@@ -121,7 +121,7 @@ export default function AssignmentFormDialog({ open, assignment, people, onOpenC
     <div className="space-y-1.5">
       <Label htmlFor={name}>{label}</Label>
       <select id={name} className={selectClass} {...register(name)}>
-        <option value="">—</option>
+        <option value="">Ninguno</option>
         {options.map((p) => <option key={p.person_id} value={p.person_id}>{p.name}</option>)}
       </select>
     </div>

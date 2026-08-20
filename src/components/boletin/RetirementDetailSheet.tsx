@@ -59,7 +59,9 @@ export default function RetirementDetailSheet({ group, subscriptions, open, onOp
             <div className="mt-4 space-y-4">
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <UrgencyPill urgency={group.urgency} />
-                <span className="text-muted-foreground">Fecha límite: {fmtDate(group.retirement_date)}</span>
+                {group.retirement_date ? (
+                  <span className="text-muted-foreground">Fecha límite: {fmtDate(group.retirement_date)}</span>
+                ) : null}
                 <span className="rounded-full bg-secondary px-2.5 py-0.5 font-medium text-muted-foreground">
                   {SOURCE_LABEL[group.source]}
                 </span>
@@ -194,7 +196,7 @@ export default function RetirementDetailSheet({ group, subscriptions, open, onOp
                               {subscriptionName(r.subscription_id)}
                             </td>
                             <td className="max-w-64 truncate px-3 py-2 font-mono text-xs text-muted-foreground" title={r.resource_id ?? undefined}>
-                              {r.resource_id ?? "—"}
+                              {r.resource_id}
                             </td>
                           </tr>
                         ))}

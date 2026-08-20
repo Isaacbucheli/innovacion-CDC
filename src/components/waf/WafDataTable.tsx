@@ -24,7 +24,7 @@ const col = createColumnHelper<WafRecommendation>();
 
 // Formatea "yyyy-MM-dd" a "dd/MM/yyyy" sin construir Date (evita corrimiento por zona horaria).
 function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "";
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
 }
@@ -33,7 +33,7 @@ const textFilter = textColumnFilter<WafRecommendation>;
 // Impacto se filtra contra la etiqueta en español (Alta/Media/Baja), no contra "high/medium/low".
 const impactFilter = labelColumnFilter<WafRecommendation>((raw) => impactMeta(raw as string | null).label);
 // Origen se filtra contra la etiqueta mostrada (Excel/CSV/Advisor), no contra el valor crudo.
-const sourceFilter = labelColumnFilter<WafRecommendation>((raw) => sourceMeta(raw as string | null)?.label ?? "—");
+const sourceFilter = labelColumnFilter<WafRecommendation>((raw) => sourceMeta(raw as string | null)?.label ?? "");
 // Búsqueda global sobre código + ámbito (en español y en el original de Advisor, para que buscar
 // por el texto que se ve en modo inglés también encuentre la fila).
 const globalSearch = globalTextFilter<WafRecommendation>(
@@ -111,7 +111,7 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
         <span className="flex items-center gap-1.5 max-w-[320px]">
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="truncate block max-w-[280px] cursor-default">{shown ?? "—"}</span>
+              <span className="truncate block max-w-[280px] cursor-default">{shown ?? ""}</span>
             </TooltipTrigger>
             {shown && <TooltipContent className="whitespace-normal">{shown}</TooltipContent>}
           </Tooltip>
@@ -140,7 +140,7 @@ export default function WafDataTable({ recommendations, pillarNames, minPct, max
       header: "Origen", filterFn: sourceFilter,
       cell: (c) => {
         const m = sourceMeta(c.getValue());
-        if (!m) return <span className="text-muted-foreground">—</span>;
+        if (!m) return null;
         const Icon = m.icon;
         return <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-full ${m.chip}`}><Icon className="w-3.5 h-3.5" />{m.label}</span>;
       },

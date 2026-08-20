@@ -81,9 +81,9 @@ export default function IngestionsPage({ onNavigate }: { onNavigate?: (key: stri
                         {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                       </button>
                     </TableCell>
-                    <TableCell className="max-w-[220px] truncate">{r.source_file_name ?? "—"}</TableCell>
+                    <TableCell className="max-w-[220px] truncate">{r.source_file_name ?? ""}</TableCell>
                     <TableCell>
-                      <span className={`text-xs px-2.5 py-0.5 rounded-full ${statusChip(r.status)}`}>{r.status ?? "—"}</span>
+                      {r.status && <span className={`text-xs px-2.5 py-0.5 rounded-full ${statusChip(r.status)}`}>{r.status}</span>}
                       {r.error_message && <div className="text-[11px] text-destructive mt-1 max-w-[220px] truncate">{r.error_message}</div>}
                     </TableCell>
                     <TableCell className="tabular-nums">{r.rows_processed ?? 0}/{r.rows_total ?? 0}</TableCell>
@@ -91,7 +91,7 @@ export default function IngestionsPage({ onNavigate }: { onNavigate?: (key: stri
                     <TableCell className="tabular-nums">{r.resolved_findings ?? 0}</TableCell>
                     <TableCell className="text-xs">{fmtDateTime(r.started_at)}</TableCell>
                     <TableCell className="text-xs">{fmtDateTime(r.completed_at)}</TableCell>
-                    <TableCell className="text-xs">{r.created_by ?? "—"}</TableCell>
+                    <TableCell className="text-xs">{r.created_by ?? ""}</TableCell>
                   </TableRow>
                   {isOpen && (
                     <TableRow className="bg-muted/40 hover:bg-muted/40">

@@ -16,10 +16,10 @@ export const TIPO_LABEL: Record<string, string> = {
 };
 
 export const estadoLabel = (v: string | null | undefined) =>
-  v ? ESTADO_LABEL[v] ?? v : "—";
+  v ? ESTADO_LABEL[v] ?? v : "";
 
 export const tipoLabel = (v: string | null | undefined) =>
-  v ? TIPO_LABEL[v] ?? v : "—";
+  v ? TIPO_LABEL[v] ?? v : "";
 
 /**
  * Texto principal de la fila. El título está vacío en casi todos los registros reales, así que la

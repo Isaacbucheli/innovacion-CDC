@@ -16,8 +16,11 @@ function plural(n: number, singular: string, plural_: string): string {
   return `${n} ${n === 1 ? singular : plural_}`;
 }
 
-function dateOrDash(iso: string | null): string {
-  return fmtDateTime(iso);
+/** Segmento " el <fecha>" para la línea de aceptación, o "" cuando no hay fecha registrada:
+ *  se omite completo para no dejar un "el" colgando. */
+function elFecha(iso: string | null): string {
+  const fecha = fmtDateTime(iso);
+  return fecha ? ` el ${fecha}` : "";
 }
 
 /** Con pocas cuentas afectadas se muestran los nombres en la fila: "Cuenta externa con privilegio
@@ -329,7 +332,7 @@ export default function FindingsPanel({
                   <ShieldCheck className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-600" />
                   <span>
                     <span className="font-medium">{f.title}</span>{" "}
-                    {`— aceptado por ${f.accepted_by || "un usuario"} el ${dateOrDash(f.accepted_at)}${f.accepted_note ? `: ${f.accepted_note}` : ""}`}
+                    {`— aceptado por ${f.accepted_by || "un usuario"}${elFecha(f.accepted_at)}${f.accepted_note ? `: ${f.accepted_note}` : ""}`}
                   </span>
                 </li>
               ))}
@@ -369,7 +372,7 @@ export default function FindingsPanel({
                         <span className="text-xs text-muted-foreground">{externalLabel(a.is_external)}</span>
                         <span className="text-xs">{roleClassShortLabel(accountPrivilege(a))}</span>
                         <span className="text-xs text-muted-foreground tabular-nums">
-                          {dateOrDash(a.last_sign_in)}
+                          {fmtDateTime(a.last_sign_in)}
                         </span>
                       </div>
                     ))}

@@ -91,7 +91,7 @@ export default function CoverageTab({ analysisId }: { analysisId: number }) {
               {uncovered.map((g) => (
                 <TableRow key={g.resource_type}>
                   <TableCell>{g.display_name ?? g.resource_type}</TableCell>
-                  <TableCell>{g.service_category ?? "—"}</TableCell>
+                  <TableCell>{g.service_category ?? ""}</TableCell>
                   <TableCell className="text-right tabular-nums">{g.count}</TableCell>
                 </TableRow>
               ))}

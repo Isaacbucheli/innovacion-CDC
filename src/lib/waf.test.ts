@@ -53,9 +53,9 @@ describe("wafHistoryValue", () => {
     expect(wafHistoryValue("remediation_end_date", "2026-08-15")).toBe("15/08/2026");
     expect(wafHistoryValue("execution_log", "Compra de RI")).toBe("Compra de RI");
   });
-  it("muestra — cuando no hay valor", () => {
-    expect(wafHistoryValue("internal_notes", null)).toBe("—");
-    expect(wafHistoryValue("execution_log", "")).toBe("—");
+  it("devuelve vacío cuando no hay valor", () => {
+    expect(wafHistoryValue("internal_notes", null)).toBe("");
+    expect(wafHistoryValue("execution_log", "")).toBe("");
   });
 });
 

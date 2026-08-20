@@ -133,7 +133,7 @@ export default function ClientesDialog({
                 <Label htmlFor="cli-categoria">Categoría</Label>
                 <select id="cli-categoria" className={selectClass} value={form.categoria ?? ""}
                   onChange={(e) => setForm({ ...form, categoria: e.target.value })}>
-                  <option value="">—</option>
+                  <option value="">Ninguna</option>
                   {["ALTO", "MEDIO", "BAJO"].map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
               </div>
@@ -183,10 +183,10 @@ export default function ClientesDialog({
                     <TableRow key={c.num}>
                       <TableCell className="text-muted-foreground">{c.num}</TableCell>
                       <TableCell className="font-medium">{c.cliente}</TableCell>
-                      <TableCell>{c.servicio ?? "—"}</TableCell>
+                      <TableCell>{c.servicio ?? ""}</TableCell>
                       <TableCell>{c.categoria ?? ""}</TableCell>
-                      <TableCell>{c.pais ?? "—"}</TableCell>
-                      <TableCell>{c.consultor ?? "—"}</TableCell>
+                      <TableCell>{c.pais ?? ""}</TableCell>
+                      <TableCell>{c.consultor ?? ""}</TableCell>
                       <TableCell>
                         {canEdit && (
                           <div className="flex justify-end gap-1">

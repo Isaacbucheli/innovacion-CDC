@@ -31,7 +31,7 @@ export default function SimpleTable<T>({ cols, rows, onRowClick, empty = "Sin da
             <TableRow key={i} onClick={onRowClick ? () => onRowClick(row) : undefined} className={onRowClick ? "cursor-pointer" : undefined}>
               {cols.map((c) => (
                 <TableCell key={c.key} className={c.align === "right" ? "text-right tabular-nums" : undefined}>
-                  {c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key] ?? "—")}
+                  {c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key] ?? "")}
                 </TableCell>
               ))}
             </TableRow>

@@ -35,15 +35,15 @@ export default function FindingsTable({ findings, onOpen }: {
     {
       accessorKey: "resource_name",
       header: "Recurso",
-      cell: (c) => <span className="tabular-nums">{c.getValue<string | null>() || "—"}</span>,
+      cell: (c) => <span className="tabular-nums">{c.getValue<string | null>() ?? ""}</span>,
     },
-    { accessorKey: "region", header: "Región", cell: (c) => <span className="text-muted-foreground">{c.getValue<string | null>() || "—"}</span> },
+    { accessorKey: "region", header: "Región", cell: (c) => <span className="text-muted-foreground">{c.getValue<string | null>() ?? ""}</span> },
     {
       id: "detalle",
       accessorFn: (f) => detailText(f),
       header: "Detalle",
       enableSorting: false,
-      cell: (c) => <span className="text-muted-foreground">{c.getValue<string>() || "—"}</span>,
+      cell: (c) => <span className="text-muted-foreground">{c.getValue<string>()}</span>,
     },
     {
       accessorKey: "estimated_monthly_savings",
@@ -52,7 +52,7 @@ export default function FindingsTable({ findings, onOpen }: {
         const v = c.getValue<number | null>();
         return v != null && v > 0
           ? <span className="font-bold tabular-nums text-[#5a7016] dark:text-[#a9c46a]">{formatMoney(v)}</span>
-          : <span className="text-muted-foreground">—</span>;
+          : null;
       },
       sortingFn: (a, b) => (a.original.estimated_monthly_savings ?? 0) - (b.original.estimated_monthly_savings ?? 0),
     },

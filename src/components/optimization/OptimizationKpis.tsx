@@ -38,7 +38,7 @@ export default function OptimizationKpis({ kpis, latestScan }: { kpis: OptKpis; 
   const { high, medium, low } = kpis.severity;
   const whenLabel = latestScan
     ? fmtDate(latestScan.finished_at ?? latestScan.started_at, { dateStyle: "medium" })
-    : "—";
+    : "";
   return (
     <div className="grid grid-cols-2 gap-4">
       <Card

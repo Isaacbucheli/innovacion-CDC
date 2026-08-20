@@ -215,17 +215,17 @@ export function decisionSummary(a: Pick<AccessAccount,
   if (a.decision_revocar > 0) parts.push(`${a.decision_revocar} revocar`);
   if (a.decision_justificado > 0)
     parts.push(`${a.decision_justificado} ${a.decision_justificado === 1 ? "justificado" : "justificados"}`);
-  return parts.length > 0 ? parts.join(" · ") : "—";
+  return parts.length > 0 ? parts.join(" · ") : "";
 }
 
-/** Avance de la revisión de una cuenta: "3 de 8". Cuando nadie decidió nada devuelve "—" y no
+/** Avance de la revisión de una cuenta: "3 de 8". Cuando nadie decidió nada devuelve vacío y no
  *  "8 pendientes": si ninguna cuenta está decidida, esa columna repite el mismo texto en cada fila y
  *  el ruido queda con formato de dato. El desglose completo va al panel de detalle. */
 export function decisionProgress(a: Pick<AccessAccount,
   "decision_pendientes" | "decision_mantener" | "decision_revocar" | "decision_justificado">): string {
   const decididas = a.decision_mantener + a.decision_revocar + a.decision_justificado;
   const total = decididas + a.decision_pendientes;
-  if (decididas === 0 || total === 0) return "—";
+  if (decididas === 0 || total === 0) return "";
   return `${decididas} de ${total}`;
 }
 
@@ -239,7 +239,8 @@ export function mfaChip(mfa: string | null): { cls: string; text: string } {
     case "enabled": return { cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300", text: "MFA" };
     case "disabled": return { cls: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300", text: "Sin MFA" };
     case "unavailable": return { cls: "bg-muted text-muted-foreground", text: "MFA n/d" };
-    default: return { cls: "bg-muted text-muted-foreground", text: "—" };
+    // Sin dato de MFA: texto vacío, el sitio de uso omite el chip.
+    default: return { cls: "bg-muted text-muted-foreground", text: "" };
   }
 }
 

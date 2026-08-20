@@ -16,7 +16,8 @@ export const CATEGORY_META: Record<CategoryKey, { label: string; badge: string; 
   alto: { label: "ALTO", badge: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200", accent: "#dc2626" },
   medio: { label: "MEDIO", badge: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200", accent: "#d97706" },
   bajo: { label: "BAJO", badge: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200", accent: "#16a34a" },
-  other: { label: "—", badge: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200", accent: "#64748b" },
+  // label vacío: los sitios de uso omiten el badge cuando no hay categoría.
+  other: { label: "", badge: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200", accent: "#64748b" },
 };
 
 /** Orden para columnas TanStack: ALTO primero. */
