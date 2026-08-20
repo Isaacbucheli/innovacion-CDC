@@ -1,4 +1,4 @@
-export type Role = "admin" | "consultor" | "lector";
+export type Role = "admin" | "consultor" | "lector" | "monitoreo";
 
 export interface Alert {
   alert_id: number;

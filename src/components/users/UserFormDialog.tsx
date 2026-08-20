@@ -12,6 +12,7 @@ export const ROLES = [
   { value: "admin", label: "Administrador" },
   { value: "consultor", label: "Consultor" },
   { value: "lector", label: "Lector" },
+  { value: "monitoreo", label: "Monitoreo" },
 ];
 export function roleLabel(role: string) { return ROLES.find((r) => r.value === role)?.label ?? role; }
 function msg(e: unknown) { return e instanceof Error ? e.message : String(e); }
@@ -87,6 +88,9 @@ export default function UserFormDialog({ user, open, onOpenChange, onSaved }: {
           )}
           {(role === "consultor" || role === "lector") && !editing && (
             <p className="text-xs text-muted-foreground">Tras crearlo, asigna sus clientes con la acción "Acceso a clientes".</p>
+          )}
+          {role === "monitoreo" && (
+            <p className="text-xs text-muted-foreground">Solo lectura: ve todos los clientes en los módulos que se le habiliten en Permisos de grupos. No requiere asignación de clientes.</p>
           )}
         </div>
         <DialogFooter>

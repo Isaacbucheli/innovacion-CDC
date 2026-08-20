@@ -255,9 +255,11 @@ export async function logout(): Promise<void> {
 // ---- Permisos por módulo (matriz rol×módulo, solo admin) ----
 export interface ModulePermissionRow { module_key: string; can_view: boolean; can_edit: boolean }
 export interface ModuleDef { key: string; label: string; group: string }
+// monitoreo es opcional a propósito: durante la ventana de deploy la API vieja
+// aún no publica la clave, y el panel la trata con ?? [].
 export interface ModulePermissionsMatrix {
   modules: ModuleDef[];
-  permissions: { consultor: ModulePermissionRow[]; lector: ModulePermissionRow[] };
+  permissions: { consultor: ModulePermissionRow[]; lector: ModulePermissionRow[]; monitoreo?: ModulePermissionRow[] };
 }
 export const getModulePermissions = () => request<ModulePermissionsMatrix>("/auth/module-permissions");
 export const saveModulePermissions = (permissions: ModulePermissionsMatrix["permissions"]) =>

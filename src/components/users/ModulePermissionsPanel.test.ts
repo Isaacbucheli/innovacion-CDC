@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { applyPerm, scrubEdits, toMap, toRows } from "@/components/users/ModulePermissionsPanel";
+import { applyPerm, buildSavePayload, scrubEdits, toMap, toRows } from "@/components/users/ModulePermissionsPanel";
 import type { ModuleDef, ModulePermissionRow } from "@/lib/api";
 
 const modules: ModuleDef[] = [
@@ -53,6 +53,15 @@ test("applyPerm: marcar editar activa ver", () => {
 test("applyPerm: desmarcar ver desactiva editar", () => {
   const cur = { can_view: true, can_edit: true };
   expect(applyPerm(cur, "can_view", false)).toEqual({ can_view: false, can_edit: false });
+});
+
+test("buildSavePayload viaja con los tres roles y scrubbea lector y monitoreo", () => {
+  const map = { alerts: { can_view: true, can_edit: true } };
+  const payload = buildSavePayload(map, map, map, modules);
+  expect(Object.keys(payload)).toEqual(["consultor", "lector", "monitoreo"]);
+  expect(payload.consultor.find((r) => r.module_key === "alerts")?.can_edit).toBe(true);
+  expect(payload.lector.find((r) => r.module_key === "alerts")?.can_edit).toBe(false);
+  expect(payload.monitoreo.find((r) => r.module_key === "alerts")?.can_edit).toBe(false);
 });
 
 test("applyPerm: toggles simples de ver/editar pasan sin efectos colaterales", () => {
