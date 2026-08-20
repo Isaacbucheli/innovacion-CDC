@@ -47,6 +47,14 @@ test("lector nunca edita aunque la matriz diga que sí", () => {
   expect(canEditModule("alerts")).toBe(false);
 });
 
+test("canEditModule: monitoreo jamás edita aunque la matriz diga lo contrario", () => {
+  setSession("t", "monitoreo", "x");
+  setModulePerms({ alerts: { can_view: true, can_edit: true } });
+  expect(canViewModule("alerts")).toBe(true);
+  expect(canEditModule("alerts")).toBe(false);
+  expect(canEdit()).toBe(false);
+});
+
 test("clearSession limpia los permisos", () => {
   setModulePerms({ alerts: { can_view: true, can_edit: true } });
   clearSession();

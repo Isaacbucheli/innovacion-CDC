@@ -85,10 +85,10 @@ export function canViewModule(key: string): boolean {
   if (getRole() === "admin") return true;
   return getModulePerms()[key]?.can_view === true;
 }
-/** Edición del módulo. Admin edita todo; lector jamás edita (candado, espejo del backend). */
+/** Edición del módulo. Admin edita todo; lector y monitoreo jamás editan (candado, espejo del backend). */
 export function canEditModule(key: string): boolean {
   const role = getRole();
   if (role === "admin") return true;
-  if (role === "lector") return false;
+  if (role === "lector" || role === "monitoreo") return false;
   return getModulePerms()[key]?.can_edit === true;
 }
