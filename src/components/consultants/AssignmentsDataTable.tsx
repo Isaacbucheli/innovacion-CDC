@@ -74,11 +74,6 @@ function PersonChips({ refs }: { refs: PersonRef[] }) {
 
 const joinNames = (refs: PersonRef[]) => refs.map((r) => r.name).join("; ");
 
-// Los campos de contacto son multilínea en BD (un valor por línea); para el
-// portapapeles cada cliente va en una sola línea con los valores unidos por " / ".
-const oneLine = (v: string | null) =>
-  (v ?? "").split("\n").map((s) => s.trim()).filter(Boolean).join(" / ");
-
 export default function AssignmentsDataTable({
   assignments,
   isAdmin,
@@ -172,32 +167,28 @@ export default function AssignmentsDataTable({
   const pad = dense ? "py-1.5" : "py-3";
   const [copied, setCopied] = useState(false);
 
-  // Copia el contacto de todos los clientes visibles (filtros aplicados, todas las
-  // páginas) como tabla tab-separada: pega limpio en Excel, Teams o un correo.
+  // Copia SOLO los correos de contacto de los clientes visibles (filtros aplicados,
+  // todas las páginas), deduplicados y separados por "; ": pega directo en el campo
+  // de destinatarios de Outlook/Teams. El campo en BD es multilínea (un correo por línea).
   async function copyContacts() {
     const rows = table.getPrePaginationRowModel().rows.map((r) => r.original);
     const seen = new Set<string>();
-    const clients = new Set<string>();
-    const lines: string[] = [];
+    const emails: string[] = [];
     for (const a of rows) {
-      const contact = oneLine(a.client_contact_name);
-      const phone = oneLine(a.client_contact_phone);
-      const email = oneLine(a.client_contact_email);
-      if (!contact && !phone && !email) continue;
-      const key = [a.client_name, contact, phone, email].join("\t");
-      if (seen.has(key)) continue;
-      seen.add(key);
-      clients.add(a.client_name);
-      lines.push(key);
+      for (const raw of (a.client_contact_email ?? "").split("\n")) {
+        const email = raw.trim();
+        if (!email || seen.has(email.toLowerCase())) continue;
+        seen.add(email.toLowerCase());
+        emails.push(email);
+      }
     }
-    if (lines.length === 0) {
-      toast.error("No hay contactos para copiar.");
+    if (emails.length === 0) {
+      toast.error("No hay correos para copiar.");
       return;
     }
-    const text = ["Cliente\tContacto\tTeléfono\tCorreo", ...lines].join("\n");
     try {
-      await navigator.clipboard.writeText(text);
-      toast.success(`Contactos de ${clients.size} cliente(s) copiados.`);
+      await navigator.clipboard.writeText(emails.join("; "));
+      toast.success(`${emails.length} correo(s) copiados.`);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -235,7 +226,7 @@ export default function AssignmentsDataTable({
               ))}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="outline" size="sm" title="Copiar el contacto de todos los clientes" onClick={copyContacts}>
+        <Button variant="outline" size="sm" title="Copiar los correos de contacto de todos los clientes" onClick={copyContacts}>
           {copied ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
           Copiar contactos
         </Button>
