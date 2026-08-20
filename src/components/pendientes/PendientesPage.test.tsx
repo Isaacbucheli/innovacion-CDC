@@ -100,6 +100,30 @@ test("cuenta como sin novedad solo lo que pasa del umbral y no esta cerrado", as
   expect(screen.getByText("En curso sin novedad")).toBeInTheDocument();
 });
 
+test("Limpiar filtros restaura la vista a los valores por defecto", async () => {
+  await renderPage();
+  await screen.findByText("Bloqueante con bitacora");
+
+  // Sin filtros activos el botón no está.
+  expect(screen.queryByRole("button", { name: /limpiar filtros/i })).not.toBeInTheDocument();
+
+  // Filtro por estado (KPI clicable) + búsqueda + mostrar cerrados.
+  fireEvent.click(screen.getByRole("button", { name: /en progreso/i }));
+  fireEvent.change(screen.getByPlaceholderText(/buscar/i), { target: { value: "curso" } });
+  fireEvent.click(screen.getByLabelText(/ocultar cerrados/i));
+  await waitFor(() => expect(screen.queryByText("Bloqueante con bitacora")).not.toBeInTheDocument());
+
+  fireEvent.click(screen.getByRole("button", { name: /limpiar filtros/i }));
+
+  // Vuelven los defaults: abiertos visibles, cerrados ocultos otra vez, búsqueda vacía.
+  await waitFor(() => expect(screen.getByText("Bloqueante con bitacora")).toBeInTheDocument());
+  expect(screen.getByText("En curso sin novedad")).toBeInTheDocument();
+  expect(screen.queryByText("Ya cerrado")).not.toBeInTheDocument();
+  expect(screen.getByPlaceholderText(/buscar/i)).toHaveValue("");
+  // Y sin filtros, el botón desaparece.
+  expect(screen.queryByRole("button", { name: /limpiar filtros/i })).not.toBeInTheDocument();
+});
+
 test("un cliente_num sin cliente se muestra, no se esconde", async () => {
   await renderPage();
   expect(await screen.findByText("Pendiente de cliente inexistente")).toBeInTheDocument();
