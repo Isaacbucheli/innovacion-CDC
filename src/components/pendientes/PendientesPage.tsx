@@ -82,6 +82,16 @@ export default function PendientesPage({ area, section, title, onNavigate }: {
     estancados: pendientes.filter((p) => estaEstancado(p)).length,
   }), [pendientes]);
 
+  // Distinto de los valores por defecto (ocultarCerrados nace en true): con esto se
+  // decide si mostrar "Limpiar filtros", que restaura exactamente esos defaults.
+  const hayFiltros = q.trim() !== "" || fTipo !== "all" || fEstado !== "all"
+    || fCliente !== "all" || soloEstancados || !ocultarCerrados;
+
+  const limpiarFiltros = () => {
+    setQ(""); setFTipo("all"); setFEstado("all"); setFCliente("all");
+    setSoloEstancados(false); setOcultarCerrados(true);
+  };
+
   const filtrados = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const nombre = (num: number) => clientes.find((c) => c.num === num)?.cliente ?? "";
@@ -185,6 +195,10 @@ export default function PendientesPage({ area, section, title, onNavigate }: {
             onChange={(e) => setOcultarCerrados(e.target.checked)} />
           <Label htmlFor="pend-ocultar-cerrados" className="font-normal">Ocultar cerrados</Label>
         </div>
+
+        {hayFiltros && (
+          <Button variant="ghost" size="sm" className="h-9" onClick={limpiarFiltros}>Limpiar filtros</Button>
+        )}
 
         <div className="ml-auto flex gap-2">
           {puedeEditar && (
