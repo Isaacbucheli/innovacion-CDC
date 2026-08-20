@@ -45,29 +45,47 @@ test("sin rol admin no muestra Nueva asignación ni editar/eliminar", () => {
   expect(screen.getByRole("button", { name: "Ver" })).toBeInTheDocument();
 });
 
-test("Copiar contactos copia una tabla TSV deduplicada por cliente", async () => {
+test("Copiar contactos copia solo los correos, deduplicados y separados por ; ", async () => {
   const writeText = vi.fn().mockResolvedValue(undefined);
   Object.assign(navigator, { clipboard: { writeText } });
-  // Mismo cliente con el mismo contacto en 2 servicios -> una sola línea;
-  // el multilínea de BD se une con " / "; sin datos de contacto -> se omite.
+  // El correo repetido en 2 servicios (y con otra capitalización) sale una sola vez;
+  // el multilínea de BD se separa en correos individuales; sin correo -> se omite.
   const base = assignments[0];
   const withContacts: ConsultantAssignment[] = [
     { ...base, assignment_id: 10, client_name: "Cliente Dos", service: "Backup",
-      client_contact_name: "Juan Contacto", client_contact_phone: "+593 99 111 2222",
       client_contact_email: "a@dos.com\nb@dos.com" },
     { ...base, assignment_id: 11, client_name: "Cliente Dos", service: "NOC",
-      client_contact_name: "Juan Contacto", client_contact_phone: "+593 99 111 2222",
-      client_contact_email: "a@dos.com\nb@dos.com" },
+      client_contact_email: "A@dos.com" },
+    { ...base, assignment_id: 12, client_name: "Cliente Tres", service: "NOC",
+      client_contact_email: "c@tres.com" },
     base,
   ];
   render(<AssignmentsView assignments={withContacts} people={people} isAdmin={false}
     onOpen={noop} onNew={noop} onEdit={noop} onDelete={noop} />);
   fireEvent.click(screen.getByRole("button", { name: /copiar contactos/i }));
   await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
-  expect((writeText.mock.calls[0][0] as string).split("\n")).toEqual([
-    "Cliente\tContacto\tTeléfono\tCorreo",
-    "Cliente Dos\tJuan Contacto\t+593 99 111 2222\ta@dos.com / b@dos.com",
-  ]);
+  expect(writeText.mock.calls[0][0]).toBe("a@dos.com; b@dos.com; c@tres.com");
+});
+
+test("Limpiar filtros borra la búsqueda y ordena los clientes alfabéticamente", () => {
+  const base = assignments[0];
+  // Orden de entrada NO alfabético para comprobar el reordenamiento.
+  const desordenados: ConsultantAssignment[] = [
+    { ...base, assignment_id: 20, client_name: "Cliente Zeta" },
+    { ...base, assignment_id: 21, client_name: "Cliente Alfa" },
+  ];
+  const { container } = render(<AssignmentsView assignments={desordenados} people={people} isAdmin={false}
+    onOpen={noop} onNew={noop} onEdit={noop} onDelete={noop} />);
+
+  const firstClient = () => container.querySelector("tbody tr td")?.textContent;
+  expect(firstClient()).toBe("Cliente Zeta");
+
+  // Con búsqueda activa desaparecen filas; Limpiar filtros la borra y reordena A→Z.
+  fireEvent.change(screen.getByPlaceholderText(/buscar/i), { target: { value: "zzz" } });
+  expect(screen.queryByText("Cliente Zeta")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /limpiar filtros/i }));
+  expect(firstClient()).toBe("Cliente Alfa");
+  expect(screen.getByPlaceholderText(/buscar/i)).toHaveValue("");
 });
 
 test("con rol admin muestra Nueva asignación y dispara onNew", () => {
