@@ -11,7 +11,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Check, Columns3, Copy, Eye, Pencil, Rows3, Rows4, Trash2 } from "lucide-react";
+import { Check, Columns3, Copy, Eye, FilterX, Pencil, Rows3, Rows4, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { ConsultantAssignment, PersonRef } from "@/types";
 import { CATEGORY_META, CATEGORY_RANK, normalizeCategory } from "@/lib/category";
@@ -80,12 +80,14 @@ export default function AssignmentsDataTable({
   onOpen,
   onEdit,
   onDelete,
+  onClearSearch,
 }: {
   assignments: ConsultantAssignment[];
   isAdmin: boolean;
   onOpen: (a: ConsultantAssignment) => void;
   onEdit: (a: ConsultantAssignment) => void;
   onDelete: (a: ConsultantAssignment) => void;
+  onClearSearch?: () => void;
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -196,6 +198,15 @@ export default function AssignmentsDataTable({
     }
   }
 
+  // Limpia los filtros de columna y la búsqueda, ordena los clientes A→Z
+  // y regresa a la primera página: la vista queda como recién abierta.
+  function resetView() {
+    setColumnFilters([]);
+    setSorting([{ id: "client_name", desc: false }]);
+    onClearSearch?.();
+    table.setPageIndex(0);
+  }
+
   return (
     <div>
       <div className="flex gap-2 items-center mb-3">
@@ -226,6 +237,10 @@ export default function AssignmentsDataTable({
               ))}
           </DropdownMenuContent>
         </DropdownMenu>
+        <Button variant="outline" size="sm" title="Limpiar filtros y búsqueda, y ordenar los clientes alfabéticamente" onClick={resetView}>
+          <FilterX className="w-4 h-4 mr-1" />
+          Limpiar filtros
+        </Button>
         <Button variant="outline" size="sm" title="Copiar los correos de contacto de todos los clientes" onClick={copyContacts}>
           {copied ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
           Copiar contactos

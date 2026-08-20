@@ -70,7 +70,8 @@ export default function AssignmentsView({ assignments, people, isAdmin, onOpen, 
         </Button>
         {isAdmin && <Button size="sm" onClick={onNew}><Plus className="w-4 h-4 mr-1" />Nueva asignación</Button>}
       </div>
-      <AssignmentsDataTable assignments={rows} isAdmin={isAdmin} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} />
+      <AssignmentsDataTable assignments={rows} isAdmin={isAdmin} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete}
+        onClearSearch={() => setQ("")} />
     </div>
   );
 }
