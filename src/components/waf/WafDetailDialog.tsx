@@ -79,7 +79,7 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
     return () => { cancelled = true; };
   }, [english, detail]);
 
-  const pick = (en: string | undefined, es: string | null) => (english ? (en ?? es) : es) ?? "—";
+  const pick = (en: string | undefined, es: string | null) => (english ? (en ?? es) : es) ?? "";
   // Título en inglés: manda el original de Azure; si no hay, la traducción del español curado.
   const scopeShown = detail
     ? (english ? (detail.advisor_name_en ?? tr.scope ?? detail.review_scope_es) : detail.review_scope_es)
@@ -161,8 +161,8 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
                     <tbody>
                       {resources.map((r) => (
                         <tr key={r.finding_id} className="border-t border-border">
-                          <td className="py-1.5 pr-3">{r.resource_name}</td><td className="py-1.5 pr-3">{r.resource_type ?? "—"}</td>
-                          <td className="py-1.5 pr-3">{r.resource_group ?? "—"}</td>
+                          <td className="py-1.5 pr-3">{r.resource_name}</td><td className="py-1.5 pr-3">{r.resource_type ?? ""}</td>
+                          <td className="py-1.5 pr-3">{r.resource_group ?? ""}</td>
                           <td className="py-1.5">{r.status}</td>
                         </tr>
                       ))}
@@ -180,12 +180,16 @@ export default function WafDetailDialog({ clientId, canonicalId, pillarName, fal
               {history.length === 0 ? <p className="text-sm text-muted-foreground">Sin cambios registrados.</p> : (
                 <ul className="text-sm text-muted-foreground space-y-1.5">
                   {history.map((h) => {
-                    const showValues = (h.old_value ?? "") !== "" || (h.new_value ?? "") !== "";
+                    const oldV = wafHistoryValue(h.field_changed, h.old_value);
+                    const newV = wafHistoryValue(h.field_changed, h.new_value);
+                    // Con un solo lado presente no se pinta la flecha (evita "→" colgando).
+                    const change = oldV && newV ? `${oldV} → ${newV}` : (newV || oldV);
+                    const meta = [h.changed_by, fmtDate(h.changed_at)].filter(Boolean).join(" · ");
                     return (
                       <li key={h.history_id}>
                         <span className="text-foreground">{wafHistoryFieldLabel(h.field_changed)}</span>
-                        {showValues && <>: {wafHistoryValue(h.field_changed, h.old_value)} → {wafHistoryValue(h.field_changed, h.new_value)}</>}
-                        {" · "}{h.changed_by ?? "—"} · {fmtDate(h.changed_at)}
+                        {change && <>: {change}</>}
+                        {meta && <>{" · "}{meta}</>}
                       </li>
                     );
                   })}

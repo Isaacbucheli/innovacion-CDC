@@ -40,7 +40,7 @@ export default function ScanHistoryDialog({ scans, open, onOpenChange }: {
                     <td className="py-2 px-2 text-right tabular-nums">{s.subscriptions_scanned}</td>
                     <td className="py-2 px-2 text-right tabular-nums">{s.findings_count}</td>
                     <td className="py-2 px-2 text-right tabular-nums font-semibold text-[#5a7016] dark:text-[#a9c46a]">
-                      {s.total_estimated_monthly_savings ? formatMoney(s.total_estimated_monthly_savings) : "—"}
+                      {s.total_estimated_monthly_savings ? formatMoney(s.total_estimated_monthly_savings) : ""}
                     </td>
                   </tr>
                 ))}

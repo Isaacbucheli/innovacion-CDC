@@ -168,10 +168,10 @@ export default function AccionesManuales({
         </>
       ),
     },
-    { key: "categoria", label: "Categoría", render: (a) => a.categoria ?? "—" },
-    { key: "recurso", label: "Recurso", render: (a) => a.recurso ?? "—" },
+    { key: "categoria", label: "Categoría", render: (a) => a.categoria ?? "" },
+    { key: "recurso", label: "Recurso", render: (a) => a.recurso ?? "" },
     { key: "mes_ejecucion", label: "Mes", render: (a) => etiquetaMes(a.mes_ejecucion) },
-    { key: "mes_fin", label: "Fin", render: (a) => (a.mes_fin ? etiquetaMes(a.mes_fin) : "—") },
+    { key: "mes_fin", label: "Fin", render: (a) => (a.mes_fin ? etiquetaMes(a.mes_fin) : "") },
     {
       key: "monto_mensual", label: "$/mes", align: "right",
       render: (a) => (a.monto_mensual === null

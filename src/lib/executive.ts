@@ -16,8 +16,9 @@ export const WAF_PILLARS: Record<number, string> = {
   4: "Confiabilidad", 5: "Optimización de costos",
 };
 
+/** Porcentaje con un decimal; vacío si no hay valor. */
 export function pct(v: number | null | undefined): string {
-  if (v === null || v === undefined) return "—";
+  if (v === null || v === undefined) return "";
   return `${Number(v).toFixed(1)} %`;
 }
 
@@ -84,13 +85,24 @@ export function buildFindings(report: MonthlyReport, exec: ExecutivePayload | nu
     findings.push({ nivel: "rojo", titulo: "Recursos PaaS no disponibles", detalle: paas.lectura,
       accion: "Validar criticidad, estado real, dependencias y causa raíz de cada recurso." });
   }
+  // "CPU prom X % (máx Y %)": omite el máximo sin dato y la métrica entera sin promedio,
+  // para no dejar paréntesis o etiquetas vacías en el detalle.
+  const metricaTexto = (nombre: string, avg?: number, max?: number): string => {
+    if (avg === null || avg === undefined) return "";
+    const maxTxt = max === null || max === undefined ? "" : ` (máx ${pct(max)})`;
+    return `${nombre} prom ${pct(avg)}${maxTxt}`;
+  };
   perfVms(report)
     .filter((v) => (v.cpu_avg ?? 0) >= threshold || (v.ram_avg ?? 0) >= threshold)
     .sort((a, b) => Math.max(b.ram_avg ?? 0, b.cpu_avg ?? 0) - Math.max(a.ram_avg ?? 0, a.cpu_avg ?? 0))
     .slice(0, 3)
-    .forEach((v) => findings.push({ nivel: "rojo", titulo: v.resource_name,
-      detalle: `CPU prom ${pct(v.cpu_avg)} (máx ${pct(v.cpu_max)}) · RAM prom ${pct(v.ram_avg)} (máx ${pct(v.ram_max)}).`,
-      accion: "Revisar carga, procesos y horarios de saturación; evaluar ajuste de capacidad." }));
+    .forEach((v) => {
+      const partes = [metricaTexto("CPU", v.cpu_avg, v.cpu_max), metricaTexto("RAM", v.ram_avg, v.ram_max)]
+        .filter(Boolean);
+      findings.push({ nivel: "rojo", titulo: v.resource_name,
+        detalle: partes.length ? `${partes.join(" · ")}.` : "",
+        accion: "Revisar carga, procesos y horarios de saturación; evaluar ajuste de capacidad." });
+    });
   const alertas = byKey.alertas;
   if (alertas && alertas.estado === "rojo") {
     findings.push({ nivel: "rojo", titulo: "Alertas críticas del mes", detalle: alertas.lectura,

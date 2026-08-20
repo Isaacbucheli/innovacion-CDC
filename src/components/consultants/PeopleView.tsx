@@ -48,7 +48,7 @@ export default function PeopleView({ people, onChanged }: {
 
   const cols: SimpleCol<Person>[] = [
     { key: "name", label: "Nombre", render: (p) => <span className="font-medium">{p.name}</span> },
-    { key: "email", label: "Correo", render: (p) => p.email ?? <span className="text-muted-foreground">—</span> },
+    { key: "email", label: "Correo", render: (p) => p.email ?? "" },
     { key: "person_type", label: "Tipo", render: (p) => chip(typeChipCls(p.person_type), personTypeLabel(p.person_type)) },
     { key: "is_active", label: "Activo", render: (p) => chip(p.is_active ? OK : NEUTRAL, p.is_active ? "Sí" : "No") },
     { key: "acc", label: "", render: (p) => (

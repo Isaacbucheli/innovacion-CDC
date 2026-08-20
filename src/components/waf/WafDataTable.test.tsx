@@ -62,9 +62,11 @@ test("no existe el botón Modo cliente", () => {
   expect(screen.queryByRole("button", { name: /Modo cliente/i })).not.toBeInTheDocument();
 });
 
-test("muestra la fecha de cierre formateada (y — cuando no hay)", () => {
+test("muestra la fecha de cierre formateada (y vacío cuando no hay)", () => {
   render(<WafDataTable recommendations={recs} pillarNames={pillarNames} minPct={0} maxPct={100} onOpen={vi.fn()} />);
   expect(screen.getByText("15/08/2026")).toBeInTheDocument();
+  // La fila sin fecha no pinta relleno: ni guion ni ningún otro texto.
+  expect(screen.queryByText("—")).not.toBeInTheDocument();
 });
 
 test("el ámbito se muestra como disparador de tooltip con el texto completo", () => {

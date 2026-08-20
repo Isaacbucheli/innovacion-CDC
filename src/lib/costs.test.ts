@@ -45,11 +45,11 @@ describe("formatMoney", () => {
     expect(formatMoney(1234.5)).toBe("$1,234.50");
     expect(formatMoney(0)).toBe("$0.00");
   });
-  test("nulo/vacío/no finito → '-'", () => {
-    expect(formatMoney(null)).toBe("-");
-    expect(formatMoney(undefined)).toBe("-");
-    expect(formatMoney("")).toBe("-");
-    expect(formatMoney("abc")).toBe("-");
+  test("nulo/vacío/no finito → vacío", () => {
+    expect(formatMoney(null)).toBe("");
+    expect(formatMoney(undefined)).toBe("");
+    expect(formatMoney("")).toBe("");
+    expect(formatMoney("abc")).toBe("");
   });
 });
 
@@ -60,10 +60,10 @@ describe("formatPct", () => {
   test("valor > 1 se trata como porcentaje directo", () => {
     expect(formatPct(13.9)).toBe("13.9%");
   });
-  test("<= 0 o no finito → '-'", () => {
-    expect(formatPct(0)).toBe("-");
-    expect(formatPct(-1)).toBe("-");
-    expect(formatPct(null)).toBe("-");
+  test("<= 0 o no finito → vacío", () => {
+    expect(formatPct(0)).toBe("");
+    expect(formatPct(-1)).toBe("");
+    expect(formatPct(null)).toBe("");
   });
 });
 
@@ -92,11 +92,11 @@ test("riConfirmed sólo con cobertura confirmada", () => {
   expect(riConfirmed(R({ ri_coverage: null }))).toBe(false);
 });
 
-test("power labels: horas redondeadas y uptime sin decimales; '-' si null", () => {
+test("power labels: horas redondeadas y uptime sin decimales; vacío si null", () => {
   expect(powerHoursLabel(R({ power_running_hours: 719.6 }))).toBe("720 h");
-  expect(powerHoursLabel(R({ power_running_hours: null }))).toBe("-");
+  expect(powerHoursLabel(R({ power_running_hours: null }))).toBe("");
   expect(powerUptimeLabel(R({ power_uptime_pct: 99.7 }))).toBe("100%");
-  expect(powerUptimeLabel(R({ power_uptime_pct: null }))).toBe("-");
+  expect(powerUptimeLabel(R({ power_uptime_pct: null }))).toBe("");
 });
 
 test("rowPayg usa payg_monthly y cae a costo manual", () => {

@@ -80,7 +80,7 @@ export default function SeccionConsumo({ fact, catSerie }: {
     {
       key: "costo", label: "Costo por recurso", align: "right",
       render: (r) => (r[3] === null
-        ? <SinMedir motivo="Ningún recurso activo ese mes: no hay base sobre la que dividir el gasto." etiqueta="—" />
+        ? <SinMedir motivo="Ningún recurso activo ese mes: no hay base sobre la que dividir el gasto." />
         : fmtMonto(num(r[3]))),
     },
   ];
@@ -143,13 +143,13 @@ export default function SeccionConsumo({ fact, catSerie }: {
       // D5: en un mes parcial las bajas no se cuentan (el archivo todavía no las tiene todas), así
       // que el 0 de esa fila no es "no hubo bajas": no se midieron.
       render: (r) => (num(r[6]) === 1
-        ? <SinMedir motivo="Mes parcial: las bajas de un mes incompleto no se cuentan." etiqueta="—" />
+        ? <SinMedir motivo="Mes parcial: las bajas de un mes incompleto no se cuentan." />
         : fmtNum(num(r[3]))),
     },
     {
       key: "ret", label: "Monto retirado", align: "right",
       render: (r) => (num(r[6]) === 1
-        ? <SinMedir motivo="Mes parcial: no se mide el monto retirado." etiqueta="—" />
+        ? <SinMedir motivo="Mes parcial: no se mide el monto retirado." />
         : fmtMonto(num(r[5]))),
     },
   ];

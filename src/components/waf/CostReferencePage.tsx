@@ -91,7 +91,7 @@ export default function CostReferencePage({ onNavigate }: { onNavigate?: (key: s
     col.accessor("matrix_code", { header: "Código", filterFn: textFilter, cell: (c) => <span className="font-medium tabular-nums">{c.getValue()}</span> }),
     col.accessor("review_scope_es", {
       header: "Ámbito", filterFn: textFilter,
-      cell: (c) => <span className="truncate block max-w-[260px]">{c.getValue() ?? "—"}</span>,
+      cell: (c) => <span className="truncate block max-w-[260px]">{c.getValue() ?? ""}</span>,
     }),
     col.accessor("business_impact", {
       header: "Impacto", filterFn: impactFilter,

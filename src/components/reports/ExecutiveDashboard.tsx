@@ -198,6 +198,10 @@ export default function ExecutiveDashboard({ report, clientId, year, month, canE
   const advScores = advisor?.current?.pillars ?? {};
   const advDelta = advisor?.delta ?? {};
   const advSeries = advisor?.series ?? [];
+  // Fecha del último snapshot; si el snapshot no trae fecha, se cae al texto de "sin snapshots".
+  const advSnapshotDate = advisor?.current
+    ? advisor.current.snapshot_date || fmtDateISO(advisor.current.captured_at)
+    : "";
 
   const content = (
     <div className="space-y-6">
@@ -359,8 +363,8 @@ export default function ExecutiveDashboard({ report, clientId, year, month, canE
               <SimpleTable
                 cols={[
                   { key: "plan", label: "Plan", render: (r: (typeof planRows)[number]) => <span className="font-medium">{r.plan}</span> },
-                  { key: "sku", label: "SKU", render: (r) => r.sku || "—" },
-                  { key: "apps", label: "Apps", align: "right", render: (r) => String(r.apps ?? "—") },
+                  { key: "sku", label: "SKU", render: (r) => r.sku || "" },
+                  { key: "apps", label: "Apps", align: "right", render: (r) => String(r.apps ?? "") },
                   { key: "cpu", label: "CPU", align: "right", render: (r) => pct((r.metrics as AppPlanMetric).cpu_avg) },
                   { key: "ram", label: "RAM", align: "right", render: (r) => pct((r.metrics as AppPlanMetric).ram_avg) },
                 ]}
@@ -396,14 +400,14 @@ export default function ExecutiveDashboard({ report, clientId, year, month, canE
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[1, 2, 3, 4, 5].map((p) => {
               const v = advScores[String(p)];
-              return <Kpi key={p} label={WAF_PILLARS[p]} value={v === undefined ? "—" : `${Math.round(Number(v))}%`} hint={deltaText(advDelta[String(p)])} tone={advisorTone(v)} />;
+              return <Kpi key={p} label={WAF_PILLARS[p]} value={v === undefined ? "" : `${Math.round(Number(v))}%`} hint={deltaText(advDelta[String(p)])} tone={advisorTone(v)} />;
             })}
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             <div className="rounded-xl border bg-card p-4">
               <h3 className="text-sm font-medium mb-1">Evolución mensual Advisor Score</h3>
               <p className="text-xs text-muted-foreground mb-2">
-                {advisor?.current ? `Último snapshot guardado: ${advisor.current.snapshot_date || fmtDateISO(advisor.current.captured_at) || "—"}.` : "Sin snapshots para el periodo; se completará con el refresh semanal."}
+                {advSnapshotDate ? `Último snapshot guardado: ${advSnapshotDate}.` : "Sin snapshots para el periodo; se completará con el refresh semanal."}
               </p>
               {advSeries.length > 0 ? (
                 <ReportLine data={advSeries.map((s) => ({ x: s.label ?? s.month ?? "", Promedio: Math.round(s.average) }))}

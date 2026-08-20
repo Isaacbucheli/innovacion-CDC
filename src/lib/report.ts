@@ -63,9 +63,10 @@ export function perfAverages(vms: ReportPerfVm[] | undefined): { cpu: number; ra
 }
 
 // Nombre legible de una regla de alerta cuyo "tipo" suele ser un resource id largo.
+// Vacío si no hay dato (o si el dato es un "-" de relleno).
 export function shortRuleName(s: string | null | undefined): string {
   const t = (s ?? "").trim();
-  if (!t || t === "-") return "—";
+  if (!t || t === "-") return "";
   if (t.includes("/")) return t.split("/").filter(Boolean).pop() ?? t;
   return t;
 }

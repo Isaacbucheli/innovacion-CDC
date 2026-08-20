@@ -36,7 +36,7 @@ export default function FindingsGroup({
         <span className="font-semibold">{label}</span>
         <span className="text-xs text-muted-foreground">{count} hallazgo{count === 1 ? "" : "s"}</span>
         <span className="ml-auto font-bold tabular-nums text-[#5a7016] dark:text-[#a9c46a]">
-          {savings > 0 ? `${formatMoney(savings)} /mes` : "—"}
+          {savings > 0 ? `${formatMoney(savings)} /mes` : ""}
         </span>
       </button>
       {open && <div className="border-t">{children}</div>}

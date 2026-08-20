@@ -32,8 +32,8 @@ export default function CredentialAuditSheet({ credential, open, onOpenChange }:
               empty="Sin eventos registrados."
               cols={[
                 { key: "action", label: "Acción" },
-                { key: "actor", label: "Actor", render: (r: CredentialAudit) => r.actor || "—" },
-                { key: "details", label: "Detalle", render: (r: CredentialAudit) => r.details || "—" },
+                { key: "actor", label: "Actor", render: (r: CredentialAudit) => r.actor || "" },
+                { key: "details", label: "Detalle", render: (r: CredentialAudit) => r.details || "" },
                 { key: "occurred_at", label: "Fecha", render: (r: CredentialAudit) => (r.occurred_at || "").slice(0, 19) },
               ]}
               rows={rows}

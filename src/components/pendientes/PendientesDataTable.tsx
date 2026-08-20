@@ -143,7 +143,8 @@ export default function PendientesDataTable({
       header: "Tipo", filterFn: labelFilter,
       cell: (c) => {
         const v = c.getValue<string | null>();
-        return <Chip tone={TIPO_TONE[v ?? ""] ?? "bg-secondary"}>{tipoLabel(v)}</Chip>;
+        const label = tipoLabel(v);
+        return label ? <Chip tone={TIPO_TONE[v ?? ""] ?? "bg-secondary"}>{label}</Chip> : null;
       },
     },
     {
@@ -151,7 +152,7 @@ export default function PendientesDataTable({
       header: "Prioridad", filterFn: labelFilter,
       cell: (c) => {
         const v = c.getValue<string | null>();
-        return <Chip tone={PRIORIDAD_TONE[v ?? ""] ?? "bg-secondary"}>{v ?? "—"}</Chip>;
+        return v ? <Chip tone={PRIORIDAD_TONE[v] ?? "bg-secondary"}>{v}</Chip> : null;
       },
       sortingFn: (a, b) =>
         (PRIORIDAD_RANK[a.original.prioridad ?? ""] ?? 9) - (PRIORIDAD_RANK[b.original.prioridad ?? ""] ?? 9),
@@ -159,14 +160,15 @@ export default function PendientesDataTable({
     {
       accessorKey: "responsable",
       header: "Responsable", filterFn: textFilter,
-      cell: (c) => c.getValue<string | null>() ?? <span className="text-muted-foreground">—</span>,
+      cell: (c) => c.getValue<string | null>(),
     },
     {
       accessorKey: "estado",
       header: "Estado", filterFn: labelFilter,
       cell: (c) => {
         const v = c.getValue<string | null>();
-        return <Chip tone={ESTADO_TONE[v ?? ""] ?? "bg-secondary"}>{estadoLabel(v)}</Chip>;
+        const label = estadoLabel(v);
+        return label ? <Chip tone={ESTADO_TONE[v ?? ""] ?? "bg-secondary"}>{label}</Chip> : null;
       },
       sortingFn: (a, b) =>
         (ESTADO_RANK[a.original.estado ?? ""] ?? 9) - (ESTADO_RANK[b.original.estado ?? ""] ?? 9),
@@ -176,7 +178,7 @@ export default function PendientesDataTable({
       header: "Creado", filterFn: textFilter,
       cell: (c) => (
         <span className="whitespace-nowrap text-muted-foreground">
-          {c.getValue<string | null>() ?? "—"}
+          {c.getValue<string | null>() ?? ""}
         </span>
       ),
     },

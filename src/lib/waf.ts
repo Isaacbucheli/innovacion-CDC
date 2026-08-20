@@ -46,7 +46,7 @@ export const IMPACT_META: Record<string, { label: string; chip: string }> = {
 };
 export function impactMeta(impact: string | null): { label: string; chip: string } {
   const k = (impact ?? "").toLowerCase();
-  return IMPACT_META[k] ?? { label: impact ?? "—", chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" };
+  return IMPACT_META[k] ?? { label: impact ?? "", chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" };
 }
 
 // ---- Historial de cambios: etiquetas amigables + formato de valores ----
@@ -72,8 +72,9 @@ const WAF_PRIORITY_LABELS: Record<string, string> = { "1": "Alta", "2": "Media",
 
 // Formatea el valor crudo guardado en el historial: avance con %, prioridad a etiqueta,
 // fechas ISO (yyyy-MM-dd) a dd/MM/yyyy; el resto (bitácora/notas/esfuerzo) tal cual.
+// Sin valor devuelve vacío.
 export function wafHistoryValue(field: string, value: string | null): string {
-  if (value == null || value === "") return "—";
+  if (value == null || value === "") return "";
   if (field === "completion_pct") return `${value}%`;
   if (field === "priority_override") return WAF_PRIORITY_LABELS[value] ?? value;
   if (field === "remediation_start_date" || field === "remediation_end_date") {
@@ -171,7 +172,7 @@ export const REVIEW_STATUS_META: Record<string, { label: string; chip: string }>
 };
 
 export function reviewStatusMeta(status: string | null): { label: string; chip: string } {
-  return REVIEW_STATUS_META[status ?? ""] ?? { label: status ?? "—", chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" };
+  return REVIEW_STATUS_META[status ?? ""] ?? { label: status ?? "", chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" };
 }
 
 export function filterCatalog(rows: WafCanonical[], q: string): WafCanonical[] {

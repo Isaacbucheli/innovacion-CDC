@@ -37,7 +37,7 @@ export default function SeccionEjecutado({ ej }: { ej: InformeEjecutado }) {
   const cols: SimpleCol<InformeAccionEjecutada>[] = [
     { key: "oportunidad", label: "Acción", render: (f) => f.oportunidad },
     { key: "cat", label: "Categoría", render: (f) => f.cat },
-    { key: "rec", label: "Recurso", render: (f) => f.rec ?? "—" },
+    { key: "rec", label: "Recurso", render: (f) => f.rec ?? "" },
     { key: "mes", label: "Mes", render: (f) => etiquetaMes(f.mes) },
     {
       key: "monto", label: "Ahorro mensual", align: "right",
@@ -135,7 +135,7 @@ function SeccionReservas({ reservas }: { reservas: InformeReservasFacturadas }) 
       key: "vm", label: "VM",
       render: (f) => <>{f.vm}{f.compartida && <span className="ml-1 text-xs text-muted-foreground">(compartida)</span>}</>,
     },
-    { key: "sku", label: "SKU", render: (f) => f.sku ?? "—" },
+    { key: "sku", label: "SKU", render: (f) => f.sku ?? "" },
     {
       key: "demanda", label: "Por demanda", align: "right",
       render: (f) => <Cifra valor={f.demanda} formato={fmtMonto}
@@ -151,7 +151,7 @@ function SeccionReservas({ reservas }: { reservas: InformeReservasFacturadas }) 
       key: "vence", label: "Vence",
       render: (f) => (f.vence
         ? <>{f.vence}{f.porVencer && <span className="ml-1 font-medium text-amber-700 dark:text-amber-400">próxima a vencer</span>}</>
-        : "—"),
+        : ""),
     },
   ];
 
@@ -216,7 +216,7 @@ function SeccionReservasRespaldo({
         : fmtMonto(f.ahorro)),
     },
     { key: "desde", label: "Desde", render: (f) => etiquetaMes(f.desde) },
-    { key: "vence", label: "Vence", render: (f) => (f.vence ? etiquetaMes(f.vence) : "—") },
+    { key: "vence", label: "Vence", render: (f) => (f.vence ? etiquetaMes(f.vence) : "") },
   ];
 
   return (

@@ -34,9 +34,9 @@ describe("fmtDateTime / fmtDate (hora de Quito)", () => {
     expect(fmtDate("2026-08-01T01:00:00Z")).toBe("31/7/2026");
   });
 
-  it("muestra — para null", () => {
-    expect(fmtDateTime(null)).toBe("—");
-    expect(fmtDate(undefined)).toBe("—");
+  it("devuelve vacío para null", () => {
+    expect(fmtDateTime(null)).toBe("");
+    expect(fmtDate(undefined)).toBe("");
   });
 });
 
@@ -53,7 +53,7 @@ describe("fmtDateOnly (fechas calendario, sin desplazar por zona)", () => {
     expect(fmtDateOnly("2026-07-15T00:00:00Z")).toBe("15/7/2026");
   });
 
-  it("muestra — para null", () => {
-    expect(fmtDateOnly(null)).toBe("—");
+  it("devuelve vacío para null", () => {
+    expect(fmtDateOnly(null)).toBe("");
   });
 });

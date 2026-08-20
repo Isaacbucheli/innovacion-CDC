@@ -165,8 +165,8 @@ export default function ExecutiveActionPlan({ clientId, year, month }: { clientI
                     <span className="font-medium">{row.hallazgo}</span>
                     {row.updated_by && <span className="block text-[11px] text-muted-foreground mt-0.5">Editado por {row.updated_by}</span>}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{row.accion || "—"}</TableCell>
-                  <TableCell>{row.responsable || "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">{row.accion || ""}</TableCell>
+                  <TableCell>{row.responsable || ""}</TableCell>
                   <TableCell>{row.estado}</TableCell>
                 </TableRow>
               ))}

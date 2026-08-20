@@ -73,7 +73,7 @@ export function appliedScopeText(r: Pick<Reservation, "applied_scope_type" | "ap
   if (type === "shared") return "Compartida (todas las suscripciones del tenant)";
   if (type === "managementgroup") return "Grupo de administración" + (scopes.length ? `: ${scopes.map(lastSeg).join(", ")}` : "");
   if (type === "single" || scopes.length) return "Suscripción específica" + (scopes.length ? `: ${scopes.map(lastSeg).join(", ")}` : "");
-  return r.applied_scope_type || "—";
+  return r.applied_scope_type || "";
 }
 
 // Promedio de utilización 7d (sobre las reservas con dato numérico).

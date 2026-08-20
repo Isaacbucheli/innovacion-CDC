@@ -165,11 +165,13 @@ export default function CredentialsManager({ clientId }: { clientId: number }) {
               {subPages.pageRows.map((s) => (
                 <div key={s.client_subscription_id} className="flex items-center gap-3 px-4 py-3">
                   <div className="min-w-0 flex-1">
-                    <div className="font-medium truncate" title={s.subscription_name ?? undefined}>{s.subscription_name || "—"}</div>
+                    <div className="font-medium truncate" title={s.subscription_name ?? undefined}>{s.subscription_name}</div>
                     <div className="font-mono text-[11px] text-muted-foreground truncate" title={s.subscription_id}>{s.subscription_id}</div>
                     <div className="text-[11px] text-muted-foreground truncate">
-                      {s.credential_name || (s.credential_id ? `#${s.credential_id}` : "—")}
-                      {s.last_synced_at ? ` · sync ${fmtDateISO(s.last_synced_at)}` : ""}
+                      {[
+                        s.credential_name || (s.credential_id ? `#${s.credential_id}` : ""),
+                        s.last_synced_at ? `sync ${fmtDateISO(s.last_synced_at)}` : "",
+                      ].filter(Boolean).join(" · ")}
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">

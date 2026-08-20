@@ -270,12 +270,10 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                                   <span className="text-[10px] text-muted-foreground">({g.derived_resource_count} inv.)</span>
                                 ) : null}
                               </div>
-                            ) : (
-                              "—"
-                            )}
+                            ) : null}
                           </td>
                           <td className="max-w-72 px-4 py-2.5 text-xs text-muted-foreground">
-                            <span className="line-clamp-2">{texts.action ?? "—"}</span>
+                            {texts.action ? <span className="line-clamp-2">{texts.action}</span> : null}
                             {g.learn_more_url ? (
                               <a href={g.learn_more_url} target="_blank" rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
@@ -342,12 +340,10 @@ export default function BoletinPage({ onNavigate }: { onNavigate: (key: string) 
                                   <span className="text-[10px] text-muted-foreground">({g.derived_resource_count} inv.)</span>
                                 ) : null}
                               </div>
-                            ) : (
-                              "—"
-                            )}
+                            ) : null}
                           </td>
                           <td className="max-w-72 px-4 py-2.5 text-xs text-muted-foreground">
-                            <span className="line-clamp-2">{texts.action ?? "—"}</span>
+                            {texts.action ? <span className="line-clamp-2">{texts.action}</span> : null}
                             {g.learn_more_url ? (
                               <a href={g.learn_more_url} target="_blank" rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}

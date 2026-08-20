@@ -64,10 +64,10 @@ export default function SeccionPostura({ ad, corte, opex }: {
     { key: "c", label: "Recomendaciones", align: "right", render: (c) => fmtNum(c.c) },
     {
       key: "h", label: "Alto", align: "right",
-      render: (c) => (c.h > 0 ? <span className="text-red-700 dark:text-red-400">{fmtNum(c.h)}</span> : "—"),
+      render: (c) => (c.h > 0 ? <span className="text-red-700 dark:text-red-400">{fmtNum(c.h)}</span> : ""),
     },
-    { key: "m", label: "Medio", align: "right", render: (c) => (c.m > 0 ? fmtNum(c.m) : "—") },
-    { key: "l", label: "Bajo", align: "right", render: (c) => (c.l > 0 ? fmtNum(c.l) : "—") },
+    { key: "m", label: "Medio", align: "right", render: (c) => (c.m > 0 ? fmtNum(c.m) : "") },
+    { key: "l", label: "Bajo", align: "right", render: (c) => (c.l > 0 ? fmtNum(c.l) : "") },
   ];
 
   const colsRetiros: SimpleCol<InformePosturaRetiro>[] = [

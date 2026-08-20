@@ -88,9 +88,9 @@ export default function FinOpsRefreshDialog({
                     <TableCell>{r.dataset}</TableCell>
                     <TableCell>{fmtDate(r.refreshed_at)}</TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {r.row_count != null ? r.row_count.toLocaleString("en-US") : "—"}
+                      {r.row_count != null ? r.row_count.toLocaleString("en-US") : ""}
                     </TableCell>
-                    <TableCell>{r.status ?? "—"}</TableCell>
+                    <TableCell>{r.status ?? ""}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

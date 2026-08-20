@@ -57,7 +57,7 @@ export default function CostsKpis({ kpis }: { kpis: CostKpis }) {
         icon={<TrendingUp className="w-[18px] h-[18px]" />}
         label="Mejor ahorro estimado"
         value={best ? formatMoney(best.savings_monthly) : "$0.00"}
-        sub={best ? `${best.name || "Mejor escenario"} · ${formatPct(best.savings_pct)}` : "Sin escenarios cargados."}
+        sub={best ? [best.name || "Mejor escenario", formatPct(best.savings_pct)].filter(Boolean).join(" · ") : "Sin escenarios cargados."}
       />
       <Card
         icon={<LayoutGrid className="w-[18px] h-[18px]" />}

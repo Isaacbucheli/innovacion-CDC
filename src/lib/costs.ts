@@ -44,7 +44,7 @@ export function visibleServiceKey(key: string | null | undefined): string {
 
 export function serviceName(key: string | null | undefined): string {
   const k = key ?? "";
-  return SERVICE_LABELS[k] || k || "-";
+  return SERVICE_LABELS[k] || k || "";
 }
 
 export function serviceIcon(key: string | null | undefined): string {
@@ -58,18 +58,18 @@ const moneyFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 });
 
-/** Formato USD con 2 decimales; "-" para nulo/vacío/no finito. */
+/** Formato USD con 2 decimales; vacío para nulo/vacío/no finito. */
 export function formatMoney(value: number | string | null | undefined): string {
-  if (value === null || value === undefined || value === "") return "-";
+  if (value === null || value === undefined || value === "") return "";
   const n = Number(value);
-  if (!Number.isFinite(n)) return "-";
+  if (!Number.isFinite(n)) return "";
   return moneyFormatter.format(n);
 }
 
-/** Porcentaje con 1 decimal; valores <= 1 se asumen fracción (x100); "-" si <= 0 o no finito. */
+/** Porcentaje con 1 decimal; valores <= 1 se asumen fracción (x100); vacío si <= 0 o no finito. */
 export function formatPct(value: number | string | null | undefined): string {
   const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) return "-";
+  if (!Number.isFinite(n) || n <= 0) return "";
   const pct = n <= 1 ? n * 100 : n;
   return `${pct.toFixed(1)}%`;
 }
@@ -86,7 +86,7 @@ export const STATUS_META: Record<string, { label: string; badge: string }> = {
 };
 
 export function statusMeta(status: string | null | undefined): { label: string; badge: string } {
-  return STATUS_META[status ?? ""] ?? { label: status || "-", badge: "bg-slate-100 text-slate-700" };
+  return STATUS_META[status ?? ""] ?? { label: status || "", badge: "bg-slate-100 text-slate-700" };
 }
 
 // Origen del precio: refleja pricingBadge() del front vanilla.
@@ -108,7 +108,7 @@ export const PRICING_META: Record<PricingKind, { label: string; title: string; b
     title: "Precio seleccionado por reglas determinísticas y Retail Prices API.",
     badge: "bg-green-100 text-green-800",
   },
-  none: { label: "-", title: "", badge: "bg-slate-100 text-slate-600" },
+  none: { label: "", title: "", badge: "bg-slate-100 text-slate-600" },
 };
 
 export function pricingKind(row: CostResult): PricingKind {
@@ -127,14 +127,14 @@ export function riTooltip(row: CostResult): string {
   return [row.ri_reservation_name, row.ri_term].filter(Boolean).join(" · ");
 }
 
-/** Horas encendida del mes anterior (solo VMs); "-" si no aplica o sin datos. */
+/** Horas encendida del mes anterior (solo VMs); vacío si no aplica o sin datos. */
 export function powerHoursLabel(row: CostResult): string {
-  if (row.power_running_hours == null) return "-";
+  if (row.power_running_hours == null) return "";
   return `${Math.round(Number(row.power_running_hours))} h`;
 }
 
 export function powerUptimeLabel(row: CostResult): string {
-  if (row.power_uptime_pct == null) return "-";
+  if (row.power_uptime_pct == null) return "";
   return `${Number(row.power_uptime_pct).toFixed(0)}%`;
 }
 

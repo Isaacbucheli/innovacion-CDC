@@ -49,7 +49,7 @@ export default function WafKpis({ summary, avgProgress, highImpact }: {
   summary: WafSummary | null; avgProgress: number; highImpact: number;
 }) {
   const ing = summary?.latest_ingestion;
-  const ingLabel = ing?.completed_at ? fmtDate(ing.completed_at) : "—";
+  const ingLabel = ing?.completed_at ? fmtDate(ing.completed_at) : "";
   const source = ing?.source_file_name ?? "";
   const ingSub = source ? (/advisor/i.test(source) ? "vía Azure Advisor" : source) : "sin ingestas aún";
   return (
@@ -73,7 +73,7 @@ export default function WafKpis({ summary, avgProgress, highImpact }: {
         </div>
         <div className="min-w-0">
           <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground truncate">Última ingesta</div>
-          <div className="text-base font-bold tracking-tight leading-none mt-0.5">{ingLabel}</div>
+          {ingLabel && <div className="text-base font-bold tracking-tight leading-none mt-0.5">{ingLabel}</div>}
           <div className="text-[10px] text-muted-foreground mt-0.5 truncate">{ingSub}</div>
         </div>
       </div>

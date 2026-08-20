@@ -22,8 +22,8 @@ export default function InventorySummary({ rows }: { rows: InventoryRow[] }) {
         <TableBody>
           {rows.map((r, i) => (
             <TableRow key={`${r.service_category}-${r.resource_type}-${i}`}>
-              <TableCell>{r.service_category || "-"}</TableCell>
-              <TableCell>{r.resource_type || "-"}</TableCell>
+              <TableCell>{r.service_category ?? ""}</TableCell>
+              <TableCell>{r.resource_type ?? ""}</TableCell>
               <TableCell className="text-right tabular-nums">{r.count ?? 0}</TableCell>
             </TableRow>
           ))}

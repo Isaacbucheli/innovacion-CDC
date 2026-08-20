@@ -114,9 +114,7 @@ export default function CostsDataTable({
       >
         No elegible
       </Pill>
-    ) : (
-      <span className="text-muted-foreground">-</span>
-    );
+    ) : null;
   };
 
   const columns: ColumnDef<CostResult>[] = useMemo(() => [
@@ -146,11 +144,11 @@ export default function CostsDataTable({
       accessorKey: "resource_name",
       header: "Recurso",
       filterFn: textFilter,
-      cell: (c) => <span className="font-medium">{c.getValue<string>() ?? "-"}</span>,
+      cell: (c) => <span className="font-medium">{c.getValue<string>() ?? ""}</span>,
     },
-    { accessorKey: "sku_name", header: "SKU", filterFn: textFilter, cell: (c) => c.getValue<string>() ?? "-" },
-    { accessorKey: "resource_group", header: "Grupo", filterFn: textFilter, cell: (c) => c.getValue<string>() ?? "-" },
-    { accessorKey: "location", header: "Región", filterFn: textFilter, cell: (c) => c.getValue<string>() ?? "-" },
+    { accessorKey: "sku_name", header: "SKU", filterFn: textFilter, cell: (c) => c.getValue<string>() ?? "" },
+    { accessorKey: "resource_group", header: "Grupo", filterFn: textFilter, cell: (c) => c.getValue<string>() ?? "" },
+    { accessorKey: "location", header: "Región", filterFn: textFilter, cell: (c) => c.getValue<string>() ?? "" },
     {
       id: "reserved",
       accessorFn: (r) => (riConfirmed(r) ? "Reservado" : ""),
@@ -162,9 +160,7 @@ export default function CostsDataTable({
           <Pill className="bg-[#A3C243]/15 text-[#5a7016] dark:text-[#a9c46a]" title={riTooltip(row.original)}>
             Reservado
           </Pill>
-        ) : (
-          <span className="text-muted-foreground">-</span>
-        ),
+        ) : null,
     },
     { accessorKey: "payg_monthly", header: "PAYG mes", sortingFn: numSort, filterFn: textFilter, cell: (c) => money(c.getValue<number | null>()) },
     {
@@ -203,7 +199,8 @@ export default function CostsDataTable({
       filterFn: statusFilter,
       cell: (c) => {
         const m = statusMeta(c.getValue<string>());
-        return <Pill className={m.badge}>{m.label}</Pill>;
+        // Sin etiqueta no se pinta el pill (se vería como una píldora vacía).
+        return m.label ? <Pill className={m.badge}>{m.label}</Pill> : null;
       },
     },
     {
@@ -214,11 +211,12 @@ export default function CostsDataTable({
       filterFn: textFilter,
       cell: ({ row }) => {
         const m = PRICING_META[pricingKind(row.original)];
-        return (
+        // El origen "none" no tiene etiqueta: no se pinta el pill.
+        return m.label ? (
           <Pill className={m.badge} title={m.title}>
             {m.label}
           </Pill>
-        );
+        ) : null;
       },
     },
     {

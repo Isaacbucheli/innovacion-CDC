@@ -1032,7 +1032,7 @@ test("la columna Privilegio muestra el techo del privilegio, con etiqueta corta"
   expect(screen.queryByText("Owner (otorga accesos)")).toBeNull();
 });
 
-test("la columna Decisión no repite el mismo texto: guion sin decisiones, avance con ellas", async () => {
+test("la columna Decisión no repite el mismo texto: vacía sin decisiones, avance con ellas", async () => {
   resp.accounts = [
     C({ principal_object_id: "u1", display_name: "Ana Sin Decidir", decision_pendientes: 8 }),
     C({ principal_object_id: "u2", display_name: "Beto Avanzado", decision_pendientes: 5, decision_mantener: 3 }),
@@ -1041,9 +1041,11 @@ test("la columna Decisión no repite el mismo texto: guion sin decisiones, avanc
   await renderPage();
 
   const ana = (await screen.findByText("Ana Sin Decidir")).closest("tr")!;
-  expect(within(ana).getByText("—")).toBeInTheDocument();
   // El desglose sigue disponible para lectores de pantalla y en el panel, pero no como texto visible.
-  expect(within(ana).getByText("8 pendientes")).toHaveClass("sr-only");
+  const desglose = within(ana).getByText("8 pendientes");
+  expect(desglose).toHaveClass("sr-only");
+  // Sin decisiones la celda queda vacía a la vista: nada de relleno antes del desglose oculto.
+  expect(desglose.parentElement).toHaveTextContent(/^8 pendientes$/);
 
   const beto = screen.getByText("Beto Avanzado").closest("tr")!;
   expect(within(beto).getByText("3 de 8")).toBeInTheDocument();

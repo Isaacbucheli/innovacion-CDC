@@ -34,7 +34,7 @@ export default function ExecutiveSummary({ report }: { report: MonthlyReport }) 
       <div className="rounded-xl border bg-card p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
-            <h2 className="text-xl font-semibold">{report.client?.name ?? "—"}</h2>
+            <h2 className="text-xl font-semibold">{report.client?.name ?? ""}</h2>
             <p className="text-sm text-muted-foreground">Informe de gestión · {report.period?.label ?? ""}{report.period?.partial ? " (parcial)" : ""}</p>
           </div>
           {report.generated_at && <span className="text-xs text-muted-foreground">generado {fmtDateISO(report.generated_at)}</span>}
