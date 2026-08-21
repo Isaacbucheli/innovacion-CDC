@@ -17,7 +17,11 @@ export default function ImportDialog({
   onOpenChange: (o: boolean) => void;
   onConfirm: (replaceExisting: boolean) => void;
 }) {
-  const [replace, setReplace] = useState(false);
+  // Arranca marcada. Antes venía desmarcada y su etiqueta ofrecía "actualizar", un modo que el
+  // backend nunca implementó: importar de nuevo sin reemplazar APENDEABA, así que cada recurso
+  // quedaba duplicado y con él cada conteo y cada monto del análisis. Pasó en dos análisis reales.
+  // Desde 2026-08-21 el backend además rechaza esa combinación, pero el default seguro va acá.
+  const [replace, setReplace] = useState(true);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,10 +40,17 @@ export default function ImportDialog({
             </span>
           ))}
         </div>
-        <label className="flex items-center gap-2 text-sm cursor-pointer">
-          <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} />
-          Reemplazar inventario existente (en vez de actualizar)
-        </label>
+        <div className="space-y-1">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} />
+            Reemplazar el inventario existente
+          </label>
+          <p className="text-xs text-muted-foreground pl-6">
+            {replace
+              ? "Se borra el inventario que tenga el análisis y se vuelve a importar desde Azure."
+              : "Solo importa si el análisis todavía no tiene esos servicios. Si ya los tiene, la importación se rechaza."}
+          </p>
+        </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             Cancelar
