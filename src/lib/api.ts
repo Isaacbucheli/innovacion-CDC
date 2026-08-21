@@ -50,6 +50,7 @@ import type {
   OptScan,
   OptScanSummary,
   PendienteClienteWrite,
+  PendienteItem,
   PendientesPayload,
   PendienteWrite,
   Person,
@@ -291,6 +292,9 @@ const itemPath = (area: string, id: string, rest = "") =>
   pendPath(area, `/items/${encodeURIComponent(id)}${rest}`);
 
 export const getPendientes = (area: string) => request<PendientesPayload>(pendPath(area));
+/** Un pendiente con su bitácora al día: refresca las notas sin recargar el tablero entero. */
+export const getPendiente = (area: string, id: string) =>
+  request<PendienteItem>(itemPath(area, id));
 export const createPendiente = (area: string, p: PendienteWrite) =>
   request<{ id: string }>(pendPath(area, "/items"), jsonOpts("POST", p));
 export const updatePendiente = (area: string, id: string, p: PendienteWrite) =>

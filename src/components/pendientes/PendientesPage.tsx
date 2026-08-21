@@ -5,7 +5,6 @@ import AppShell from "@/components/AppShell";
 import SearchInput from "@/components/SearchInput";
 import ConfirmDelete from "@/components/ConfirmDelete";
 import PendientesDataTable from "@/components/pendientes/PendientesDataTable";
-import PendienteDetailSheet from "@/components/pendientes/PendienteDetailSheet";
 import PendienteFormDialog from "@/components/pendientes/PendienteFormDialog";
 import ClientesDialog from "@/components/pendientes/ClientesDialog";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,8 @@ import { usePendientes } from "@/hooks/usePendientes";
 import { deletePendiente } from "@/lib/api";
 import { canEditModule } from "@/lib/auth";
 import {
-  ESTADO_LABEL, STALE_DIAS, TIPO_LABEL, estaEstancado, tituloPrincipal, ultimaNota,
+  ESTADO_LABEL, STALE_DIAS, TIPO_LABEL, estaEstancado, responsablesDelTablero, tituloPrincipal,
+  ultimaNota,
 } from "@/lib/pendientes";
 import type { PendienteItem } from "@/types";
 
@@ -69,8 +69,8 @@ export default function PendientesPage({ area, section, title, onNavigate }: {
   const [ocultarCerrados, setOcultarCerrados] = useState(true);
   const [soloEstancados, setSoloEstancados] = useState(false);
 
-  const [detalle, setDetalle] = useState<PendienteItem | null>(null);
-  // undefined = diálogo cerrado, null = crear, objeto = editar
+  // undefined = diálogo cerrado, null = crear, objeto = ver/editar. Una sola pantalla para todo:
+  // datos y bitácora del pendiente (pedido del usuario, 2026-08-21).
   const [editar, setEditar] = useState<PendienteItem | null | undefined>(undefined);
   const [aBorrar, setABorrar] = useState<PendienteItem | null>(null);
   const [clientesOpen, setClientesOpen] = useState(false);
@@ -91,6 +91,10 @@ export default function PendientesPage({ area, section, title, onNavigate }: {
     setQ(""); setFTipo("all"); setFEstado("all"); setFCliente("all");
     setSoloEstancados(false); setOcultarCerrados(true);
   };
+
+  // Sale de todos los pendientes del área, no de `filtrados`: la lista del formulario no se achica
+  // porque haya un filtro puesto en la tabla.
+  const responsables = useMemo(() => responsablesDelTablero(pendientes, clientes), [pendientes, clientes]);
 
   const filtrados = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -236,25 +240,18 @@ export default function PendientesPage({ area, section, title, onNavigate }: {
           pendientes={filtrados}
           clientes={clientes}
           canEdit={puedeEditar}
-          onOpen={setDetalle}
+          onOpen={(p) => setEditar(p)}
           onEdit={(p) => setEditar(p)}
           onDelete={(p) => setABorrar(p)} />
       )}
-
-      <PendienteDetailSheet
-        area={area}
-        pendiente={detalle}
-        clientes={clientes}
-        canEdit={puedeEditar}
-        open={!!detalle}
-        onOpenChange={(o) => !o && setDetalle(null)}
-        onChanged={() => { reload(); setDetalle(null); }} />
 
       <PendienteFormDialog
         area={area}
         open={editar !== undefined}
         pendiente={editar ?? null}
         clientes={clientes}
+        responsables={responsables}
+        canEdit={puedeEditar}
         onOpenChange={(o) => !o && setEditar(undefined)}
         onSaved={reload} />
 
