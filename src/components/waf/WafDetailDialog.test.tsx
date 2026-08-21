@@ -109,11 +109,14 @@ test("en inglés el título usa el original de Azure y solo traduce el contenido
   const { default: WafDetailDialog } = await import("@/components/waf/WafDetailDialog");
   render(<WafDetailDialog clientId={3} canonicalId={9} pillarName="Costos" open english onOpenChange={() => {}} onChanged={() => {}} />);
 
-  await waitFor(() => expect(screen.getByText(/Buy virtual machine reserved instances/)).toBeInTheDocument());
+  // Esperar por el contenido traducido, no por el título: son dos efectos en cadena (primero llega el
+  // registro y con él el título, después resuelve la traducción). Esperando el título, las aserciones
+  // de abajo corrían antes de que la traducción existiera y la prueba fallaba una de cada tres veces.
+  await waitFor(() => expect(screen.getByText("EN(Ahorra)")).toBeInTheDocument());
+  expect(screen.getByText(/Buy virtual machine reserved instances/)).toBeInTheDocument();
   expect(screen.queryByText(/EN\(RI\)/)).not.toBeInTheDocument(); // el ámbito NO se retraduce
   expect(screen.getByText("Título: original de Azure Advisor")).toBeInTheDocument();
   // El contenido BIT sí se traduce, y se avisa que es traducción.
-  expect(screen.getByText("EN(Ahorra)")).toBeInTheDocument();
   expect(screen.getByText(/Traducido \(contenido BIT\)/)).toBeInTheDocument();
   expect(vi.mocked(tr.translateToEnglish)).toHaveBeenCalledWith(["Ahorra", "Aprobar", "Comprar"]);
 });
