@@ -201,12 +201,17 @@ export default function PendientesDataTable({
                 </div>
               </>
             ) : (
-              <span className="text-muted-foreground">Sin notas</span>
+              // En bloque, no en línea: como span, el aviso de abajo se le pegaba al lado
+              // ("Sin notasSin novedad 28 días").
+              <div className="text-muted-foreground">Sin notas</div>
             )}
             {estancado && (
-              <div className="text-xs text-destructive inline-flex items-center gap-1 mt-0.5">
-                <AlertTriangle className="w-3 h-3" />
-                Sin novedad {dias} días
+              <div className="mt-1">
+                {/* Como los demás avisos de la fila (tipo, prioridad, estado): chip, no texto rojo suelto. */}
+                <Chip tone="bg-destructive/10 text-destructive">
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  Sin novedad {dias} días
+                </Chip>
               </div>
             )}
           </div>
