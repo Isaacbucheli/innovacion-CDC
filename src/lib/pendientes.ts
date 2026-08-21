@@ -1,4 +1,4 @@
-import type { PendienteItem, PendienteNota } from "@/types";
+import type { PendienteCliente, PendienteItem, PendienteNota } from "@/types";
 
 /** Umbral de "sin novedad" del tablero original (STALE_DIAS = 7). */
 export const STALE_DIAS = 7;
@@ -56,4 +56,41 @@ export function estaEstancado(p: PendienteItem, hoy = new Date()): boolean {
   if (p.estado === "CERRADO") return false;
   const dias = diasSinNovedad(p, hoy);
   return dias !== null && dias > STALE_DIAS;
+}
+
+/** Un nombre escrito por gente distinta llega con dobles espacios; se guarda sin ellos. */
+export const nombreLimpio = (raw: string | null | undefined) => (raw ?? "").replace(/\s+/g, " ").trim();
+
+/**
+ * Clave para comparar nombres: sin mayúsculas ni tildes, porque "Hector" y "Héctor" son la misma
+ * persona y la columna es texto libre.
+ */
+export const claveNombre = (raw: string | null | undefined) =>
+  nombreLimpio(raw).toLocaleLowerCase("es").normalize("NFD").replace(/\p{Diacritic}/gu, "");
+
+/**
+ * Nombres que ofrece la lista de "Responsable": los que ya se usaron en los pendientes del área más
+ * el coordinador y el consultor de cada cliente del tablero.
+ *
+ * Esta base no tiene catálogo de personas y el tablero es independiente de Asignación de consultores
+ * (decisión del usuario, 2026-07-28), así que el propio dato del tablero es la fuente. El campo sigue
+ * siendo texto libre: la lista es una ayuda para no volver a escribir el mismo nombre de tres formas.
+ */
+export function responsablesDelTablero(
+  pendientes: PendienteItem[],
+  clientes: PendienteCliente[],
+): string[] {
+  // Clave de comparación → nombre tal como está escrito en la BD, que es lo que se muestra.
+  const vistos = new Map<string, string>();
+  const agregar = (raw: string | null | undefined) => {
+    const nombre = nombreLimpio(raw);
+    if (!nombre) return;
+    const clave = claveNombre(nombre);
+    if (!vistos.has(clave)) vistos.set(clave, nombre);
+  };
+  // Los responsables primero: si el mismo nombre aparece con otra grafía en la ficha del cliente,
+  // gana la grafía que ya vive en la columna Responsable.
+  for (const p of pendientes) agregar(p.responsable);
+  for (const c of clientes) { agregar(c.coordinador); agregar(c.consultor); }
+  return [...vistos.values()].sort((a, b) => a.localeCompare(b, "es"));
 }
